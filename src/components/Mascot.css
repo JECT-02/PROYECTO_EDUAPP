@@ -1,0 +1,28 @@
+.mascot-wrapper { position: relative; display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+.mascot-body { user-select: none; position: relative; }
+.mascot-bounce { animation: bounce 0.8s ease-in-out infinite; }
+.mascot-sad { animation: float 4s ease-in-out infinite; opacity: 0.7; filter: grayscale(0.4); }
+.mascot-worried { animation: shake 1s ease-in-out; }
+.mascot-name {
+  font-family: 'Outfit', sans-serif; font-size: 0.8rem;
+  font-weight: 700; letter-spacing: 0.5px;
+}
+.mascot-bubble {
+  position: absolute; bottom: calc(100% + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2); border: 1px solid var(--border-light);
+  border-radius: var(--radius); padding: 10px 14px;
+  min-width: 160px; max-width: 220px;
+  font-size: 0.82rem; line-height: 1.5;
+  color: var(--text-muted); text-align: center;
+  box-shadow: var(--shadow);
+  animation: scaleIn 0.2s ease;
+}
+.bubble-tail {
+  position: absolute; bottom: -7px; left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px; height: 12px;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}

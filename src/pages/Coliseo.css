@@ -1,0 +1,24 @@
+.coliseo-page { height: 100vh; display: flex; flex-direction: column; background: radial-gradient(circle at top, #3A0D15 0%, #0F0E17 80%); }
+.center-all { justify-content: center; align-items: center; padding: 24px; }
+.coliseo-intro { max-width: 500px; width: 100%; padding: 40px; text-align: center; border-color: rgba(245,158,11,0.3); }
+.coliseo-icon-epic { font-size: 4rem; margin-bottom: 20px; display: inline-block; }
+.coliseo-rules { list-style: none; padding: 0; margin: 30px 0; text-align: left; background: var(--surface-2); padding: 20px; border-radius: var(--radius); }
+.coliseo-rules li { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-weight: 500; }
+.coliseo-rules li:last-child { margin-bottom: 0; }
+.coliseo-actions { display: flex; gap: 16px; justify-content: center; }
+
+.coliseo-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(245,158,11,0.2); }
+.coliseo-progress { font-weight: 700; color: var(--accent); font-family: 'Outfit', sans-serif; }
+.coliseo-timer { font-size: 1.5rem; font-weight: 800; font-family: 'Outfit', sans-serif; }
+.coliseo-lives { display: flex; gap: 8px; }
+
+.coliseo-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.coliseo-arena { display: flex; flex-direction: column; align-items: center; gap: 32px; width: 100%; max-width: 700px; }
+.coliseo-q-card { width: 100%; padding: 40px; border-color: rgba(245,158,11,0.3); box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(245,158,11,0.05); }
+.coliseo-q-card h2 { text-align: center; margin-bottom: 32px; line-height: 1.4; }
+
+@media(max-width: 767px) {
+  .coliseo-actions { flex-direction: column; }
+  .coliseo-intro { padding: 24px; }
+  .coliseo-q-card { padding: 24px; }
+}
