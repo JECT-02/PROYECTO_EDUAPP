@@ -26,7 +26,7 @@ export default function ParentDashboard() {
               <div style={{ fontSize: '2rem' }}>🦊</div>
               <div>
                 <h4 style={{ fontSize: '1.1rem' }}>Sofía García</h4>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sincronía Promedio: 72%</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nivel de entendimiento Promedio: 72%</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--success)', marginTop: 4 }}>Última vez hoy</div>
               </div>
             </div>

@@ -84,7 +84,7 @@ export default function Dashboard() {
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
                   <div className="ch-info">
-                    <div className="ch-course-tag" style={{ color:c.color }}>{c.course}</div>
+                    <span className="badge badge-purple" style={{ marginBottom: 4 }}>{c.course}</span>
                     <div className="ch-title">{c.title}</div>
                     <div className="ch-time"><Clock size={12}/> {c.time}</div>
                   </div>
