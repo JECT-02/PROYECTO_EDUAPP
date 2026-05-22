@@ -1,21 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BookOpen, Zap, Trophy, Clock, TrendingUp } from 'lucide-react'
+import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code } from 'lucide-react'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Dashboard.css'
 
 const COURSES = [
-  { id:1, title:'Biología Celular', teacher:'Prof. Ramírez', progress:65, color:'#22C55E', emoji:'🧬', status:'En progreso', nodes:12, completedNodes:8 },
-  { id:2, title:'Matemáticas Avanzadas', teacher:'Prof. Torres', progress:30, color:'#6C63FF', emoji:'📐', status:'En progreso', nodes:10, completedNodes:3 },
-  { id:3, title:'Historia del Mundo', teacher:'Prof. Vega', progress:90, color:'#F59E0B', emoji:'🌍', status:'Completado', nodes:8, completedNodes:7 },
-  { id:4, title:'Programación Python', teacher:'Prof. Cruz', progress:0, color:'#3B82F6', emoji:'🐍', status:'Nuevo', nodes:15, completedNodes:0 },
+  { id:1, title:'Biología Celular', teacher:'Prof. Ramírez', progress:65, color:'#22C55E', icon:<Beaker size={32}/>, status:'En progreso', nodes:12, completedNodes:8 },
+  { id:2, title:'Matemáticas Avanzadas', teacher:'Prof. Torres', progress:30, color:'#6C63FF', icon:<Layout size={32}/>, status:'En progreso', nodes:10, completedNodes:3 },
+  { id:3, title:'Historia del Mundo', teacher:'Prof. Vega', progress:90, color:'#F59E0B', icon:<Globe size={32}/>, status:'Completado', nodes:8, completedNodes:7 },
+  { id:4, title:'Programación Python', teacher:'Prof. Cruz', progress:0, color:'#3B82F6', icon:<Code size={32}/>, status:'Nuevo', nodes:15, completedNodes:0 },
 ]
 
 const CHALLENGES = [
-  { title:'Repaso: División Celular', time:'~8 min', icon:'🔬', color:'#22C55E', course:'Biología Celular' },
-  { title:'Coliseo desbloqueado — Historia', icon:'⚔️', color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
+  { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
+  { title:'Coliseo desbloqueado — Historia', icon:<Trophy size={20}/>, color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
 ]
 
 function getGreeting() {
@@ -68,7 +68,7 @@ export default function Dashboard() {
                 ▶ Continuar sesión
               </button>
             </div>
-            <div className="continue-art">🧬</div>
+            <div className="continue-art"><Beaker size={80}/></div>
           </motion.div>
 
           {/* Challenges */}
@@ -79,7 +79,7 @@ export default function Dashboard() {
                 <motion.div
                   key={i} className="challenge-card card card-hover"
                   whileTap={{ scale:0.97 }}
-                  onClick={() => navigate(c.icon==='⚔️' ? '/coliseo' : '/quiz')}
+                  onClick={() => navigate(i===1 ? '/coliseo' : '/quiz')}
                   style={{ cursor:'pointer', borderColor:`${c.color}44` }}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
@@ -111,7 +111,7 @@ export default function Dashboard() {
                   style={{ cursor:'pointer' }}
                 >
                   <div className="course-cover" style={{ background:`linear-gradient(135deg,${c.color}44,${c.color}11)` }}>
-                    <span className="course-emoji">{c.emoji}</span>
+                    <div style={{ color: c.color }}>{c.icon}</div>
                   </div>
                   <div className="course-body">
                     <div className="course-header-row">
@@ -141,7 +141,7 @@ export default function Dashboard() {
             <div className="mascot-panel">
               <Mascot type="dragon" size="lg" mood="normal" />
               <div className="mascot-info">
-                <div className="mascot-nm">Ember 🐲</div>
+                <div className="mascot-nm">Ember</div>
                 <div className="mascot-lvl">Nivel 2 – Juvenil</div>
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function Dashboard() {
 
           {/* Last medal */}
           <div className="sidebar-card card medal-card">
-            <div className="medal-emoji">🏅</div>
+            <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
             <div className="medal-info">
               <div className="medal-name">Explorador Curioso</div>
               <div className="medal-sub">Última medalla obtenida</div>
