@@ -20,15 +20,11 @@ export default function Header({ user = { name: 'Sofía García', avatar: '🦊'
         {/* Nav (desktop) */}
         <nav className="header-nav hide-mobile">
           <NavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} />
-          <NavLink to="/explore" icon={<BookOpen size={16}/>} label="Explorar" current={location.pathname} />
           <NavLink to="/achievements" icon={<Trophy size={16}/>} label="Logros" current={location.pathname} />
         </nav>
 
         {/* Right side */}
         <div className="header-right">
-          <button className="icon-btn hide-mobile" aria-label="Buscar">
-            <Search size={18} />
-          </button>
           <button className="icon-btn notif-btn" aria-label="Notificaciones">
             <Bell size={18} />
             <span className="notif-badge">3</span>
