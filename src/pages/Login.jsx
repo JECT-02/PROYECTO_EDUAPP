@@ -87,7 +87,7 @@ export default function Login() {
                 className={`mode-btn ${magicMode ? 'active' : ''}`}
                 onClick={() => { setMagicMode(true); setMagicSent(false) }}
               >
-                Enlace mágico
+                Acceso por correo
               </button>
             </div>
 
@@ -144,13 +144,9 @@ export default function Login() {
 
                 <div className="form-divider"><span>o accede con</span></div>
                 <div className="oauth-row">
-                  <button type="button" className="oauth-btn">
-                    <img src="https://www.google.com/favicon.ico" width="16" height="16" alt="Google"/>
-                    Google
-                  </button>
-                  <button type="button" className="oauth-btn">
-                    <img src="https://www.apple.com/favicon.ico" width="16" height="16" alt="Apple"/>
-                    Apple
+                  <button type="button" className="oauth-btn" style={{ width: '100%', justifyContent: 'center' }}>
+                    <img src="https://www.google.com/favicon.ico" width="18" height="18" alt="Google"/>
+                    Continuar con Google
                   </button>
                 </div>
               </form>
