@@ -1,34 +1,84 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users } from 'lucide-react'
+import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Register.css'
 
 const ROLES = [
-  { id:'student', icon:<GraduationCap size={32}/>, title:'Soy Estudiante', desc:'Aprende con rutas personalizadas, IA y gamificación', color:'#6C63FF' },
-  { id:'teacher', icon:<BookOpen size={32}/>, title:'Soy Docente', desc:'Crea cursos, sube material y supervisa el avance', color:'#22C55E' },
-  { id:'parent', icon:<Users size={32}/>, title:'Soy Padre/Tutor', desc:'Monitorea el progreso de tus hijos vinculados', color:'#F59E0B' },
+  {
+    id: 'student',
+    icon: <GraduationCap size={32}/>,
+    title: 'Soy Estudiante',
+    desc: 'Aprende con rutas personalizadas, IA y gamificación',
+    color: '#6C63FF'
+  },
+  {
+    id: 'teacher',
+    icon: <BookOpen size={32}/>,
+    title: 'Soy Docente',
+    desc: 'Crea cursos, sube material y supervisa el avance',
+    color: '#22C55E'
+  },
+  {
+    id: 'parent',
+    icon: <Users size={32}/>,
+    title: 'Soy Padre / Tutor',
+    desc: 'Monitorea el progreso y el bienestar de tu hijo',
+    color: '#F59E0B'
+  },
 ]
+
+const GRADES = [
+  '1° Primaria','2° Primaria','3° Primaria','4° Primaria','5° Primaria','6° Primaria',
+  '1° Secundaria','2° Secundaria','3° Secundaria','4° Secundaria','5° Secundaria',
+  'Superior / Universidad',
+]
+
+const SUBJECTS = ['Matemáticas','Ciencias Naturales','Física','Química','Historia','Lengua','Programación','Arte','Otros']
+const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
-  const [form, setForm] = useState({ name:'', email:'', password:'', age:'', institution:'' })
+  const [form, setForm] = useState({
+    name: '', email: '', password: '',
+    // Student fields
+    dni: '', guardianDni: '', grade: '', age: '',
+    // Teacher fields
+    institution: '', subject: '',
+    // Parent fields
+    relation: '',
+  })
   const [otp, setOtp] = useState(['','','','','',''])
   const [loading, setLoading] = useState(false)
 
+  const upd = (key, val) => setForm(p => ({ ...p, [key]: val }))
+
+  function canAdvance() {
+    if (step === 1) return !!role
+    if (step === 2) {
+      const base = form.name && form.email && form.password
+      if (role === 'student') return base && form.dni && form.guardianDni && form.grade
+      if (role === 'teacher') return base && form.institution && form.subject
+      if (role === 'parent') return base && form.relation
+      return base
+    }
+    return true
+  }
+
   function next() {
+    if (!canAdvance()) return
     if (step === 3) {
       setLoading(true)
       setTimeout(() => { setLoading(false); navigate('/onboarding/accessibility') }, 1500)
-    } else setStep(s => Math.min(s+1, 3))
+    } else {
+      setStep(s => Math.min(s + 1, 3))
+    }
   }
 
   function handleOtp(i, val) {
-    const newOtp = [...otp]
-    newOtp[i] = val.slice(-1)
-    setOtp(newOtp)
+    const n = [...otp]; n[i] = val.slice(-1); setOtp(n)
     if (val && i < 5) document.getElementById(`otp-${i+1}`)?.focus()
   }
 
@@ -36,17 +86,20 @@ export default function Register() {
     <PageWrapper>
       <div className="register-page">
         <div className="register-wrap card">
-          {/* Progress */}
+
+          {/* Progress steps */}
           <div className="register-steps">
-            {['Rol','Datos','Verifica'].map((s,i) => (
-              <div key={s} className={`step-item ${step>i+1?'done':step===i+1?'active':''}`}>
-                <div className="step-circle">{step>i+1?'✓':i+1}</div>
+            {['Rol','Datos','Verifica'].map((s, i) => (
+              <div key={s} className={`step-item ${step > i+1 ? 'done' : step === i+1 ? 'active' : ''}`}>
+                <div className="step-circle">
+                  {step > i+1 ? <CheckCircle size={16}/> : i+1}
+                </div>
                 <span>{s}</span>
               </div>
             ))}
           </div>
 
-          {/* Step 1 - Role */}
+          {/* Step 1 — Role selection */}
           {step === 1 && (
             <div className="step-content animate-fadeInUp">
               <h2 className="step-title">¿Quién eres?</h2>
@@ -55,72 +108,156 @@ export default function Register() {
                 {ROLES.map(r => (
                   <div
                     key={r.id}
-                    className={`role-card card ${role===r.id?'selected':''}`}
+                    className={`role-card card ${role === r.id ? 'selected' : ''}`}
                     style={{ '--role-color': r.color }}
                     onClick={() => setRole(r.id)}
                   >
-                    <div className="role-card-icon" style={{ color: r.color, background:`${r.color}18` }}>
+                    <div className="role-card-icon" style={{ color: r.color, background: `${r.color}18` }}>
                       {r.icon}
                     </div>
                     <div className="role-card-title">{r.title}</div>
                     <div className="role-card-desc">{r.desc}</div>
-                    {role===r.id && <div className="role-check" style={{background:r.color}}>✓</div>}
+                    {role === r.id && <div className="role-check" style={{ background: r.color }}>✓</div>}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Step 2 - Data */}
+          {/* Step 2 — Data (role-specific) */}
           {step === 2 && (
             <div className="step-content animate-fadeInUp">
               <h2 className="step-title">Crea tu cuenta</h2>
-              <p className="step-sub">Completa tus datos para comenzar</p>
+              <p className="step-sub">
+                {role === 'student' && 'Completa tus datos personales y escolares'}
+                {role === 'teacher' && 'Completa tus datos y tu información institucional'}
+                {role === 'parent' && 'Completa tus datos para vincularte con tu hijo'}
+              </p>
+
               <div className="register-form">
-                {[
-                  { label:'Nombre completo', key:'name', type:'text', ph:'Ana Martínez' },
-                  { label:'Correo electrónico', key:'email', type:'email', ph:'ana@email.com' },
-                  { label:'Contraseña', key:'password', type:'password', ph:'Mín. 8 caracteres' },
-                ].map(f => (
-                  <div className="input-group" key={f.key}>
-                    <label>{f.label}</label>
-                    <input
-                      type={f.type} className="input-field" placeholder={f.ph}
-                      value={form[f.key]} onChange={e => setForm(prev => ({...prev, [f.key]:e.target.value}))}
-                    />
-                  </div>
-                ))}
-                {role==='student' && (
-                  <div className="input-group">
-                    <label>Grupo de edad</label>
-                    <select className="input-field" value={form.age} onChange={e => setForm(p=>({...p,age:e.target.value}))}>
-                      <option value="">Seleccionar...</option>
-                      {['7-10 años','11-14 años','15-17 años','18+ años'].map(a=><option key={a}>{a}</option>)}
-                    </select>
-                  </div>
+                {/* Common fields */}
+                <div className="input-group">
+                  <label>Nombre completo</label>
+                  <input type="text" className="input-field" placeholder="Ana Martínez"
+                    value={form.name} onChange={e => upd('name', e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label>Correo electrónico</label>
+                  <input type="email" className="input-field" placeholder="ana@email.com"
+                    value={form.email} onChange={e => upd('email', e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label>Contraseña</label>
+                  <input type="password" className="input-field" placeholder="Mínimo 8 caracteres"
+                    value={form.password} onChange={e => upd('password', e.target.value)} />
+                </div>
+
+                {/* === STUDENT SPECIFIC === */}
+                {role === 'student' && (
+                  <>
+                    <div className="register-section-label">Información escolar</div>
+                    <div className="input-group">
+                      <label>Grado escolar</label>
+                      <select className="input-field" value={form.grade} onChange={e => upd('grade', e.target.value)}>
+                        <option value="">Seleccionar grado...</option>
+                        {GRADES.map(g => <option key={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <div className="input-group">
+                      <label>Grupo de edad</label>
+                      <select className="input-field" value={form.age} onChange={e => upd('age', e.target.value)}>
+                        <option value="">Seleccionar...</option>
+                        {['7-10 años','11-14 años','15-17 años','18+ años'].map(a => <option key={a}>{a}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="register-section-label">Documentos de identidad</div>
+                    <div className="register-form-row">
+                      <div className="input-group">
+                        <label>DNI del estudiante</label>
+                        <input type="text" className="input-field" placeholder="12345678" maxLength={8}
+                          value={form.dni} onChange={e => upd('dni', e.target.value.replace(/\D/g,''))} />
+                      </div>
+                      <div className="input-group">
+                        <label>DNI del apoderado</label>
+                        <input type="text" className="input-field" placeholder="87654321" maxLength={8}
+                          value={form.guardianDni} onChange={e => upd('guardianDni', e.target.value.replace(/\D/g,''))} />
+                      </div>
+                    </div>
+                    <div className="register-hint">
+                      El DNI del apoderado es requerido para validar la cuenta de menores de edad.
+                    </div>
+                  </>
                 )}
-                {role==='teacher' && (
-                  <div className="input-group">
-                    <label>Institución educativa</label>
-                    <input type="text" className="input-field" placeholder="Colegio / Universidad"
-                      value={form.institution} onChange={e => setForm(p=>({...p,institution:e.target.value}))} />
-                  </div>
+
+                {/* === TEACHER SPECIFIC === */}
+                {role === 'teacher' && (
+                  <>
+                    <div className="register-section-label">Información institucional</div>
+                    <div className="input-group">
+                      <label>Institución educativa</label>
+                      <input type="text" className="input-field" placeholder="Colegio / Universidad / Instituto"
+                        value={form.institution} onChange={e => upd('institution', e.target.value)} />
+                    </div>
+                    <div className="input-group">
+                      <label>Materia principal</label>
+                      <select className="input-field" value={form.subject} onChange={e => upd('subject', e.target.value)}>
+                        <option value="">Seleccionar materia...</option>
+                        {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </>
                 )}
+
+                {/* === PARENT SPECIFIC === */}
+                {role === 'parent' && (
+                  <>
+                    <div className="register-section-label">Relación con el estudiante</div>
+                    <div className="input-group">
+                      <label>Eres el / la</label>
+                      <div className="relation-chips">
+                        {RELATIONS.map(r => (
+                          <button
+                            key={r} type="button"
+                            className={`relation-chip ${form.relation === r ? 'active' : ''}`}
+                            onClick={() => upd('relation', r)}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="register-hint">
+                      Luego de crear tu cuenta podrás vincularla con la cuenta del estudiante mediante un código de invitación.
+                    </div>
+                  </>
+                )}
+
                 <label className="checkbox-row">
-                  <input type="checkbox" /> Acepto los <span className="link-inline">términos y política de privacidad</span>
+                  <input type="checkbox" />
+                  Acepto los <span className="link-inline">términos y política de privacidad</span>
                 </label>
               </div>
             </div>
           )}
 
-          {/* Step 3 - OTP */}
+          {/* Step 3 — OTP verification */}
           {step === 3 && (
             <div className="step-content animate-fadeInUp">
-              <div className="otp-icon">📧</div>
+              <div className="otp-icon-wrap">
+                <div className="otp-icon-circle">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                  </svg>
+                </div>
+              </div>
               <h2 className="step-title">Verifica tu correo</h2>
-              <p className="step-sub">Ingresa el código de 6 dígitos enviado a <strong>{form.email||'tu correo'}</strong></p>
+              <p className="step-sub">
+                Ingresa el código de 6 dígitos enviado a <strong>{form.email || 'tu correo'}</strong>
+              </p>
               <div className="otp-inputs">
-                {otp.map((v,i) => (
+                {otp.map((v, i) => (
                   <input
                     key={i} id={`otp-${i}`} type="text"
                     className="otp-box" maxLength={1} value={v}
@@ -128,29 +265,36 @@ export default function Register() {
                   />
                 ))}
               </div>
-              <button className="link-btn" style={{margin:'0 auto', marginTop:8}}>Reenviar código</button>
+              <button className="link-btn" style={{ margin: '8px auto 0', display: 'flex' }}>
+                Reenviar código
+              </button>
             </div>
           )}
 
           {/* Navigation */}
           <div className="register-nav">
             {step > 1 && (
-              <button className="btn btn-ghost" onClick={() => setStep(s=>s-1)}>
+              <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}>
                 <ChevronLeft size={16}/> Atrás
               </button>
             )}
             <button
-              className={`btn btn-primary ${loading?'loading':''}`}
+              className={`btn btn-primary ${loading ? 'loading' : ''}`}
               onClick={next}
-              disabled={(step===1 && !role) || loading}
-              style={{marginLeft:'auto'}}
+              disabled={!canAdvance() || loading}
+              style={{ marginLeft: 'auto' }}
             >
-              {loading ? <span className="spinner"/> : step===3 ? '¡Comenzar! 🚀' : <>Siguiente <ChevronRight size={16}/></>}
+              {loading
+                ? <span className="spinner"/>
+                : step === 3
+                  ? 'Comenzar'
+                  : <> Siguiente <ChevronRight size={16}/></>
+              }
             </button>
           </div>
 
           <p className="register-login">
-            ¿Ya tienes cuenta?{' '}
+            Ya tienes cuenta?{' '}
             <button className="link-btn" onClick={() => navigate('/login')}>Iniciar sesión</button>
           </p>
         </div>
