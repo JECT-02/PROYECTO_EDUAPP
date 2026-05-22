@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, ShieldAlert, Swords } from 'lucide-react'
+import { Heart, ShieldAlert, Swords, X } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Coliseo.css'
@@ -18,6 +18,9 @@ export default function Coliseo() {
     return (
       <PageWrapper className="coliseo-page center-all">
         <div className="card coliseo-intro">
+          <button className="icon-btn close-arena" onClick={() => navigate('/dashboard')} title="Salir del Coliseo">
+            <X size={20} />
+          </button>
           <div className="coliseo-icon-epic animate-pulse-glow">👑</div>
           <h1 className="gradient-text">Coliseo de Retos</h1>
           <p>Examen Final: Biología Celular</p>
@@ -56,6 +59,9 @@ export default function Coliseo() {
   return (
     <PageWrapper className="coliseo-page in-game">
       <header className="coliseo-header">
+        <button className="icon-btn exit-btn" onClick={() => navigate('/dashboard')} title="Abandonar arena">
+          <X size={18} />
+        </button>
         <div className="coliseo-progress">Ronda {qIndex + 1} / {totalQ}</div>
         <div className="coliseo-timer">29:55</div>
         <div className="coliseo-lives">
