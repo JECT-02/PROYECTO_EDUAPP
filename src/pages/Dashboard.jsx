@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Plus, BookOpen, Zap, Trophy, Clock, TrendingUp } from 'lucide-react'
+import { BookOpen, Zap, Trophy, Clock, TrendingUp } from 'lucide-react'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
@@ -14,8 +14,8 @@ const COURSES = [
 ]
 
 const CHALLENGES = [
-  { title:'Repaso: División Celular', time:'~8 min', icon:'🔬', color:'#22C55E' },
-  { title:'¡Coliseo desbloqueado! Historia', icon:'⚔️', color:'#F59E0B', time:'30 min' },
+  { title:'Repaso: División Celular', time:'~8 min', icon:'🔬', color:'#22C55E', course:'Biología Celular' },
+  { title:'Coliseo desbloqueado — Historia', icon:'⚔️', color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
 ]
 
 function getGreeting() {
@@ -42,12 +42,9 @@ export default function Dashboard() {
           {/* Greeting */}
           <div className="greeting-row">
             <div>
-              <h1 className="greeting-text">{getGreeting()}, Sofía! 👋</h1>
+              <h1 className="greeting-text">{getGreeting()}, Sofía</h1>
               <p className="greeting-sub">Tienes 2 retos pendientes hoy</p>
             </div>
-            <button className="btn btn-primary btn-sm hide-mobile" onClick={() => navigate('/explore')}>
-              <Plus size={15}/> Explorar cursos
-            </button>
           </div>
 
           {/* Continue card */}
@@ -76,7 +73,7 @@ export default function Dashboard() {
 
           {/* Challenges */}
           <section>
-            <h2 className="section-title">⚡ Retos del día</h2>
+            <h2 className="section-title">Retos del día</h2>
             <div className="challenges-row">
               {CHALLENGES.map((c, i) => (
                 <motion.div
@@ -87,6 +84,7 @@ export default function Dashboard() {
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
                   <div className="ch-info">
+                    <div className="ch-course-tag" style={{ color:c.color }}>{c.course}</div>
                     <div className="ch-title">{c.title}</div>
                     <div className="ch-time"><Clock size={12}/> {c.time}</div>
                   </div>
@@ -99,8 +97,7 @@ export default function Dashboard() {
           {/* My courses */}
           <section>
             <div className="section-header">
-              <h2 className="section-title">📚 Mis Cursos</h2>
-              <button className="link-btn" onClick={() => navigate('/explore')}>Ver todos →</button>
+              <h2 className="section-title">Mis Cursos</h2>
             </div>
             <div className="courses-grid">
               {COURSES.map((c, i) => (
@@ -161,12 +158,12 @@ export default function Dashboard() {
 
           {/* Stats */}
           <div className="sidebar-card card">
-            <h3 className="sidebar-title">📊 Tu semana</h3>
+            <h3 className="sidebar-title">Tu semana</h3>
             <div className="stats-list">
               {[
                 { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
                 { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
-                { label:'Sincronía promedio', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
+                { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
                 { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
               ].map(s => (
                 <div key={s.label} className="stat-item">
@@ -189,13 +186,6 @@ export default function Dashboard() {
             </div>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')}>Ver todas</button>
           </div>
-
-          <button className="btn btn-ghost full-sidebar-btn" onClick={() => navigate('/teacher')}>
-            👩‍🏫 Ver panel docente
-          </button>
-          <button className="btn btn-ghost full-sidebar-btn" onClick={() => navigate('/parent')}>
-            👨‍👩‍👧 Ver panel padre
-          </button>
         </aside>
       </div>
     </PageWrapper>
