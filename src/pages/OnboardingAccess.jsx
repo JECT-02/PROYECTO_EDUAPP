@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, Volume2, Move, Mic, Type, Glasses, Sparkles, Check } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Onboarding.css'
 
 const OPTIONS = [
-  { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:'🌗' },
-  { key:'narration', label:'Narración por voz', desc:'El sistema lee el contenido en voz alta', icon:'🔊' },
-  { key:'reduced', label:'Reducir animaciones', desc:'Fades simples en lugar de efectos complejos', icon:'🎭' },
-  { key:'voice', label:'Navegación por voz', desc:'Controla la app con comandos de voz', icon:'🎤' },
-  { key:'largeText', label:'Texto grande', desc:'Aumenta el tamaño de letra base', icon:'🔡' },
-  { key:'colorblind', label:'Modo para daltónismo', desc:'Paletas de color accesibles (viridis)', icon:'👁️' },
+  { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:<Eye size={24}/> },
+  { key:'narration', label:'Narración por voz', desc:'El sistema lee el contenido en voz alta', icon:<Volume2 size={24}/> },
+  { key:'reduced', label:'Reducir animaciones', desc:'Fades simples en lugar de efectos complejos', icon:<Move size={24}/> },
+  { key:'voice', label:'Navegación por voz', desc:'Controla la app con comandos de voz', icon:<Mic size={24}/> },
+  { key:'largeText', label:'Texto grande', desc:'Aumenta el tamaño de letra base', icon:<Type size={24}/> },
+  { key:'colorblind', label:'Modo para daltónismo', desc:'Paletas de color accesibles', icon:<Glasses size={24}/> },
 ]
 
 export default function OnboardingAccess() {
@@ -36,7 +37,7 @@ export default function OnboardingAccess() {
           </div>
 
           <div className="onb-hero">
-            <div className="onb-icon">♿</div>
+            <div className="onb-icon-wrap"><Sparkles size={48} color="var(--primary)"/></div>
             <h1>Personaliza tu experiencia</h1>
             <p>Activa las opciones que mejor se adapten a ti. Puedes cambiarlas cuando quieras.</p>
           </div>
@@ -66,7 +67,7 @@ export default function OnboardingAccess() {
               Omitir por ahora
             </button>
             <button className="btn btn-primary btn-lg" onClick={() => navigate('/onboarding/avatar')}>
-              Continuar →
+              Continuar <Check size={18} style={{marginLeft: 8}}/>
             </button>
           </div>
         </div>
