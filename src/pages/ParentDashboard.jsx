@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, AlertCircle, Clock, LogOut } from 'lucide-react'
+import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { Users, Clock, LogOut } from 'lucide-react'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
 

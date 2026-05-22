@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Volume2, FastForward, Play, Send, Bot, X, Sparkles } from 'lucide-react'
-import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Lesson.css'
 

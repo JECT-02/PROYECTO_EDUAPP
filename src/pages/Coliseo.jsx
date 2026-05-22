@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, ShieldAlert, Swords, X } from 'lucide-react'
 import Mascot from '../components/Mascot'
@@ -43,7 +43,7 @@ export default function Coliseo() {
     if (correct) {
       setStatus('correct')
       setTimeout(() => {
-        if (qIndex + 1 < totalQ) { setQIndex(q + 1); setStatus('idle') }
+        if (qIndex + 1 < totalQ) { setQIndex(qIndex + 1); setStatus('idle') }
         else navigate('/achievements') // Victory!
       }, 1500)
     } else {
@@ -51,7 +51,7 @@ export default function Coliseo() {
       setLives(l => l - 1)
       setTimeout(() => {
         if (lives - 1 <= 0) navigate('/roadmap') // Game over
-        else { setQIndex(q => q + 1); setStatus('idle') }
+        else { setQIndex(qIndex + 1); setStatus('idle') }
       }, 1500)
     }
   }

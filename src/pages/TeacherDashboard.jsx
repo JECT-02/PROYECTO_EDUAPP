@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Plus, Users, AlertTriangle, Book, LogOut } from 'lucide-react'
+import { Plus, AlertTriangle, Book, LogOut } from 'lucide-react'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, Zap } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Login.css'
 
@@ -9,7 +9,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
-  const [role, setRole] = useState('student')
+  const [role] = useState('student')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [magicMode, setMagicMode] = useState(false)
@@ -73,20 +73,6 @@ export default function Login() {
               <div className="brand-icon sm">✦</div>
               <h2>Bienvenido de vuelta</h2>
               <p>Inicia sesión para continuar tu camino de aprendizaje</p>
-            </div>
-
-            {/* Demo role selector */}
-            <div className="role-demo-bar">
-              <span className="role-demo-label">Acceso demo:</span>
-              {[
-                { id: 'student', label: 'Estudiante' },
-                { id: 'teacher', label: 'Docente' },
-                { id: 'parent', label: 'Padre/Tutor' },
-              ].map(r => (
-                <button key={r.id} className={`role-chip ${role === r.id ? 'active' : ''}`} onClick={() => setRole(r.id)}>
-                  {r.label}
-                </button>
-              ))}
             </div>
 
             {/* Mode toggle */}
@@ -162,9 +148,9 @@ export default function Login() {
                     <img src="https://www.google.com/favicon.ico" width="16" height="16" alt="Google"/>
                     Google
                   </button>
-                  <button type="button" className="oauth-btn" onClick={() => setMagicMode(true)}>
-                    <Send size={15} />
-                    Enlace mágico
+                  <button type="button" className="oauth-btn">
+                    <img src="https://www.apple.com/favicon.ico" width="16" height="16" alt="Apple"/>
+                    Apple
                   </button>
                 </div>
               </form>

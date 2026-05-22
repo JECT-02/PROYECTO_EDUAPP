@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Trophy, Star, Medal } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 
 const ACHIEVEMENTS = [
