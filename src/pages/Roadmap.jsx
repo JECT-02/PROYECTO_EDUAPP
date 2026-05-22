@@ -58,12 +58,35 @@ export default function Roadmap() {
 
   const activeNode = nodes.find(n => n.status === 'in_progress' || n.status === 'available') || nodes[0]
 
-  // Configuration for the winding path
   const nodeSpacing = 160;
-  const pathWidth = 240; // Max horizontal deviation
+  const pathWidth = 300; 
+  const containerWidth = 800; // Reference width for calc
+
+  function getNodePos(index) {
+    const x = Math.sin(index * 1.2) * (pathWidth / 2);
+    const y = index * nodeSpacing + 80;
+    return { x: containerWidth / 2 + x, y };
+  }
+
+  function generateSVGPath(count) {
+    if (count <= 0) return "";
+    const start = getNodePos(0);
+    let d = `M ${start.x} ${start.y}`;
+    for (let i = 0; i < count - 1; i++) {
+      const current = getNodePos(i);
+      const next = getNodePos(i + 1);
+      const cp1y = current.y + nodeSpacing / 2;
+      const cp2y = next.y - nodeSpacing / 2;
+      d += ` C ${current.x} ${cp1y}, ${next.x} ${cp2y}, ${next.x} ${next.y}`;
+    }
+    return d;
+  }
+
+  const completedCount = nodes.filter(n => n.status === 'completed' || n.status === 'in_progress').length;
 
   return (
     <PageWrapper className="roadmap-page-wrap">
+      {/* Restore the original Header layout but kept inside the page for scrolling logic */}
       <div className="rm-header">
         <div className="rm-h-left">
           <button className="icon-btn" onClick={() => navigate('/dashboard')}><ArrowLeft size={18}/></button>
@@ -78,9 +101,9 @@ export default function Roadmap() {
           <div className="sync-bar-wrap">
             <span className="sync-label">Nivel de entendimiento</span>
             <div className="sync-bar">
-              <div className="sync-fill" style={{width:'72%', background:'linear-gradient(90deg, #3B82F6, #8B5CF6)'}} />
+              <div className="sync-fill" style={{width:'72%', background:'var(--primary)'}} />
             </div>
-            <span className="sync-pct">72%</span>
+            <span className="sync-pct" style={{color:'var(--primary-light)'}}>72%</span>
           </div>
         </div>
         <div className="rm-h-right">
@@ -90,41 +113,36 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
-          <div className="rm-path-container" style={{ height: nodes.length * nodeSpacing + 100 }}>
-            {/* SVG Path Background */}
-            <svg className="rm-svg-path" width="100%" height="100%" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="pathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--accent)" />
-                  <stop offset="100%" stopColor="var(--primary)" />
-                </linearGradient>
-              </defs>
+          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 150 }}>
+            {/* SVG Lines - Fixed with pixel coordinates to ensure visibility */}
+            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 150} viewBox={`0 0 ${containerWidth} ${nodes.length * nodeSpacing + 150}`}>
               <path
-                d={generatePath(nodes.length, nodeSpacing, pathWidth)}
+                d={generateSVGPath(nodes.length)}
                 fill="none"
-                stroke="rgba(255,255,255,0.05)"
-                strokeWidth="12"
+                stroke="rgba(108, 99, 255, 0.15)"
+                strokeWidth="10"
                 strokeLinecap="round"
+                strokeDasharray="15 15"
               />
               <path
                 className="active-path"
-                d={generatePath(getCompletedCount(nodes), nodeSpacing, pathWidth)}
+                d={generateSVGPath(completedCount)}
                 fill="none"
-                stroke="url(#pathGradient)"
-                strokeWidth="12"
+                stroke="var(--accent)"
+                strokeWidth="10"
                 strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 8px var(--accent-light))' }}
+                style={{ filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.5))' }}
               />
             </svg>
 
-            {/* Nodes Mapping */}
+            {/* Nodes */}
             {nodes.map((node, i) => {
-              const pos = getNodePosition(i, nodeSpacing, pathWidth);
+              const pos = getNodePos(i);
               return (
                 <div 
                   key={node.id} 
                   className={`rm-node-anchor ${node.status}`}
-                  style={{ left: `calc(50% + ${pos.x}px)`, top: pos.y }}
+                  style={{ left: pos.x, top: pos.y }}
                 >
                   <div 
                     className={`rm-node-v2 ${node.type} ${node.status}`}
@@ -155,7 +173,6 @@ export default function Roadmap() {
                   {node.id === activeNode.id && (
                     <div className="rm-mascot-guide">
                       <Mascot type="dragon" size="sm" mood="normal" />
-                      <div className="guide-bubble">¡Siguiente parada!</div>
                     </div>
                   )}
                 </div>
@@ -166,32 +183,4 @@ export default function Roadmap() {
       </div>
     </PageWrapper>
   )
-}
-
-function generatePath(count, spacing, width) {
-  if (count <= 0) return "";
-  let d = `M 50% 40`;
-  for (let i = 0; i < count; i++) {
-    const pos = getNodePosition(i, spacing, width);
-    const nextPos = getNodePosition(i + 1, spacing, width);
-    if (i < count - 1) {
-      // Cubic bezier for smooth winding
-      const cp1y = pos.y + spacing / 2;
-      const cp2y = nextPos.y - spacing / 2;
-      d += ` C calc(50% + ${pos.x}px) ${cp1y}, calc(50% + ${nextPos.x}px) ${cp2y}, calc(50% + ${nextPos.x}px) ${nextPos.y}`;
-    }
-  }
-  return d;
-}
-
-function getNodePosition(i, spacing, width) {
-  const x = Math.sin(i * 1.2) * (width / 2); // Winding effect
-  const y = i * spacing + 80;
-  return { x, y };
-}
-
-function getCompletedCount(nodes) {
-  const lastCompleted = [...nodes].reverse().findIndex(n => n.status === 'completed' || n.status === 'in_progress');
-  if (lastCompleted === -1) return 1;
-  return nodes.length - lastCompleted;
 }
