@@ -58,16 +58,19 @@ export default function Roadmap() {
 
   const activeNode = nodes.find(n => n.status === 'in_progress' || n.status === 'available') || nodes[0]
 
-  const nodeSpacing = 180;
-  const pathWidth = 450; // Increased width for more winding
-  const containerWidth = 1000; // Increased container width
+  // Dimensiones mejoradas para llenar el espacio
+  const nodeSpacing = 180; // Más espacio vertical
+  const pathWidth = 460;   // Más ancho para el zig-zag
+  const containerWidth = 1000; // Contenedor más amplio
 
+  // Función de posicionamiento robusta
   function getNodePos(index) {
     const x = Math.sin(index * 1.1) * (pathWidth / 2);
     const y = index * nodeSpacing + 100;
     return { x: containerWidth / 2 + x, y };
   }
 
+  // Generación de camino SVG
   function generateSVGPath(count) {
     if (count <= 0) return "";
     const start = getNodePos(0);
@@ -86,7 +89,6 @@ export default function Roadmap() {
 
   return (
     <PageWrapper className="roadmap-page-wrap">
-      {/* Restore the original Header layout but kept inside the page for scrolling logic */}
       <div className="rm-header">
         <div className="rm-h-left">
           <button className="icon-btn" onClick={() => navigate('/dashboard')}><ArrowLeft size={18}/></button>
@@ -113,14 +115,16 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
-          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200 }}>
-            {/* SVG Lines - Fixed with pixel coordinates to ensure visibility */}
-            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} viewBox={`0 0 ${containerWidth} ${nodes.length * nodeSpacing + 200}`}>
+          {/* Centrado forzado del contenido */}
+          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200, margin: '0 auto', position: 'relative' }}>
+            
+            {/* SVG Lines - Capa de fondo */}
+            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
               <path
                 d={generateSVGPath(nodes.length)}
                 fill="none"
-                stroke="rgba(108, 99, 255, 0.1)"
-                strokeWidth="14"
+                stroke="rgba(108, 99, 255, 0.12)"
+                strokeWidth="12"
                 strokeLinecap="round"
                 strokeDasharray="20 15"
               />
@@ -129,20 +133,26 @@ export default function Roadmap() {
                 d={generateSVGPath(completedCount)}
                 fill="none"
                 stroke="var(--accent)"
-                strokeWidth="14"
+                strokeWidth="12"
                 strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 12px rgba(245,158,11,0.6))' }}
+                style={{ filter: 'drop-shadow(0 0 12px rgba(245,158,11,0.5))' }}
               />
             </svg>
 
-            {/* Nodes */}
+            {/* Nodos interactivos */}
             {nodes.map((node, i) => {
               const pos = getNodePos(i);
               return (
                 <div 
                   key={node.id} 
                   className={`rm-node-anchor ${node.status}`}
-                  style={{ left: pos.x, top: pos.y }}
+                  style={{ 
+                    position: 'absolute',
+                    left: pos.x, 
+                    top: pos.y,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 20
+                  }}
                 >
                   <div 
                     className={`rm-node-v2 ${node.type} ${node.status}`}
@@ -155,13 +165,13 @@ export default function Roadmap() {
                   >
                     <div className="node-glow" />
                     <div className="node-main">
-                      {node.type === 'theory' ? <Book size={28} /> : 
-                       node.type === 'practice' ? <Puzzle size={28} /> : 
-                       node.type === 'quiz' ? <Zap size={28} /> : <Trophy size={34} />}
+                      {node.type === 'theory' ? <Book size={30} /> : 
+                       node.type === 'practice' ? <Puzzle size={30} /> : 
+                       node.type === 'quiz' ? <Zap size={30} /> : <Trophy size={36} />}
                       
                       {node.status === 'completed' && (
                         <div className="node-check-overlay">
-                          <Check size={16} strokeWidth={4} />
+                          <Check size={18} strokeWidth={4} />
                         </div>
                       )}
                     </div>
@@ -176,7 +186,7 @@ export default function Roadmap() {
                   </div>
 
                   {node.id === activeNode.id && (
-                    <div className="rm-mascot-guide">
+                    <div className="rm-mascot-guide" style={{ position: 'absolute', top: -70, left: 40 }}>
                       <Mascot type="dragon" size="sm" mood="normal" />
                     </div>
                   )}
