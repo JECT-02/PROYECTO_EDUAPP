@@ -53,15 +53,15 @@ export default function Login() {
           </div>
           {/* Floating cards */}
           <div className="float-card card fc1">
-            <span className="fc-trophy">★</span>
+            <Sparkles size={16} className="fc-trophy" />
             <div><div className="fc-title">Maestría lograda</div><div className="fc-sub">Fotosíntesis · 94%</div></div>
           </div>
           <div className="float-card card fc2 animate-float">
-            <span className="fc-dragon">◆</span>
+            <div className="fc-icon-placeholder">✦</div>
             <div><div className="fc-title">Ember · Nivel 2</div><div className="fc-sub">820 XP acumulados</div></div>
           </div>
           <div className="float-card card fc3">
-            <span className="fc-bolt">⚡</span>
+            <Zap size={16} className="fc-bolt" />
             <div><div className="fc-title">Racha activa</div><div className="fc-sub">7 días seguidos</div></div>
           </div>
         </div>
