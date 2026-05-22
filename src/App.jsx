@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import StarsBackground from './components/StarsBackground'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
 import OnboardingAccess from './pages/OnboardingAccess'
 import OnboardingAvatar from './pages/OnboardingAvatar'
 import Dashboard from './pages/Dashboard'
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/onboarding/accessibility" element={<OnboardingAccess />} />
           <Route path="/onboarding/avatar" element={<OnboardingAvatar />} />
           <Route path="/dashboard" element={<Dashboard />} />

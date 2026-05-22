@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, Zap } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Login.css'
 
@@ -50,19 +50,6 @@ export default function Login() {
             ].map(f => (
               <div key={f} className="feature-item">{f}</div>
             ))}
-          </div>
-          {/* Floating cards */}
-          <div className="float-card card fc1">
-            <Sparkles size={16} className="fc-trophy" />
-            <div><div className="fc-title">Maestría lograda</div><div className="fc-sub">Fotosíntesis · 94%</div></div>
-          </div>
-          <div className="float-card card fc2 animate-float">
-            <div className="fc-icon-placeholder">✦</div>
-            <div><div className="fc-title">Ember · Nivel 2</div><div className="fc-sub">820 XP acumulados</div></div>
-          </div>
-          <div className="float-card card fc3">
-            <Zap size={16} className="fc-bolt" />
-            <div><div className="fc-title">Racha activa</div><div className="fc-sub">7 días seguidos</div></div>
           </div>
         </div>
 
@@ -156,7 +143,7 @@ export default function Login() {
               <button className="link-btn" onClick={() => navigate('/register')}>
                 <Sparkles size={14}/> Crear cuenta nueva
               </button>
-              <button className="link-btn muted" onClick={() => navigate('/register')}>
+              <button className="link-btn muted" onClick={() => navigate('/forgot-password')}>
                 Olvidé mi contraseña
               </button>
             </div>
