@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { X, Mic, Volume2 } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import Mascot from '../components/Mascot'
@@ -22,6 +22,7 @@ const QUESTIONS = [
 
 export default function Quiz() {
   const navigate = useNavigate()
+  const { courseId, nodeId } = useParams()
   const [qIndex, setQIndex] = useState(0)
   const [timeLeft, setTimeLeft] = useState(30)
   const [selected, setSelected] = useState(null)
@@ -68,14 +69,14 @@ export default function Quiz() {
       setSelected(null)
       setStatus('idle')
     } else {
-      navigate('/quiz/result', { state: { score: score + (selected === q.correct ? 1 : 0), total: QUESTIONS.length } })
+      navigate('/quiz/result', { state: { score: score + (selected === q.correct ? 1 : 0), total: QUESTIONS.length, courseId, nodeId } })
     }
   }
 
   return (
     <PageWrapper className="quiz-page">
       <header className="quiz-header">
-        <button className="icon-btn" onClick={() => navigate('/roadmap')}><X size={18}/></button>
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><X size={18}/></button>
         <div className="quiz-progress-wrap">
           <div className="progress-bar">
             <div className="progress-fill" style={{width: `${((qIndex)/QUESTIONS.length)*100}%`}} />

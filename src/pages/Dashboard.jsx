@@ -107,7 +107,7 @@ export default function Dashboard() {
                   initial={{ opacity:0, y:20 }}
                   animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
                   whileHover={{ y:-4, boxShadow:`0 8px 32px ${c.color}22` }}
-                  onClick={() => navigate('/roadmap')}
+                  onClick={() => navigate(`/roadmap/${c.id}`)}
                   style={{ cursor:'pointer' }}
                 >
                   <div className="course-cover" style={{ background:`linear-gradient(135deg,${c.color}44,${c.color}11)` }}>

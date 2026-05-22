@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Play, Send, Bot, X, Sparkles } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Lesson.css'
 
@@ -20,6 +20,7 @@ const SIMPLIFIED_CONTENT = [
 
 export default function Lesson() {
   const navigate = useNavigate()
+  const { courseId, nodeId } = useParams()
   const [content, setContent] = useState(DEFAULT_CONTENT)
   const [progress, setProgress] = useState(0)
   const [readIndex, setReadIndex] = useState(0)
@@ -47,7 +48,7 @@ export default function Lesson() {
       let currentLength = 0
       
       const interval = setInterval(() => {
-        currentLength += 2 // Faster typing for longer text
+        currentLength += 2
         let textToShow = fullText.slice(0, currentLength)
         textToShow = textToShow.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')
         
@@ -80,11 +81,9 @@ export default function Lesson() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setInputText('')
 
-    // Mock AI Actions
     setTimeout(() => {
       if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
         setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo. Voy a simplificar la teoría para que sea más fácil de comprender. ¡Mira el cambio en tiempo real!' }])
-        // Dynamic Theory Change
         setTimeout(() => {
           setReadIndex(0)
           setDisplayedText(['','','',''])
@@ -100,9 +99,9 @@ export default function Lesson() {
   return (
     <PageWrapper className="lesson-page">
       <header className="lesson-header">
-        <button className="icon-btn" onClick={() => navigate('/roadmap')}><ArrowLeft size={18}/></button>
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><ArrowLeft size={18}/></button>
         <div className="lesson-title-wrap">
-          <span className="lesson-subtitle">Nodo 4 • Teoría Detallada</span>
+          <span className="lesson-subtitle">Nodo {nodeId} • Teoría Detallada</span>
           <h1 className="lesson-title">La Membrana Plasmática</h1>
         </div>
         <button className="icon-btn" title="Narración de voz"><Volume2 size={18}/></button>
@@ -144,13 +143,12 @@ export default function Lesson() {
         <button 
           className="btn btn-primary btn-lg" 
           disabled={progress < 75}
-          onClick={() => navigate('/quiz')}
+          onClick={() => navigate(`/roadmap/${courseId}`)}
         >
-          Ir al Cuestionario <Play size={16}/>
+          Completar Lección <Check size={16}/>
         </button>
       </footer>
 
-      {/* AI Chat Window */}
       {showChat && (
         <div className="ai-chat-window">
           <div className="chat-header">
@@ -174,12 +172,10 @@ export default function Lesson() {
         </div>
       )}
 
-      {/* AI Chat Trigger */}
       <button className="ai-chat-trigger animate-bounce" onClick={() => setShowChat(!showChat)}>
         <Bot size={28} />
       </button>
 
-      {/* Word Tooltip Modal */}
       {isTooltipOpen && (
         <div className="word-modal-overlay" onClick={() => setTooltip(null)}>
           <div className="word-modal card" onClick={e => e.stopPropagation()}>

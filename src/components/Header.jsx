@@ -82,7 +82,7 @@ export default function Header({ user = { name: 'Sofía García', avatar: '🦊'
                 <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropdown(false) }}>
                   <User size={15}/> Mi Perfil
                 </button>
-                <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropdown(false) }}>
+                <button className="dropdown-item" onClick={() => { navigate('/settings'); setDropdown(false) }}>
                   <Settings size={15}/> Configuración
                 </button>
                 <div className="dropdown-divider" />

@@ -17,6 +17,7 @@ import TeacherDashboard from './pages/TeacherDashboard'
 import Review from './pages/Review'
 import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
+import Settings from './pages/Settings'
 
 export default function App() {
   return (
@@ -31,9 +32,9 @@ export default function App() {
           <Route path="/onboarding/avatar" element={<OnboardingAvatar />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/explore" element={<Explore />} />
-          <Route path="/roadmap" element={<Roadmap />} />
-          <Route path="/lesson" element={<Lesson />} />
-          <Route path="/quiz" element={<Quiz />} />
+          <Route path="/roadmap/:courseId" element={<Roadmap />} />
+          <Route path="/lesson/:courseId/:nodeId" element={<Lesson />} />
+          <Route path="/quiz/:courseId/:nodeId" element={<Quiz />} />
           <Route path="/quiz/result" element={<QuizResult />} />
           <Route path="/coliseo" element={<Coliseo />} />
           <Route path="/achievements" element={<Achievements />} />
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/review" element={<Review />} />
           <Route path="/parent" element={<ParentDashboard />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </AnimatePresence>
     </HashRouter>
