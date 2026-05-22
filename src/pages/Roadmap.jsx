@@ -1,18 +1,18 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Map, Search } from 'lucide-react'
+import { ArrowLeft, Map, Book, Zap, Puzzle, Trophy, Check } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Roadmap.css'
 
 const NODES = [
   { id:1, type:'theory', title:'Introducción a la Célula', status:'completed', x:50, y:80 },
-  { id:2, type:'quiz', title:'Estructura Básica', status:'completed', x:150, y:180 },
-  { id:3, type:'practice', title:'Tipos de Células', status:'completed', x:280, y:120 },
+  { id:2, type:'theory', title:'Componentes del Citoplasma', status:'completed', x:150, y:180 },
+  { id:3, type:'quiz', title:'Test de Conceptos Básicos', status:'completed', x:280, y:120 },
   { id:4, type:'theory', title:'La Membrana Plasmática', status:'in_progress', x:400, y:220 },
-  { id:5, type:'quiz', title:'Transporte Celular', status:'locked', x:550, y:140 },
-  { id:6, type:'theory', title:'El Núcleo', status:'locked', x:680, y:240 },
-  { id:7, type:'practice', title:'Mitocondria', status:'locked', x:800, y:100 },
-  { id:8, type:'boss', title:'Examen de Unidad', status:'locked', x:950, y:200 },
+  { id:5, type:'theory', title:'Transporte Pasivo', status:'locked', x:550, y:140 },
+  { id:6, type:'quiz', title:'Prueba de Transporte', status:'locked', x:680, y:240 },
+  { id:7, type:'theory', title:'El Núcleo Celular', status:'locked', x:800, y:100 },
+  { id:8, type:'boss', title:'Certificación de Unidad', status:'locked', x:950, y:200 },
 ]
 
 export default function Roadmap() {
@@ -35,7 +35,7 @@ export default function Roadmap() {
         </div>
         <div className="rm-h-center hide-mobile">
           <div className="sync-bar-wrap">
-            <span className="sync-label">Sincronía (Nivel de entendimiento)</span>
+            <span className="sync-label">Nivel de entendimiento</span>
             <div className="sync-bar">
               <div className="sync-fill" style={{width:'72%', background:'#3B82F6'}} />
             </div>
@@ -43,8 +43,7 @@ export default function Roadmap() {
           </div>
         </div>
         <div className="rm-h-right">
-           <button className="icon-btn"><Search size={18}/></button>
-           <button className="icon-btn"><Map size={18}/></button>
+           <button className="icon-btn" title="Mapa del curso"><Map size={18}/></button>
         </div>
       </div>
 
@@ -77,10 +76,10 @@ export default function Roadmap() {
                 }}
               >
                 <div className="rm-node-circle">
-                  {node.status === 'completed' ? '✓' : 
-                   node.type === 'theory' ? '📘' : 
-                   node.type === 'practice' ? '🧩' : 
-                   node.type === 'quiz' ? '⚡' : '👑'}
+                  {node.status === 'completed' ? <Check size={20} /> : 
+                   node.type === 'theory' ? <Book size={20} /> : 
+                   node.type === 'practice' ? <Puzzle size={20} /> : 
+                   node.type === 'quiz' ? <Zap size={20} /> : <Trophy size={24} />}
                 </div>
                 <div className="rm-node-label">{node.title}</div>
               </div>
