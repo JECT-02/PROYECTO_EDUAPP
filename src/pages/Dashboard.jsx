@@ -51,7 +51,7 @@ export default function Dashboard() {
           <motion.div
             className="continue-card card"
             whileHover={{ y:-3, boxShadow:'0 8px 32px rgba(108,99,255,0.25)' }}
-            onClick={() => navigate('/roadmap')}
+            onClick={() => navigate('/roadmap/1')}
             style={{ cursor:'pointer' }}
           >
             <div className="continue-content">
@@ -64,7 +64,11 @@ export default function Dashboard() {
                 </div>
                 <span className="continue-pct">65%</span>
               </div>
-              <button className="btn btn-success" style={{width:'fit-content', marginTop:16}}>
+              <button 
+                className="btn btn-success" 
+                style={{width:'fit-content', marginTop:16}}
+                onClick={(e) => { e.stopPropagation(); navigate('/roadmap/1'); }}
+              >
                 ▶ Continuar sesión
               </button>
             </div>
