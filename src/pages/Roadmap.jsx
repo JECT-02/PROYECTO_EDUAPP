@@ -58,13 +58,13 @@ export default function Roadmap() {
 
   const activeNode = nodes.find(n => n.status === 'in_progress' || n.status === 'available') || nodes[0]
 
-  const nodeSpacing = 160;
-  const pathWidth = 300; 
-  const containerWidth = 800; // Reference width for calc
+  const nodeSpacing = 180;
+  const pathWidth = 450; // Increased width for more winding
+  const containerWidth = 1000; // Increased container width
 
   function getNodePos(index) {
-    const x = Math.sin(index * 1.2) * (pathWidth / 2);
-    const y = index * nodeSpacing + 80;
+    const x = Math.sin(index * 1.1) * (pathWidth / 2);
+    const y = index * nodeSpacing + 100;
     return { x: containerWidth / 2 + x, y };
   }
 
@@ -113,25 +113,25 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
-          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 150 }}>
+          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200 }}>
             {/* SVG Lines - Fixed with pixel coordinates to ensure visibility */}
-            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 150} viewBox={`0 0 ${containerWidth} ${nodes.length * nodeSpacing + 150}`}>
+            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} viewBox={`0 0 ${containerWidth} ${nodes.length * nodeSpacing + 200}`}>
               <path
                 d={generateSVGPath(nodes.length)}
                 fill="none"
-                stroke="rgba(108, 99, 255, 0.15)"
-                strokeWidth="10"
+                stroke="rgba(108, 99, 255, 0.1)"
+                strokeWidth="14"
                 strokeLinecap="round"
-                strokeDasharray="15 15"
+                strokeDasharray="20 15"
               />
               <path
                 className="active-path"
                 d={generateSVGPath(completedCount)}
                 fill="none"
                 stroke="var(--accent)"
-                strokeWidth="10"
+                strokeWidth="14"
                 strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 10px rgba(245,158,11,0.5))' }}
+                style={{ filter: 'drop-shadow(0 0 12px rgba(245,158,11,0.6))' }}
               />
             </svg>
 
@@ -155,10 +155,15 @@ export default function Roadmap() {
                   >
                     <div className="node-glow" />
                     <div className="node-main">
-                      {node.status === 'completed' ? <Check size={24} /> : 
-                       node.type === 'theory' ? <Book size={24} /> : 
-                       node.type === 'practice' ? <Puzzle size={24} /> : 
-                       node.type === 'quiz' ? <Zap size={24} /> : <Trophy size={30} />}
+                      {node.type === 'theory' ? <Book size={28} /> : 
+                       node.type === 'practice' ? <Puzzle size={28} /> : 
+                       node.type === 'quiz' ? <Zap size={28} /> : <Trophy size={34} />}
+                      
+                      {node.status === 'completed' && (
+                        <div className="node-check-overlay">
+                          <Check size={16} strokeWidth={4} />
+                        </div>
+                      )}
                     </div>
                     
                     <div className="node-info-bubble">
