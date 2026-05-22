@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight } from 'lucide-react'
 import Mascot from '../components/Mascot'
