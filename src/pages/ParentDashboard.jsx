@@ -16,10 +16,9 @@ const STUDENT_CHART_DATA = {
 }
 
 function getChartData(studentId) {
-  // Generate deterministic-ish data based on student ID for variety
+  // Generate deterministic-ish data based on DNI for variety
   if (STUDENT_CHART_DATA[studentId]) return STUDENT_CHART_DATA[studentId]
-  const seed = studentId.split('-')[1] || '123456'
-  const num = parseInt(seed.slice(-3), 10) || 500
+  const num = parseInt(studentId.toString().slice(-4), 10) || 500
   const data = [
     { name: 'Lun', mins: 20 + (num % 60) },
     { name: 'Mar', mins: 15 + (num * 2 % 70) },
@@ -34,8 +33,7 @@ function getChartData(studentId) {
 }
 
 function getStudentStats(studentId) {
-  const seed = studentId.split('-')[1] || '123456'
-  const num = parseInt(seed.slice(-3), 10) || 500
+  const num = parseInt(studentId.toString().slice(-4), 10) || 500
   return {
     understanding: 50 + (num % 45),
     lessons: 10 + (num % 50),
@@ -134,7 +132,7 @@ export default function ParentDashboard() {
                         <div className="parent-student-avatar">🦊</div>
                         <div>
                           <div className="parent-student-name">{s.name}</div>
-                          <div className="parent-student-id">ID: {s.id}</div>
+                          <div className="parent-student-id">DNI: {s.id}</div>
                         </div>
                       </div>
                       <button
@@ -211,7 +209,7 @@ export default function ParentDashboard() {
                 <Users size={40} />
               </div>
               <h3>Aún no hay estudiantes vinculados</h3>
-              <p>Vincula a tu hijo ingresando su ID único de estudiante para seguir su progreso.</p>
+              <p>Vincula a tu hijo ingresando su DNI de estudiante para seguir su progreso.</p>
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                 <Link2 size={16} />
                 Vincular ahora
@@ -248,19 +246,19 @@ export default function ParentDashboard() {
                     {!result ? (
                       <form onSubmit={handleLink}>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
-                          Ingresa el ID único del estudiante para vincularlo a tu cuenta. El estudiante puede encontrar su ID en su perfil.
+                          Ingresa el DNI del estudiante para vincularlo a tu cuenta. El estudiante puede encontrar su DNI en su perfil.
                         </p>
                         <div className="input-group">
-                          <label htmlFor="student-id">ID del estudiante</label>
+                          <label htmlFor="student-id">DNI del estudiante</label>
                           <div className="input-icon-wrap">
                             <Search size={16} className="input-icon" />
                             <input
                               id="student-id"
                               type="text"
                               className="input-field with-icon"
-                              placeholder="Ej: STU-482193"
+                              placeholder="Ej: 12345678"
                               value={studentId}
-                              onChange={e => setStudentId(e.target.value.toUpperCase())}
+                              onChange={e => setStudentId(e.target.value.replace(/\D/g,''))}
                               autoFocus
                             />
                           </div>

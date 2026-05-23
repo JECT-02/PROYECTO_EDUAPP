@@ -10,11 +10,6 @@ const ROLE_ROUTES = {
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/onboarding/accessibility', '/onboarding/avatar']
 
-function generateStudentId() {
-  const nums = Math.floor(100000 + Math.random() * 900000)
-  return `STU-${nums}`
-}
-
 function getStudentRegistry() {
   try {
     const data = localStorage.getItem('eduapp_students')
@@ -54,23 +49,26 @@ export function AuthProvider({ children }) {
     }
   }, [user])
 
-  function login(email, role, name) {
+  function login(email, role, name, dni) {
     let studentId = null
     if (role === 'student') {
       const registry = getStudentRegistry()
-      // Check if student already exists with this email
-      const existing = Object.entries(registry).find(([, s]) => s.email === email)
-      if (existing) {
-        studentId = existing[0]
-      } else {
-        studentId = generateStudentId()
-        registry[studentId] = {
-          id: studentId,
-          name: name || getDefaultName(email, role),
-          email,
-          registeredAt: new Date().toISOString(),
+      if (dni) {
+        // Registration: use DNI as student ID
+        studentId = dni
+        if (!registry[studentId]) {
+          registry[studentId] = {
+            id: studentId,
+            name: name || getDefaultName(email, role),
+            email,
+            registeredAt: new Date().toISOString(),
+          }
+          saveStudentRegistry(registry)
         }
-        saveStudentRegistry(registry)
+      } else {
+        // Login: find existing student by email to load their DNI
+        const found = Object.entries(registry).find(([, s]) => s.email === email)
+        if (found) studentId = found[0]
       }
     }
 
@@ -92,7 +90,7 @@ export function AuthProvider({ children }) {
 
     const registry = getStudentRegistry()
     const student = registry[studentId]
-    if (!student) return { success: false, error: 'No se encontró un estudiante con ese ID. Verifica e intenta de nuevo.' }
+    if (!student) return { success: false, error: 'No se encontró un estudiante con ese DNI. Verifica e intenta de nuevo.' }
 
     const links = getParentLinks()
     const parentLinks = links[user.email] || []

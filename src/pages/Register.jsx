@@ -74,8 +74,8 @@ export default function Register() {
     if (step === 3) {
       setLoading(true)
       setTimeout(() => {
-        // Login the user so student ID is assigned at registration time
-        login(form.email, role, form.name)
+        // Login the user so DNI is used as student ID at registration time
+        login(form.email, role, form.name, form.dni)
         setLoading(false)
         navigate('/onboarding/accessibility')
       }, 1500)
