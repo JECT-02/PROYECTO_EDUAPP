@@ -1,57 +1,310 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Clock, LogOut } from 'lucide-react'
+import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, Search } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
+import './ParentDashboard.css'
 
-const data = [
-  { name: 'Lun', mins: 45 }, { name: 'Mar', mins: 60 }, { name: 'Mié', mins: 30 },
-  { name: 'Jue', mins: 80 }, { name: 'Vie', mins: 40 }, { name: 'Sáb', mins: 120 }, { name: 'Dom', mins: 0 }
-]
+// Per-student mock chart data
+const STUDENT_CHART_DATA = {
+  default: [
+    { name: 'Lun', mins: 45 }, { name: 'Mar', mins: 60 }, { name: 'Mié', mins: 30 },
+    { name: 'Jue', mins: 80 }, { name: 'Vie', mins: 40 }, { name: 'Sáb', mins: 120 }, { name: 'Dom', mins: 0 },
+  ],
+}
+
+function getChartData(studentId) {
+  // Generate deterministic-ish data based on student ID for variety
+  if (STUDENT_CHART_DATA[studentId]) return STUDENT_CHART_DATA[studentId]
+  const seed = studentId.split('-')[1] || '123456'
+  const num = parseInt(seed.slice(-3), 10) || 500
+  const data = [
+    { name: 'Lun', mins: 20 + (num % 60) },
+    { name: 'Mar', mins: 15 + (num * 2 % 70) },
+    { name: 'Mié', mins: 10 + (num * 3 % 50) },
+    { name: 'Jue', mins: 25 + (num * 4 % 80) },
+    { name: 'Vie', mins: 30 + (num * 5 % 45) },
+    { name: 'Sáb', mins: 40 + (num * 6 % 100) },
+    { name: 'Dom', mins: 5 + (num * 7 % 30) },
+  ]
+  STUDENT_CHART_DATA[studentId] = data
+  return data
+}
+
+function getStudentStats(studentId) {
+  const seed = studentId.split('-')[1] || '123456'
+  const num = parseInt(seed.slice(-3), 10) || 500
+  return {
+    understanding: 50 + (num % 45),
+    lessons: 10 + (num % 50),
+    progress: 30 + (num % 65),
+    lastActive: num % 3 === 0 ? 'Hoy' : num % 3 === 1 ? 'Ayer' : 'Hace 3 días',
+    activeColor: num % 3 === 0 ? '#22C55E' : num % 3 === 1 ? '#F59E0B' : '#EF4444',
+  }
+}
+
+function ChartTooltip({ active, payload }) {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{
+        background: '#1A1935', border: 'none', borderRadius: 8,
+        color: '#fff', padding: '6px 10px', fontSize: '0.75rem',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      }}>
+        {payload[0].value} min
+      </div>
+    )
+  }
+  return null
+}
 
 export default function ParentDashboard() {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, linkStudent, unlinkStudent } = useAuth()
+  const [showModal, setShowModal] = useState(false)
+  const [studentId, setStudentId] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const linkedStudents = user?.linkedStudents || []
+
+  function handleLink(e) {
+    e.preventDefault()
+    if (!studentId.trim()) return
+    setLoading(true)
+    setResult(null)
+
+    setTimeout(() => {
+      const res = linkStudent(studentId.trim().toUpperCase())
+      setResult(res)
+      setLoading(false)
+    }, 600)
+  }
+
+  function handleUnlink(studentId) {
+    unlinkStudent(studentId)
+  }
+
+  function handleCloseModal() {
+    setShowModal(false)
+    setStudentId('')
+    setResult(null)
+  }
 
   return (
     <PageWrapper>
       <Header />
-      <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: 24 }}>Panel de Padres</h1>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-          {/* Linked student */}
-          <div className="card" style={{ padding: 24 }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}><Users size={18}/> Estudiantes Vinculados</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, background: 'var(--surface-2)', borderRadius: 8 }}>
-              <div style={{ fontSize: '2rem' }}>🦊</div>
-              <div>
-                <h4 style={{ fontSize: '1.1rem' }}>Sofía García</h4>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nivel de entendimiento Promedio: 72%</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--success)', marginTop: 4 }}>Última vez hoy</div>
+      <div className="parent-dashboard">
+        <div className="parent-dashboard-inner">
+          <div className="parent-header">
+            <div>
+              <h1 className="parent-title">Panel Familiar</h1>
+              <p className="parent-subtitle">
+                {linkedStudents.length > 0
+                  ? `${linkedStudents.length} estudiante${linkedStudents.length !== 1 ? 's' : ''} vinculado${linkedStudents.length !== 1 ? 's' : ''}`
+                  : 'Aún no has vinculado estudiantes'}
+              </p>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <Link2 size={16} />
+              Vincular estudiante
+            </button>
+          </div>
+
+          {/* Linked students with per-student charts */}
+          {linkedStudents.length > 0 ? (
+            <div className="parent-students-grid">
+              {linkedStudents.map((s, idx) => {
+                const stats = getStudentStats(s.id)
+                const chartData = getChartData(s.id)
+                const avgMins = Math.round(chartData.reduce((sum, d) => sum + d.mins, 0) / chartData.length)
+
+                return (
+                  <motion.div
+                    key={s.id}
+                    className="card parent-student-card"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    {/* Header */}
+                    <div className="parent-student-top">
+                      <div className="parent-student-info">
+                        <div className="parent-student-avatar">🦊</div>
+                        <div>
+                          <div className="parent-student-name">{s.name}</div>
+                          <div className="parent-student-id">ID: {s.id}</div>
+                        </div>
+                      </div>
+                      <button
+                        className="btn-unlink"
+                        onClick={() => handleUnlink(s.id)}
+                      >
+                        <Unlink size={14} />
+                        Desvincular
+                      </button>
+                    </div>
+
+                    {/* Content: stats + chart side by side */}
+                    <div className="parent-student-content">
+                      {/* Stats column */}
+                      <div className="parent-student-stats-col">
+                        <div className="parent-stat">
+                          <span className="parent-stat-value">{stats.understanding}%</span>
+                          <span className="parent-stat-label">Entendimiento</span>
+                        </div>
+                        <div className="parent-stat">
+                          <span className="parent-stat-value">{stats.lessons}</span>
+                          <span className="parent-stat-label">Lecciones</span>
+                        </div>
+                        <div className="parent-stat">
+                          <span className="parent-stat-value" style={{ color: stats.activeColor }}>
+                            {stats.lastActive}
+                          </span>
+                          <span className="parent-stat-label">Última vez</span>
+                        </div>
+                      </div>
+
+                      {/* Chart column */}
+                      <div className="parent-student-chart-col">
+                        <div className="parent-chart-header">
+                          <Clock size={12} />
+                          <span>Semanal: {avgMins} min/día</span>
+                        </div>
+                        <div className="parent-student-chart">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData}>
+                              <XAxis dataKey="name" stroke="#6B6D8A" fontSize={9} tickLine={false} axisLine={false} interval={0} />
+                              <Tooltip content={<ChartTooltip />} />
+                              <Line type="monotone" dataKey="mins" stroke="#6C63FF" strokeWidth={2} dot={false} activeDot={{ r: 3, fill: '#6C63FF' }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="parent-student-progress">
+                      <div className="parent-progress-header">
+                        <span>Progreso general</span>
+                        <span>{stats.progress}%</span>
+                      </div>
+                      <div className="progress-bar" style={{ height: 5 }}>
+                        <div className="progress-fill" style={{
+                          width: `${stats.progress}%`,
+                          background: `linear-gradient(90deg, #6C63FF, #A78BFA)`,
+                        }} />
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          ) : (
+            <motion.div
+              className="card parent-empty-state"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="parent-empty-icon">
+                <Users size={40} />
               </div>
-            </div>
-          </div>
+              <h3>Aún no hay estudiantes vinculados</h3>
+              <p>Vincula a tu hijo ingresando su ID único de estudiante para seguir su progreso.</p>
+              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                <Link2 size={16} />
+                Vincular ahora
+              </button>
+            </motion.div>
+          )}
 
-          {/* Activity Chart */}
-          <div className="card" style={{ padding: 24 }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}><Clock size={18}/> Tiempo de Estudio (Semana)</h3>
-            <div style={{ height: 150 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data}>
-                  <XAxis dataKey="name" stroke="#6B6D8A" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ background: '#1A1935', border: 'none', borderRadius: 8, color: '#fff' }} />
-                  <Line type="monotone" dataKey="mins" stroke="#6C63FF" strokeWidth={3} dot={{ fill: '#6C63FF' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {/* Link student modal */}
+          <AnimatePresence>
+            {showModal && (
+              <motion.div
+                className="modal-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={(e) => { if (e.target === e.currentTarget) handleCloseModal() }}
+              >
+                <motion.div
+                  className="modal-container"
+                  style={{ maxWidth: 460 }}
+                  initial={{ opacity: 0, scale: 0.92, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.92, y: 20 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="modal-header">
+                    <h2>Vincular estudiante</h2>
+                    <button className="modal-close-btn" onClick={handleCloseModal} aria-label="Cerrar">
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="modal-body" style={{ padding: '24px 28px' }}>
+                    {!result ? (
+                      <form onSubmit={handleLink}>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
+                          Ingresa el ID único del estudiante para vincularlo a tu cuenta. El estudiante puede encontrar su ID en su perfil.
+                        </p>
+                        <div className="input-group">
+                          <label htmlFor="student-id">ID del estudiante</label>
+                          <div className="input-icon-wrap">
+                            <Search size={16} className="input-icon" />
+                            <input
+                              id="student-id"
+                              type="text"
+                              className="input-field with-icon"
+                              placeholder="Ej: STU-482193"
+                              value={studentId}
+                              onChange={e => setStudentId(e.target.value.toUpperCase())}
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="submit"
+                          className="btn btn-primary full-w"
+                          disabled={!studentId.trim() || loading}
+                          style={{ marginTop: 8 }}
+                        >
+                          {loading ? <span className="spinner" /> : <><Link2 size={16} /> Vincular</>}
+                        </button>
+                      </form>
+                    ) : result.success ? (
+                      <div className="parent-link-result success">
+                        <div className="parent-link-icon">
+                          <CheckCircle size={40} />
+                        </div>
+                        <h3>¡Estudiante vinculado!</h3>
+                        <p>
+                          <strong>{result.student.name}</strong> ha sido vinculado a tu cuenta.
+                        </p>
+                        <button className="btn btn-primary" onClick={handleCloseModal}>
+                          Ver en el panel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="parent-link-result error">
+                        <div className="parent-link-icon error">
+                          <AlertCircle size={40} />
+                        </div>
+                        <h3>No se pudo vincular</h3>
+                        <p>{result.error}</p>
+                        <button className="btn btn-ghost" onClick={() => { setResult(null); setStudentId('') }}>
+                          Intentar de nuevo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-
-        <button className="btn btn-ghost" style={{ marginTop: 24 }} onClick={() => { logout(); navigate('/login'); }}>
-          <LogOut size={16}/> Cerrar sesion
-        </button>
       </div>
     </PageWrapper>
   )

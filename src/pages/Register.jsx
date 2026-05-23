@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { useAuth } from '../context/AuthContext'
 import './Register.css'
 
 const ROLES = [
@@ -39,6 +40,7 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
   const [form, setForm] = useState({
@@ -71,7 +73,12 @@ export default function Register() {
     if (!canAdvance()) return
     if (step === 3) {
       setLoading(true)
-      setTimeout(() => { setLoading(false); navigate('/onboarding/accessibility') }, 1500)
+      setTimeout(() => {
+        // Login the user so student ID is assigned at registration time
+        login(form.email, role, form.name)
+        setLoading(false)
+        navigate('/onboarding/accessibility')
+      }, 1500)
     } else {
       setStep(s => Math.min(s + 1, 3))
     }
@@ -131,7 +138,7 @@ export default function Register() {
               <p className="step-sub">
                 {role === 'student' && 'Completa tus datos personales y escolares'}
                 {role === 'teacher' && 'Completa tus datos y tu información institucional'}
-                {role === 'parent' && 'Completa tus datos para vincularte con tu hijo'}
+                {role === 'parent' && 'Completa tus datos personales'}
               </p>
 
               <div className="register-form">
@@ -212,7 +219,7 @@ export default function Register() {
                 {/* === PARENT SPECIFIC === */}
                 {role === 'parent' && (
                   <>
-                    <div className="register-section-label">Relación con el estudiante</div>
+                    <div className="register-section-label">Relación familiar</div>
                     <div className="input-group">
                       <label>Eres el / la</label>
                       <div className="relation-chips">
@@ -226,9 +233,6 @@ export default function Register() {
                           </button>
                         ))}
                       </div>
-                    </div>
-                    <div className="register-hint">
-                      Luego de crear tu cuenta podrás vincularla con la cuenta del estudiante mediante un código de invitación.
                     </div>
                   </>
                 )}
