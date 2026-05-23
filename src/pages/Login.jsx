@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, GraduationCap, User, Heart } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import PageWrapper from '../components/PageWrapper'
 import './Login.css'
 
 export default function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
-  const [role] = useState('student')
+  const [role, setRole] = useState('student')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [magicMode, setMagicMode] = useState(false)
@@ -24,6 +26,7 @@ export default function Login() {
     setTimeout(() => {
       setLoading(false)
       if (magicMode) { setMagicSent(true); return }
+      login(email, role)
       navigate(routes[role] || '/dashboard')
     }, 1400)
   }
@@ -59,7 +62,32 @@ export default function Login() {
             <div className="form-header">
               <div className="brand-icon sm">✦</div>
               <h2>Bienvenido de vuelta</h2>
-              <p>Inicia sesión para continuar tu camino de aprendizaje</p>
+              <p>Inicia sesion para continuar tu camino de aprendizaje</p>
+            </div>
+
+            {/* Role selector */}
+            <div className="role-selector">
+              <button
+                className={`role-selector-btn ${role === 'student' ? 'active' : ''}`}
+                onClick={() => setRole('student')}
+              >
+                <User size={16} />
+                Estudiante
+              </button>
+              <button
+                className={`role-selector-btn ${role === 'teacher' ? 'active' : ''}`}
+                onClick={() => setRole('teacher')}
+              >
+                <GraduationCap size={16} />
+                Docente
+              </button>
+              <button
+                className={`role-selector-btn ${role === 'parent' ? 'active' : ''}`}
+                onClick={() => setRole('parent')}
+              >
+                <Heart size={16} />
+                Padre
+              </button>
             </div>
 
             {/* Mode toggle */}

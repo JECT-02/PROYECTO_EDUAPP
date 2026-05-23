@@ -79,6 +79,45 @@
 }
 .role-chip.active { background:rgba(108,99,255,0.2); color:var(--primary-light); border-color:var(--primary); }
 
+/* Role selector */
+.role-selector {
+  display: flex;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.role-selector-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-dim);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: 'Outfit', sans-serif;
+}
+
+.role-selector-btn:hover {
+  color: var(--text);
+  background: rgba(108, 99, 255, 0.06);
+}
+
+.role-selector-btn.active {
+  background: var(--surface-2);
+  color: var(--primary-light);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
 /* Mode toggle (password / magic link) */
 .login-mode-toggle {
   display:flex; background:var(--surface); border-radius:var(--radius);

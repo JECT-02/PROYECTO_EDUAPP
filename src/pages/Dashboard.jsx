@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
@@ -32,6 +33,8 @@ function statusColor(s) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const userName = user?.name?.split(' ')[0] || 'Sofía'
 
   return (
     <PageWrapper>
@@ -42,7 +45,7 @@ export default function Dashboard() {
           {/* Greeting */}
           <div className="greeting-row">
             <div>
-              <h1 className="greeting-text">{getGreeting()}, Sofía</h1>
+              <h1 className="greeting-text">{getGreeting()}, {userName}</h1>
               <p className="greeting-sub">Tienes 2 retos pendientes hoy</p>
             </div>
           </div>

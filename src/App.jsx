@@ -1,5 +1,6 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
+import { useAuth } from './context/AuthContext'
 import StarsBackground from './components/StarsBackground'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -20,31 +21,66 @@ import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 
+function ProtectedRoute({ children, allowedRoles }) {
+  const { isAuthenticated, role } = useAuth()
+  const location = useLocation()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    // Redirect to the role's home page
+    const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
+    return <Navigate to={redirectMap[role] || '/dashboard'} replace />
+  }
+
+  return children
+}
+
+function PublicRoute({ children }) {
+  const { isAuthenticated, role } = useAuth()
+
+  if (isAuthenticated) {
+    const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
+    return <Navigate to={redirectMap[role] || '/dashboard'} replace />
+  }
+
+  return children
+}
+
 export default function App() {
   return (
     <HashRouter>
       <StarsBackground />
       <AnimatePresence mode="wait">
         <Routes>
+          {/* Public routes */}
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/onboarding/accessibility" element={<OnboardingAccess />} />
           <Route path="/onboarding/avatar" element={<OnboardingAvatar />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/roadmap/:courseId" element={<Roadmap />} />
-          <Route path="/lesson/:courseId/:nodeId" element={<Lesson />} />
-          <Route path="/quiz/:courseId/:nodeId" element={<Quiz />} />
-          <Route path="/quiz/result" element={<QuizResult />} />
-          <Route path="/coliseo" element={<Coliseo />} />
-          <Route path="/achievements" element={<Achievements />} />
-          <Route path="/teacher" element={<TeacherDashboard />} />
-          <Route path="/review" element={<Review />} />
-          <Route path="/parent" element={<ParentDashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
+
+          {/* Teacher routes */}
+          <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherDashboard /></ProtectedRoute>} />
+
+          {/* Parent routes */}
+          <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
+
+          {/* Student routes */}
+          <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['student']}><Dashboard /></ProtectedRoute>} />
+          <Route path="/explore" element={<ProtectedRoute allowedRoles={['student']}><Explore /></ProtectedRoute>} />
+          <Route path="/roadmap/:courseId" element={<ProtectedRoute allowedRoles={['student']}><Roadmap /></ProtectedRoute>} />
+          <Route path="/lesson/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Lesson /></ProtectedRoute>} />
+          <Route path="/quiz/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Quiz /></ProtectedRoute>} />
+          <Route path="/quiz/result" element={<ProtectedRoute allowedRoles={['student']}><QuizResult /></ProtectedRoute>} />
+          <Route path="/coliseo" element={<ProtectedRoute allowedRoles={['student']}><Coliseo /></ProtectedRoute>} />
+          <Route path="/achievements" element={<ProtectedRoute allowedRoles={['student']}><Achievements /></ProtectedRoute>} />
+          <Route path="/review" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute allowedRoles={['student']}><Profile /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Settings /></ProtectedRoute>} />
         </Routes>
       </AnimatePresence>
     </HashRouter>

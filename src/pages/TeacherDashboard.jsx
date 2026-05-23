@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Book, Users, TrendingUp, Clock, AlertTriangle,
-  Edit, Trash2, BarChart3, LogOut, Check, X,
-  GraduationCap, FileText, Star
+  Plus, Book, Users, TrendingUp, Clock,
+  Edit, Check, X,
+  GraduationCap, FileText, Eye, AlertCircle
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
 import CourseCreateModal from '../components/CourseCreateModal'
+import CourseDetailModal from '../components/CourseDetailModal'
 import './TeacherDashboard.css'
 
 const INITIAL_COURSES = [
@@ -53,18 +53,12 @@ const INITIAL_COURSES = [
   },
 ]
 
-const ALERTS = [
-  { id: 1, student: 'Juan P.', issue: 'Dificultad persistente en "Mitocondria"', detail: '3 errores consecutivos', severity: 'warning' },
-  { id: 2, student: 'Maria G.', issue: 'Inactividad prolongada', detail: '5 dias sin actividad', severity: 'error' },
-  { id: 3, student: 'Carlos R.', issue: 'Rendimiento destacado', detail: '90% de aciertos en examenes', severity: 'success' },
-]
-
 export default function TeacherDashboard() {
-  const navigate = useNavigate()
   const [courses, setCourses] = useState(INITIAL_COURSES)
   const [showModal, setShowModal] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMsg, setToastMsg] = useState({ title: '', desc: '', type: 'success' })
+  const [detailCourse, setDetailCourse] = useState(null)
 
   const totalStudents = courses.reduce((sum, c) => sum + c.students, 0)
   const activeCourses = courses.filter(c => c.status === 'Activo').length
@@ -81,14 +75,13 @@ export default function TeacherDashboard() {
     setTimeout(() => setShowToast(false), 4000)
   }
 
-  const deleteCourse = (id, e) => {
-    e.stopPropagation()
-    const course = courses.find(c => c.id === id)
-    if (!window.confirm(`¿Estas seguro de eliminar "${course?.name}"? Esta accion no se puede deshacer.`)) return
-    setCourses(prev => prev.filter(c => c.id !== id))
+  const handleDeleteCourse = (courseId) => {
+    const deleted = courses.find(c => c.id === courseId)
+    setCourses(prev => prev.filter(c => c.id !== courseId))
+    setDetailCourse(null)
     setToastMsg({
       title: 'Curso eliminado',
-      desc: `"${course?.name}" ha sido eliminado.`,
+      desc: `"${deleted?.name}" ha sido eliminado permanentemente.`,
       type: 'error',
     })
     setShowToast(true)
@@ -107,7 +100,7 @@ export default function TeacherDashboard() {
 
   return (
     <PageWrapper>
-      <Header user={{ name: 'Prof. Ana Torres', avatar: '👩‍🏫' }} />
+      <Header />
 
       <div className="teacher-layout">
         {/* Header */}
@@ -167,54 +160,12 @@ export default function TeacherDashboard() {
           </div>
         </motion.div>
 
-        {/* Alerts */}
-        <motion.div
-          className="card"
-          style={{ padding: 20, borderColor: 'rgba(249,115,22,0.3)' }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: '1rem', fontWeight: 700 }}>
-            <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
-            Alertas y novedades
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {ALERTS.map(a => {
-              const severityColors = {
-                warning: { bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.25)', dot: '#F97316' },
-                error: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', dot: '#EF4444' },
-                success: { bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.25)', dot: '#22C55E' },
-              }
-              const s = severityColors[a.severity]
-              return (
-                <div
-                  key={a.id}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 'var(--radius)',
-                    background: s.bg, border: `1px solid ${s.border}`,
-                  }}
-                >
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: '0.88rem' }}>{a.student}</strong>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: 6 }}>{a.issue}</span>
-                  </div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>{a.detail}</span>
-                </div>
-              )
-            })}
-          </div>
-        </motion.div>
+
 
         {/* Courses */}
         <div>
           <div className="teacher-section-header">
             <h2>Tus cursos ({courses.length})</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => setShowModal(true)}>
-              <Plus size={14} /> Nuevo curso
-            </button>
           </div>
 
           {courses.length === 0 ? (
@@ -235,7 +186,7 @@ export default function TeacherDashboard() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
-                  onClick={() => navigate(`/teacher/course/${course.id}`)}
+                  onClick={() => setDetailCourse(course)}
                 >
                   <div className="teacher-course-top">
                     <div
@@ -251,13 +202,6 @@ export default function TeacherDashboard() {
                         onClick={(e) => { e.stopPropagation(); /* edit */ }}
                       >
                         <Edit size={14} />
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ padding: '6px 8px', minWidth: 0, color: 'var(--error)' }}
-                        onClick={(e) => deleteCourse(course.id, e)}
-                      >
-                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
@@ -300,29 +244,24 @@ export default function TeacherDashboard() {
                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: course.color }}>
                       {course.progress}%
                     </span>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      style={{ marginLeft: 8, padding: '6px 8px', minWidth: 0 }}
-                      onClick={(e) => { e.stopPropagation(); navigate(`/teacher/course/${course.id}/analytics`) }}
-                    >
-                      <BarChart3 size={14} />
-                    </button>
                   </div>
+
+                  {/* Ver detalles button */}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%', marginTop: 12, justifyContent: 'center' }}
+                    onClick={(e) => { e.stopPropagation(); setDetailCourse(course) }}
+                  >
+                    <Eye size={14} />
+                    Ver detalles
+                  </button>
                 </motion.div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Bottom */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border-light)' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-            <Star size={14} /> Vista estudiante
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/login')}>
-            <LogOut size={14} /> Cerrar sesion (Demo)
-          </button>
-        </div>
+
       </div>
 
       {/* Toast */}
@@ -351,6 +290,14 @@ export default function TeacherDashboard() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onCreated={handleCourseCreated}
+      />
+
+      {/* Course detail modal */}
+      <CourseDetailModal
+        isOpen={!!detailCourse}
+        onClose={() => setDetailCourse(null)}
+        course={detailCourse}
+        onDelete={handleDeleteCourse}
       />
     </PageWrapper>
   )

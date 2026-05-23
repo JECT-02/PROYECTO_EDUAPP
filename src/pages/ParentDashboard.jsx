@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Users, Clock, LogOut } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
 
@@ -11,10 +12,11 @@ const data = [
 
 export default function ParentDashboard() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   return (
     <PageWrapper>
-      <Header user={{ name: 'Familia García', avatar: '👨‍👩‍👧' }} />
+      <Header />
       <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: 24 }}>Panel de Padres</h1>
         
@@ -47,8 +49,8 @@ export default function ParentDashboard() {
           </div>
         </div>
 
-        <button className="btn btn-ghost" style={{ marginTop: 24 }} onClick={() => navigate('/login')}>
-          <LogOut size={16}/> Volver al Login (Demo)
+        <button className="btn btn-ghost" style={{ marginTop: 24 }} onClick={() => { logout(); navigate('/login'); }}>
+          <LogOut size={16}/> Cerrar sesion
         </button>
       </div>
     </PageWrapper>
