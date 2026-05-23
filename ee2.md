@@ -10,11 +10,17 @@
 
 - **SPA** (Single Page Application) con enrutamiento cliente.
     
-- **Canvas API o SVG** para el roadmap.
+- **SVG** para el roadmap (path animado con curvas bezier).
     
-- **Web Speech API** para TTS (texto a voz) y STT (voz a texto).
+- **framer-motion** para animaciones de página y micro-interacciones.
     
-- **Vibration API** (con graceful degradation si no está disponible).
+- **lucide-react** para iconografía vectorial.
+    
+- **recharts** para gráficos de analytics (dashboard padre).
+    
+- **Web Speech API** para TTS (texto a voz — demo en onboarding).
+    
+- **Vibration API** — no implementada actualmente (pendiente).
     
 
 **Breakpoints responsive obligatorios:**
@@ -194,9 +200,13 @@
 
 ### 2.1.4 Recuperación de Contraseña
 
-- **URL:** `/forgot-password`
+- **URL actual:** `/forgot-password`
     
-- Formulario de email → envío de link mágico (expira 1h) → pantalla de nueva contraseña → login.
+- **Estado:** ✅ Implementado
+    
+- Flujo: Formulario de email → pantalla de confirmación "Revisa tu correo" → enlace mágico simulado.
+    
+- **Nota:** Pendiente conectar con backend real (actualmente simulado con setTimeout).
     
 
 ## 2.2 Módulo de gestión de cursos (panel docente)
@@ -1031,39 +1041,39 @@
 
 ### 5.1 Tabla de requerimientos funcionales
 
-|**Código**|**Requerimiento Funcional (Interfaz)**|**Sección**|
+|**Codigo**|**Requerimiento Funcional (Interfaz)**|**Seccion**|
 |---|---|---|
 |**RF-01**|Pantalla de Login con validaciones visuales, OAuth y accesibilidad|2.1.1|
 |**RF-02**|Wizard de Registro por rol (Estudiante/Docente/Padre) con OTP|2.1.2|
 |**RF-03**|Onboarding de accesibilidad, avatar y mascota (Estudiante)|2.1.3|
-|**RF-04**|Flujo de recuperación de contraseña por link mágico|2.1.4|
-|**RF-05**|Dashboard Docente con cursos, alertas y gráficos de analytics|2.2.1|
-|**RF-06**|Wizard de creación/edición de curso (info, material, roadmap IA)|2.2.2|
-|**RF-07**|Tabla de estudiantes con filtros, drawer de detalle e invitación|2.2.3|
-|**RF-08**|Revisión lado-a-lado de contenido IA con slider de rigor|2.2.4|
-|**RF-09**|Dashboard Estudiante con saludo dinámico, cursos y retos|2.3.1|
-|**RF-10**|Inscripción a curso por código o catálogo público|2.3.2|
-|**RF-11**|Roadmap interactivo (SVG/Canvas) con pan, zoom y estados de nodos|2.4.1|
-|**RF-12**|Interacción táctil/mouse con nodos (shake, zoom, tooltips)|2.4.2|
-|**RF-13**|Barra de Sincronía visual con fórmula y celebración por nivel|2.4.3|
-|**RF-14**|Lección teórica con efecto máquina de escribir y palabras interactivas|2.5.1|
-|**RF-15**|Cálculo visual de progreso de lectura y transición al cuestionario|2.5.2|
+|**RF-04**|Flujo de recuperacion de contrasena por link magico|2.1.4|
+|**RF-05**|Dashboard Docente con cursos, alertas y graficos de analytics|2.2.1|
+|**RF-06**|Wizard de creacion/edicion de curso (info, material, roadmap IA)|2.2.2|
+|**RF-07**|Tabla de estudiantes con filtros, drawer de detalle e invitacion|2.2.3|
+|**RF-08**|Revision lado-a-lado de contenido IA con slider de rigor|2.2.4|
+|**RF-09**|Dashboard Estudiante con saludo dinamico, cursos y retos|2.3.1|
+|**RF-10**|Inscripcion a curso por codigo o catalogo publico|2.3.2|
+|**RF-11**|Roadmap interactivo (SVG) con pan, zoom y estados de nodos|2.4.1|
+|**RF-12**|Interaccion tactil/mouse con nodos (shake, zoom, tooltips)|2.4.2|
+|**RF-13**|Barra de Sincronia visual con formula y celebracion por nivel|2.4.3|
+|**RF-14**|Leccion teorica con efecto maquina de escribir y palabras interactivas|2.5.1|
+|**RF-15**|Calculo visual de progreso de lectura y transicion al cuestionario|2.5.2|
 |**RF-16**|Micro-Quiz con timer, tipos de pregunta y respuesta por voz|2.6.1|
 |**RF-17**|Pantalla de resultados del quiz con rutas de repaso o continuar|2.6.2|
-|**RF-18**|Test de Unidad con modal de confirmación, timer global y anti-trampa visual|2.6.3|
-|**RF-19**|Coliseo de Retos con vidas, dificultad adaptativa y ceremonia de finalización|2.6.4|
-|**RF-20**|Pantalla de Corrección Cognitiva con análisis de errores|2.7.1|
-|**RF-21**|Hub de Refuerzo Multifuente (analogías, videos, práctica guiada)|2.7.2|
-|**RF-22**|Sistema de Medallas Dinámicas (SVG) con rareza y ceremonia|2.8.1|
-|**RF-23**|Pantalla de Logros con grid, filtros y estadísticas|2.8.2|
-|**RF-24**|Mascotas evolutivas con estados emocionales y personalización|2.8.3|
-|**RF-25**|Navegación por voz hands-free con FAB y comandos globales|2.9.1|
-|**RF-26**|Narración espacial del roadmap para screen readers|2.9.2|
-|**RF-27**|Refactorización cognitiva automática en evaluaciones|2.9.3|
+|**RF-18**|Test de Unidad con modal de confirmacion, timer global y anti-trampa visual|2.6.3|
+|**RF-19**|Coliseo de Retos con vidas, dificultad adaptativa y ceremonia de finalizacion|2.6.4|
+|**RF-20**|Pantalla de Correccion Cognitiva con analisis de errores|2.7.1|
+|**RF-21**|Hub de Refuerzo Multifuente (analogias, videos, practica guiada)|2.7.2|
+|**RF-22**|Sistema de Medallas Dinamicas (SVG) con rareza y ceremonia|2.8.1|
+|**RF-23**|Pantalla de Logros con grid, filtros y estadisticas|2.8.2|
+|**RF-24**|Mascotas evolutivas con estados emocionales y personalizacion|2.8.3|
+|**RF-25**|Navegacion por voz hands-free con FAB y comandos globales|2.9.1|
+|**RF-26**|Narracion espacial del roadmap para screen readers|2.9.2|
+|**RF-27**|Refactorizacion cognitiva automatica en evaluaciones|2.9.3|
 |**RF-28**|Cumplimiento WCAG 2.1 AA (contraste, teclado, reduced-motion)|2.9.4|
 |**RF-29**|Dashboard Padre en modo solo-lectura con vinculados y alertas|2.10.1|
 |**RF-30**|Detalle del estudiante vinculado (tabs de progreso, medallas, dificultades)|2.10.2|
-|**RF-31**|Configuración de notificaciones del padre (email/in-app)|2.10.3|
+|**RF-31**|Configuracion de notificaciones del padre (email/in-app)|2.10.3|
 
 ### 5.2 Mapeo
 
@@ -1103,7 +1113,7 @@
 
 # 6. Pantallas requeridas
 
-|**#**|**Nombre**|**URL**|**Rol**|**Módulo**|
+|**#**|**Nombre**|**URL**|**Rol**|**Modulo**|
 |---|---|---|---|---|
 |1|Login|`/login`|Todos|Auth|
 |2|Registro|`/register`|Todos|Auth|
@@ -1112,18 +1122,18 @@
 |5|Dashboard Estudiante|`/dashboard`|Student|Core|
 |6|Explorar Cursos|`/explore`|Student|Core|
 |7|Roadmap de Curso|`/courses/:id/roadmap`|Student|Core|
-|8|Lección Teórica|`/courses/:id/nodes/:nid/lesson`|Student|Core|
+|8|Leccion Teorica|`/courses/:id/nodes/:nid/lesson`|Student|Core|
 |9|Micro-Quiz|`/courses/:id/nodes/:nid/quiz`|Student|Core|
 |10|Test de Unidad|`/courses/:id/nodes/:nid/test`|Student|Core|
 |11|Coliseo de Retos|`/courses/:id/coliseo`|Student|Core|
-|12|Corrección y Refuerzo|`/courses/:id/review`|Student|Core|
+|12|Correccion y Refuerzo|`/courses/:id/review`|Student|Core|
 |13|Hub de Refuerzo Multifuente|`/courses/:id/reinforcement`|Student|Core|
 |14|Logros y Medallas|`/achievements`|Student|Gamification|
-|15|Perfil y Configuración|`/profile`|Todos|Core|
+|15|Perfil y Configuracion|`/profile`|Todos|Core|
 |16|Dashboard Docente|`/teacher/dashboard`|Teacher|Teacher Panel|
 |17|Crear/Editar Curso|`/teacher/courses/create`|Teacher|Teacher Panel|
-|18|Gestión de Estudiantes|`/teacher/courses/:id/students`|Teacher|Teacher Panel|
-|19|Revisión de Contenido IA|`/teacher/courses/:id/content-review`|Teacher|Teacher Panel|
+|18|Gestion de Estudiantes|`/teacher/courses/:id/students`|Teacher|Teacher Panel|
+|19|Revision de Contenido IA|`/teacher/courses/:id/content-review`|Teacher|Teacher Panel|
 |20|Dashboard Padre|`/parent/dashboard`|Parent|Parent Panel|
 |21|Detalle Estudiante (Padre)|`/parent/students/:id`|Parent|Parent Panel|
 
