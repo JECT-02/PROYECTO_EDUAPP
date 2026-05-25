@@ -4,7 +4,7 @@ import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Roadmap.css'
 
-export const COURSE_DATA = {
+const COURSE_DATA = {
   '1': {
     title: 'Biología Celular',
     nodes: [
