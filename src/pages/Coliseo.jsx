@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight } from 'lucide-react'
+import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Coliseo.css'
@@ -20,8 +20,45 @@ export default function Coliseo() {
   const [qIndex, setQIndex] = useState(0)
   const [status, setStatus] = useState('idle')
   const [victory, setVictory] = useState(false)
+  const [defeat, setDefeat] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(1800) // 30 min in seconds
+  const timerRef = useRef(null)
 
   const currentQ = QUESTIONS[qIndex]
+
+  // Timer countdown
+  useEffect(() => {
+    if (!started || victory || defeat) {
+      if (timerRef.current) clearInterval(timerRef.current)
+      return
+    }
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current)
+          setDefeat(true)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timerRef.current)
+  }, [started, victory, defeat])
+
+  // Reset timer on start
+  useEffect(() => {
+    if (started) {
+      setTimeLeft(1800)
+    }
+  }, [started])
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  const timerColor = timeLeft <= 60 ? '#EF4444' : timeLeft <= 300 ? '#F59E0B' : '#A7A9BE'
 
   if (victory) {
     return (
@@ -33,6 +70,35 @@ export default function Coliseo() {
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/dashboard')}>
             Volver al Inicio <ArrowRight size={20}/>
           </button>
+        </div>
+      </PageWrapper>
+    )
+  }
+
+  if (defeat) {
+    return (
+      <PageWrapper className="coliseo-page center-all">
+        <div className="card coliseo-intro animate-scaleIn" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+          <div style={{ fontSize: '5rem', marginBottom: 16 }}>😢</div>
+          <h1 style={{ fontSize: '2.5rem', color: '#EF4444' }}>Derrota</h1>
+          <p style={{ fontSize: '1.1rem', marginBottom: 8, color: '#A7A9BE' }}>
+            {timeLeft === 0
+              ? 'Se acabó el tiempo. No te rindas, el conocimiento llega con práctica.'
+              : 'Has perdido todas tus vidas. Cada error es una oportunidad para aprender.'}
+          </p>
+          <p style={{ fontSize: '0.95rem', marginBottom: 32, color: '#6B6D8A' }}>
+            {timeLeft === 0
+              ? 'Intenta de nuevo, la próxima vez lo lograrás.'
+              : 'Vuelve a repasar los temas y regresa más fuerte.'}
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost" onClick={() => { setDefeat(false); setStarted(false); setLives(3); setQIndex(0); setStatus('idle'); setTimeLeft(1800) }}>
+              <RotateCcw size={16} /> Reintentar
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
+              <Home size={16} /> Ir al Inicio
+            </button>
+          </div>
         </div>
       </PageWrapper>
     )
@@ -80,7 +146,7 @@ export default function Coliseo() {
       setLives(newLives)
       setTimeout(() => {
         if (newLives <= 0) {
-          navigate('/dashboard') // Defeat: Back to dashboard
+          setDefeat(true)
         } else {
           setQIndex(qIndex + 1 < QUESTIONS.length ? qIndex + 1 : qIndex)
           setStatus('idle')
@@ -97,7 +163,10 @@ export default function Coliseo() {
           <X size={18} />
         </button>
         <div className="coliseo-progress">Ronda {qIndex + 1} / {QUESTIONS.length}</div>
-        <div className="coliseo-timer">29:55</div>
+        <div className="coliseo-timer" style={{ color: timerColor }}>
+          <Clock size={16} style={{ marginRight: 6 }} />
+          {formatTime(timeLeft)}
+        </div>
         <div className="coliseo-lives">
           {Array.from({length: 3}).map((_, i) => (
              <Heart key={i} size={24} fill={i < lives ? '#EF4444' : 'transparent'} color={i < lives ? '#EF4444' : '#6B6D8A'} />

@@ -15,15 +15,29 @@ const OPTIONS = [
 
 export default function OnboardingAccess() {
   const navigate = useNavigate()
-  const [prefs, setPrefs] = useState({})
+  const [prefs, setPrefs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('eduapp_prefs')
+      return saved ? JSON.parse(saved) : {}
+    } catch { return {} }
+  })
 
   function toggle(key) {
-    setPrefs(p => ({ ...p, [key]: !p[key] }))
+    setPrefs(p => {
+      const next = { ...p, [key]: !p[key] }
+      localStorage.setItem('eduapp_prefs', JSON.stringify(next))
+      return next
+    })
     if (key === 'narration' && !prefs[key] && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
       window.speechSynthesis.speak(u)
     }
+  }
+
+  function handleContinue() {
+    localStorage.setItem('eduapp_prefs', JSON.stringify(prefs))
+    navigate('/onboarding/avatar')
   }
 
   return (
@@ -63,10 +77,10 @@ export default function OnboardingAccess() {
           </div>
 
           <div className="onb-actions">
-            <button className="btn btn-ghost" onClick={() => navigate('/onboarding/avatar')}>
+            <button className="btn btn-ghost" onClick={handleContinue}>
               Omitir por ahora
             </button>
-            <button className="btn btn-primary btn-lg" onClick={() => navigate('/onboarding/avatar')}>
+            <button className="btn btn-primary btn-lg" onClick={handleContinue}>
               Continuar <Check size={18} style={{marginLeft: 8}}/>
             </button>
           </div>

@@ -54,6 +54,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
 h1,h2,h3,h4,h5,h6 { font-family: 'Outfit', sans-serif; line-height: 1.2; }

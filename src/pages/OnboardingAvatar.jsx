@@ -13,8 +13,12 @@ const PETS = [
 
 export default function OnboardingAvatar() {
   const navigate = useNavigate()
-  const [avatar, setAvatar] = useState('🦊')
-  const [pet, setPet] = useState('dragon')
+  const [avatar, setAvatar] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('eduapp_prefs')||'{}').avatar || '🦊' } catch { return '🦊' }
+  })
+  const [pet, setPet] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('eduapp_prefs')||'{}').pet || 'dragon' } catch { return 'dragon' }
+  })
   const [petName, setPetName] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -88,7 +92,16 @@ export default function OnboardingAvatar() {
             <button
               className={`btn btn-primary btn-lg ${loading?'loading':''}`}
               disabled={loading}
-              onClick={() => { setLoading(true); setTimeout(() => navigate('/dashboard'), 1500) }}
+              onClick={() => {
+                setLoading(true)
+                const prefs = JSON.parse(localStorage.getItem('eduapp_prefs')||'{}')
+                prefs.avatar = avatar
+                prefs.pet = pet
+                prefs.petName = petName
+                prefs.onboardingCompleted = true
+                localStorage.setItem('eduapp_prefs', JSON.stringify(prefs))
+                setTimeout(() => navigate('/dashboard'), 1500)
+              }}
             >
               {loading ? <span className="spinner"/> : '🚀 Comenzar mi viaje'}
             </button>
