@@ -14,6 +14,11 @@ const COURSES = [
   { id:4, title:'Programación Python', teacher:'Prof. Cruz', progress:0, color:'#3B82F6', icon:<Code size={32}/>, status:'Nuevo', nodes:15, completedNodes:0 },
 ]
 
+// Mapa de cursos: courseId -> primer quiz disponible
+const COURSE_QUIZ_MAP = {
+  '1': '/quiz/1/3', // Biología Celular -> Test de Conceptos Básicos
+}
+
 const CHALLENGES = [
   { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
   { title:'Coliseo desbloqueado — Historia', icon:<Trophy size={20}/>, color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
@@ -86,7 +91,10 @@ export default function Dashboard() {
                 <motion.div
                   key={i} className="challenge-card card card-hover"
                   whileTap={{ scale:0.97 }}
-                  onClick={() => navigate(i===1 ? '/coliseo' : '/quiz')}
+                  onClick={() => {
+                    if (i === 1) navigate('/coliseo')
+                    else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1')
+                  }}
                   style={{ cursor:'pointer', borderColor:`${c.color}44` }}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>

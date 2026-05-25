@@ -76,6 +76,12 @@ export default function Register() {
       setTimeout(() => {
         // Login the user so DNI is used as student ID at registration time
         login(form.email, role, form.name, form.dni)
+        // Save extra student data for profile display
+        if (role === 'student' && form.dni) {
+          const extra = JSON.parse(localStorage.getItem('eduapp_student_extra') || '{}')
+          extra[form.dni] = { grade: form.grade, age: form.age, guardianDni: form.guardianDni }
+          localStorage.setItem('eduapp_student_extra', JSON.stringify(extra))
+        }
         setLoading(false)
         navigate('/onboarding/accessibility')
       }, 1500)
