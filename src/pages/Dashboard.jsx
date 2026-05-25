@@ -86,7 +86,7 @@ export default function Dashboard() {
                 <motion.div
                   key={i} className="challenge-card card card-hover"
                   whileTap={{ scale:0.97 }}
-                  onClick={() => navigate(i===1 ? '/coliseo' : '/quiz')}
+                  onClick={() => navigate(i===1 ? '/coliseo' : '/roadmap/1')}
                   style={{ cursor:'pointer', borderColor:`${c.color}44` }}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
