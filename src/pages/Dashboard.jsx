@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { COURSE_DATA } from './Roadmap'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
@@ -14,10 +15,18 @@ const COURSES = [
   { id:4, title:'Programación Python', teacher:'Prof. Cruz', progress:0, color:'#3B82F6', icon:<Code size={32}/>, status:'Nuevo', nodes:15, completedNodes:0 },
 ]
 
+// Find available quiz node in a course (not locked)
+function findAvailableQuiz(courseId) {
+  const course = COURSE_DATA[courseId]
+  if (!course) return null
+  const quizNode = course.nodes.find(n => n.type === 'quiz' && n.status !== 'locked')
+  return quizNode || null
+}
+
 const CHALLENGES = [
-  { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
-  { title:'Coliseo desbloqueado — Historia', icon:<Trophy size={20}/>, color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
-]
+  { courseId:'1', title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
+  { courseId:'3', title:'Coliseo desbloqueado — Historia', icon:<Trophy size={20}/>, color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
+].filter(c => findAvailableQuiz(c.courseId))
 
 function getGreeting() {
   const h = new Date().getHours()
@@ -82,22 +91,28 @@ export default function Dashboard() {
           <section>
             <h2 className="section-title">Retos del día</h2>
             <div className="challenges-row">
-              {CHALLENGES.map((c, i) => (
-                <motion.div
-                  key={i} className="challenge-card card card-hover"
-                  whileTap={{ scale:0.97 }}
-                  onClick={() => navigate(i===1 ? '/coliseo' : '/roadmap/1')}
-                  style={{ cursor:'pointer', borderColor:`${c.color}44` }}
-                >
-                  <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
-                  <div className="ch-info">
-                    <span className="badge badge-purple" style={{ marginBottom: 4 }}>{c.course}</span>
-                    <div className="ch-title">{c.title}</div>
-                    <div className="ch-time"><Clock size={12}/> {c.time}</div>
-                  </div>
-                  <Zap size={16} style={{ color:c.color, flexShrink:0 }}/>
-                </motion.div>
-              ))}
+              {CHALLENGES.map((c, i) => {
+                const quizNode = findAvailableQuiz(c.courseId)
+                const quizPath = quizNode ? `/quiz/${c.courseId}/${quizNode.id}` : null
+                return (
+                  <motion.div
+                    key={i} className="challenge-card card card-hover"
+                    whileTap={{ scale:0.97 }}
+                    onClick={() => {
+                      if (quizPath) navigate(quizPath)
+                    }}
+                    style={{ cursor: quizPath ? 'pointer' : 'default', borderColor:`${c.color}44` }}
+                  >
+                    <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
+                    <div className="ch-info">
+                      <span className="badge badge-purple" style={{ marginBottom: 4 }}>{c.course}</span>
+                      <div className="ch-title">{c.title}</div>
+                      <div className="ch-time"><Clock size={12}/> {c.time}</div>
+                    </div>
+                    <Zap size={16} style={{ color:c.color, flexShrink:0 }}/>
+                  </motion.div>
+                )
+              })}
             </div>
           </section>
 
