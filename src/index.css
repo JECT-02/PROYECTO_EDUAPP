@@ -132,6 +132,18 @@ input, textarea, select { font-family: inherit; outline: none; }
 .input-field.with-icon { padding-left:42px; }
 .input-field.pr { padding-right:42px; }
 
+/* Select dropdown — personalizar flecha */
+select.input-field {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6D8A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  cursor: pointer;
+}
+
 .eye-btn {
   position:absolute; right:12px; top:50%; transform:translateY(-50%);
   background:none; border:none; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; padding:4px;
@@ -196,9 +208,15 @@ input, textarea, select { font-family: inherit; outline: none; }
   from { opacity: 0; transform: scale(0.8); }
   to { opacity: 1; transform: scale(1); }
 }
-@keyframes twinkle {
-  0%,100% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.2); }
+@keyframes wave {
+  0%,100% { opacity: var(--base-op, 0.1); }
+  50% { opacity: calc(var(--base-op, 0.1) * 4); }
+}
+@keyframes drift {
+  0%,100% { translate: 0 0; }
+  25% { translate: var(--dx) var(--dy); }
+  50% { translate: calc(var(--dx) * 1.5) calc(var(--dy) * -0.5); }
+  75% { translate: calc(var(--dx) * -0.5) calc(var(--dy) * 1.2); }
 }
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
@@ -242,8 +260,11 @@ input[type="password"]::-ms-clear {
 }
 .star {
   position: absolute; border-radius: 50%;
-  background: white; animation: twinkle var(--dur, 3s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
+  background: white; will-change: translate, opacity;
+  --wave-dur: 6s;
+  animation: wave var(--wave-dur) ease-in-out infinite,
+             drift var(--drift-dur, 20s) ease-in-out infinite;
+  animation-delay: var(--wave-delay, 0s), var(--drift-delay, 0s);
 }
 
 /* Layout */
