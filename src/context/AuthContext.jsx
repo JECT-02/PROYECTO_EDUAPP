@@ -3,9 +3,9 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const AuthContext = createContext(null)
 
 const ROLE_ROUTES = {
-  teacher: { allowed: ['/teacher'], redirect: '/teacher', label: 'Docente' },
+  teacher: { allowed: ['/teacher','/profile','/settings'], redirect: '/teacher', label: 'Docente' },
   student: { allowed: ['/dashboard','/explore','/roadmap','/lesson','/quiz','/coliseo','/achievements','/review','/profile','/settings'], redirect: '/dashboard', label: 'Estudiante' },
-  parent: { allowed: ['/parent'], redirect: '/parent', label: 'Padre' },
+  parent: { allowed: ['/parent','/profile','/settings'], redirect: '/parent', label: 'Padre' },
 }
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/onboarding/accessibility', '/onboarding/avatar']

@@ -6,14 +6,14 @@ const pageVariants = {
   exit: { opacity: 0, y: -16, transition: { duration: 0.2 } }
 }
 
-export default function PageWrapper({ children, className = '' }) {
+export default function PageWrapper({ children, className = '', style: extStyle }) {
   return (
     <motion.div
       variants={pageVariants}
       initial="initial"
       animate="animate"
       exit="exit"
-      style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}
+      style={{ minHeight: '100vh', position: 'relative', zIndex: 1, ...extStyle }}
       className={className}
     >
       {children}

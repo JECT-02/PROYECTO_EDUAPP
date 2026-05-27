@@ -123,11 +123,9 @@ export default function Header() {
                   </div>
                 </div>
                 <div className="dropdown-divider" />
-                {userData.role === 'student' && (
-                  <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropdown(false) }}>
-                    <User size={15}/> Mi Perfil
-                  </button>
-                )}
+                <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropdown(false) }}>
+                  <User size={15}/> Mi Perfil
+                </button>
                 <button className="dropdown-item" onClick={() => { navigate('/settings'); setDropdown(false) }}>
                   <Settings size={15}/> Configuración
                 </button>
