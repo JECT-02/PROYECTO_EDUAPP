@@ -21,12 +21,23 @@ import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 
+function isOnboardingComplete() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
+    return !!prefs.onboardingCompleted
+  } catch { return false }
+}
+
 function ProtectedRoute({ children, allowedRoles }) {
   const { isAuthenticated, role } = useAuth()
   const location = useLocation()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (!isOnboardingComplete()) {
+    return <Navigate to="/onboarding/accessibility" replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {
@@ -42,6 +53,9 @@ function PublicRoute({ children }) {
   const { isAuthenticated, role } = useAuth()
 
   if (isAuthenticated) {
+    if (!isOnboardingComplete()) {
+      return <Navigate to="/onboarding/accessibility" replace />
+    }
     const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
     return <Navigate to={redirectMap[role] || '/dashboard'} replace />
   }
@@ -80,7 +94,7 @@ export default function App() {
           <Route path="/achievements" element={<ProtectedRoute allowedRoles={['student']}><Achievements /></ProtectedRoute>} />
           <Route path="/review/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
           <Route path="/review" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute allowedRoles={['student']}><Profile /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Settings /></ProtectedRoute>} />
         </Routes>
       </AnimatePresence>
