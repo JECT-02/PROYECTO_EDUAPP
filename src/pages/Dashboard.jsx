@@ -50,7 +50,7 @@ export default function Dashboard() {
           {/* Greeting */}
           <div className="greeting-row">
             <div>
-              <h1 className="greeting-text">{getGreeting()}, {userName}</h1>
+              <h1 className="greeting-text">{getGreeting()}, {userName}!</h1>
               <p className="greeting-sub">Tienes 2 retos pendientes hoy</p>
             </div>
           </div>
