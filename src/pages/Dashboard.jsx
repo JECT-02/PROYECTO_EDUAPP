@@ -65,7 +65,7 @@ export default function Dashboard() {
             <div className="continue-content">
               <div className="continue-badge badge badge-green">Continuar</div>
               <h2 className="continue-title">Biología Celular</h2>
-              <p className="continue-node">📍 Nodo 9: La Mitocondria y sus funciones</p>
+              <p className="continue-node">Nodo 9: La Mitocondria y sus funciones</p>
               <div className="continue-progress">
                 <div className="progress-bar" style={{flex:1}}>
                   <div className="progress-fill" style={{width:'65%', background:'linear-gradient(90deg,#22C55E,#4ADE80)'}}/>
@@ -167,7 +167,7 @@ export default function Dashboard() {
               <div className="progress-bar">
                 <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
               </div>
-              <p className="xp-hint">680 XP para nivel 3 🔥</p>
+              <p className="xp-hint">680 XP para nivel 3</p>
             </div>
           </div>
 

@@ -51,7 +51,7 @@ export default function Register() {
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
   const [form, setForm] = useState({
-    name: '', email: '', password: '',
+    firstName: '', lastName: '', email: '', password: '',
     // Student fields
     dni: '', guardianDni: '', grade: '', age: '',
     // Teacher fields
@@ -68,7 +68,7 @@ export default function Register() {
   function canAdvance() {
     if (step === 1) return !!role
     if (step === 2) {
-      const base = form.name && form.email && form.password
+      const base = form.firstName && form.lastName && form.email && form.password
       if (role === 'student') return base && form.dni && form.guardianDni && form.grade
       if (role === 'teacher') return base && form.institution && form.subject
       if (role === 'parent') return base && form.relation
@@ -83,7 +83,7 @@ export default function Register() {
       setLoading(true)
       setTimeout(() => {
         // Login the user so DNI is used as student ID at registration time
-        login(form.email, role, form.name, form.dni)
+        login(form.email, role, `${form.firstName} ${form.lastName}`, form.dni)
         // Save extra student data for profile display
         if (role === 'student' && form.dni) {
           const extra = JSON.parse(localStorage.getItem('eduapp_student_extra') || '{}')
@@ -156,12 +156,20 @@ export default function Register() {
               </p>
 
               <div className="register-form">
-                {/* Common fields */}
-                <div className="input-group">
-                  <label>Nombre completo</label>
-                  <input type="text" className="input-field" placeholder="Ana Martínez"
-                    value={form.name} onChange={e => upd('name', e.target.value)} />
-                </div>
+
+                {/* === INFORMATION PERSONAL === */}
+                <div className="register-section-label">Información personal</div>
+                  <div className="input-group">
+                    <label>Nombres</label>
+                    <input type="text" className="input-field" placeholder="Ana María"
+                      value={form.firstName} onChange={e => upd('firstName', e.target.value)} />
+                  </div>
+                  <div className="input-group">
+                    <label>Apellidos</label>
+                    <input type="text" className="input-field" placeholder="Martínez López"
+                      value={form.lastName} onChange={e => upd('lastName', e.target.value)} />
+                  </div>
+
                 <div className="input-group">
                   <label>Correo electrónico</label>
                   <input type="email" className="input-field" placeholder="ana@email.com"
@@ -204,7 +212,7 @@ export default function Register() {
                     </div>
 
                     <div className="register-section-label">Documentos de identidad</div>
-                    <div className="register-form-row">
+
                       <div className="input-group">
                         <label>DNI del estudiante</label>
                         <input type="text" className="input-field" placeholder="12345678" maxLength={8}
@@ -215,7 +223,6 @@ export default function Register() {
                         <input type="text" className="input-field" placeholder="87654321" maxLength={8}
                           value={form.guardianDni} onChange={e => upd('guardianDni', e.target.value.replace(/\D/g,''))} />
                       </div>
-                    </div>
                     <div className="register-hint">
                       El DNI del apoderado es requerido para validar la cuenta de menores de edad.
                     </div>
@@ -247,17 +254,10 @@ export default function Register() {
                     <div className="register-section-label">Relación familiar</div>
                     <div className="input-group">
                       <label>Eres el / la</label>
-                      <div className="relation-chips">
-                        {RELATIONS.map(r => (
-                          <button
-                            key={r} type="button"
-                            className={`relation-chip ${form.relation === r ? 'active' : ''}`}
-                            onClick={() => upd('relation', r)}
-                          >
-                            {r}
-                          </button>
-                        ))}
-                      </div>
+                      <select className="input-field" value={form.relation} onChange={e => upd('relation', e.target.value)}>
+                        <option value="">Seleccionar relación...</option>
+                        {RELATIONS.map(r => <option key={r}>{r}</option>)}
+                      </select>
                     </div>
                   </>
                 )}
