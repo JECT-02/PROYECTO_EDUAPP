@@ -21,10 +21,10 @@ import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 
-function isOnboardingComplete() {
+function isOnboardingComplete(role) {
   try {
     const prefs = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
-    return !!prefs.onboardingCompleted
+    return !!prefs[`onboardingCompleted_${role}`]
   } catch { return false }
 }
 
@@ -36,7 +36,7 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (!isOnboardingComplete()) {
+  if (!isOnboardingComplete(role)) {
     return <Navigate to="/onboarding/accessibility" replace />
   }
 
@@ -53,7 +53,7 @@ function PublicRoute({ children }) {
   const { isAuthenticated, role } = useAuth()
 
   if (isAuthenticated) {
-    if (!isOnboardingComplete()) {
+    if (!isOnboardingComplete(role)) {
       return <Navigate to="/onboarding/accessibility" replace />
     }
     const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
@@ -72,7 +72,7 @@ export default function App() {
           {/* Public routes */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
           <Route path="/onboarding/accessibility" element={<OnboardingAccess />} />
           <Route path="/onboarding/avatar" element={<OnboardingAvatar />} />

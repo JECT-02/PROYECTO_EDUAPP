@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle, Eye, EyeOff, Lock } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
@@ -40,7 +40,14 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { isAuthenticated, login } = useAuth()
+
+  // Si ya está autenticado al montar el componente, redirigir (solo en mount, no interfiere con registro)
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [])
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
   const [form, setForm] = useState({
@@ -297,7 +304,7 @@ export default function Register() {
           <div className="register-nav">
             {step > 1 && (
               <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}>
-                <ChevronLeft size={16}/> Atrás
+                Atrás
               </button>
             )}
             <button

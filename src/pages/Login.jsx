@@ -17,8 +17,6 @@ export default function Login() {
   const [magicMode, setMagicMode] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
 
-  const routes = { student: '/dashboard', teacher: '/teacher', parent: '/parent' }
-
   function handleLogin(e) {
     e.preventDefault()
     if (!email || (!magicMode && !password)) { setError('Completa todos los campos'); return }
@@ -27,7 +25,7 @@ export default function Login() {
       setLoading(false)
       if (magicMode) { setMagicSent(true); return }
       login(email, role)
-      navigate(routes[role] || '/dashboard')
+      // PublicRoute maneja la redirección al dashboard u onboarding
     }, 1400)
   }
 
