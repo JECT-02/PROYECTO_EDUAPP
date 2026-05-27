@@ -67,8 +67,8 @@ export default function Profile() {
           {meta.icon} {meta.label}
         </p>
 
-        {/* Pet info (if available) */}
-        {prefs.pet && (
+        {/* Pet info — solo para estudiantes */}
+        {role === 'student' && prefs.pet && (
           <div style={{ marginTop: 12, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
             Mascota: {prefs.petName || prefs.pet}
           </div>

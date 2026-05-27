@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, Moon, Volume2, Eye, Type, Move, Mic, Glasses } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { useAuth } from '../context/AuthContext'
 
 const ACCESSIBILITY_OPTIONS = [
   { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:<Eye size={20}/> },
@@ -15,7 +14,6 @@ const ACCESSIBILITY_OPTIONS = [
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { user } = useAuth()
 
   const [prefs, setPrefs] = useState(() => {
     try {
@@ -36,8 +34,6 @@ export default function Settings() {
       window.speechSynthesis.speak(u)
     }
   }
-
-  const roleLabel = { teacher: 'Docente', student: 'Estudiante', parent: 'Padre/Madre' }
 
   return (
     <PageWrapper style={{ padding: '48px 40px', maxWidth: 600, margin: '0 auto' }}>
@@ -80,19 +76,7 @@ export default function Settings() {
           ))}
         </div>
 
-        {/* Info de cuenta */}
-        <div className="card" style={{ padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ fontSize: '1.5rem' }}>{user?.avatar || '🦊'}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{user?.name || 'Usuario'}</div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{user?.email || ''}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 2 }}>
-                {roleLabel[user?.role] || 'Estudiante'}
-              </div>
-            </div>
-          </div>
-        </div>
+
       </div>
     </PageWrapper>
   )
