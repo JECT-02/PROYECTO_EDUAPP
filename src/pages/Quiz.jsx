@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { X, Mic, Volume2 } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
@@ -10,13 +10,15 @@ const QUESTIONS = [
     id: 1,
     text: "¿Cuál es el orgánulo responsable de la generación de energía en la célula eucariota?",
     options: ["Núcleo", "Mitocondria", "Ribosoma", "Aparato de Golgi"],
-    correct: 1
+    correct: 1,
+    explanation: "La mitocondria es conocida como la 'central energética' de la célula porque produce ATP mediante la respiración celular."
   },
   {
     id: 2,
     text: "Las células procariotas tienen un núcleo definido rodeado por una membrana.",
     options: ["Verdadero", "Falso"],
-    correct: 1
+    correct: 1,
+    explanation: "Las células procariotas (como las bacterias) NO tienen núcleo definido. Su material genético está disperso en el citoplasma. La afirmación describe a las células eucariotas."
   }
 ]
 
@@ -27,8 +29,9 @@ export default function Quiz() {
   const [timeLeft, setTimeLeft] = useState(30)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle') // idle, correct, incorrect
-  const [score, setScore] = useState(0)
 
+  // Track all answers for the result page
+  const answersRef = useRef([])
   const q = QUESTIONS[qIndex]
 
   useEffect(() => {
@@ -45,7 +48,23 @@ export default function Quiz() {
     return () => clearInterval(timer)
   }, [qIndex, status])
 
+  function recordAnswer(selectedIndex) {
+    answersRef.current = [
+      ...answersRef.current,
+      {
+        questionId: q.id,
+        question: q.text,
+        options: q.options,
+        correct: q.correct,
+        selected: selectedIndex,
+        isCorrect: selectedIndex === q.correct,
+        explanation: q.explanation
+      }
+    ]
+  }
+
   function handleTimeOut() {
+    recordAnswer(-1) // no seleccionó nada
     setStatus('incorrect')
     setTimeout(nextQuestion, 2000)
   }
@@ -53,9 +72,9 @@ export default function Quiz() {
   function handleSelect(index) {
     if (status !== 'idle') return
     setSelected(index)
+    recordAnswer(index)
     if (index === q.correct) {
       setStatus('correct')
-      setScore(s => s + 1)
     } else {
       setStatus('incorrect')
     }
@@ -69,7 +88,16 @@ export default function Quiz() {
       setSelected(null)
       setStatus('idle')
     } else {
-      navigate('/quiz/result', { state: { score: score + (selected === q.correct ? 1 : 0), total: QUESTIONS.length, courseId, nodeId } })
+      const finalScore = answersRef.current.filter(a => a.isCorrect).length
+      navigate('/quiz/result', {
+        state: {
+          score: finalScore,
+          total: QUESTIONS.length,
+          courseId,
+          nodeId,
+          answers: answersRef.current
+        }
+      })
     }
   }
 

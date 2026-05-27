@@ -1,5 +1,5 @@
 .coliseo-page { height: 100vh; display: flex; flex-direction: column; background: radial-gradient(circle at top, #3A0D15 0%, #0F0E17 80%); }
-.center-all { justify-content: center; align-items: center; padding: 24px; }
+
 .coliseo-intro { max-width: 500px; width: 100%; padding: 40px; text-align: center; border-color: rgba(245,158,11,0.3); }
 .coliseo-icon-epic { font-size: 4rem; margin-bottom: 20px; display: inline-block; }
 .coliseo-rules { list-style: none; padding: 0; margin: 30px 0; text-align: left; background: var(--surface-2); padding: 20px; border-radius: var(--radius); color: var(--text); }
