@@ -144,15 +144,7 @@
 
 /* Form elements */
 .login-form { display:flex; flex-direction:column; gap:18px; }
-.input-icon-wrap { position:relative; }
-.input-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-dim); }
-.input-field.with-icon { padding-left:42px; }
-.input-field.pr { padding-right:42px; }
-.eye-btn {
-  position:absolute; right:12px; top:50%; transform:translateY(-50%);
-  background:none; border:none; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; padding:4px;
-}
-.eye-btn:hover { color:var(--text); }
+
 .form-error {
   background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2);
   border-radius:8px; padding:10px 14px; font-size:0.85rem; color:#FCA5A5;

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle } from 'lucide-react'
+import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle, Eye, EyeOff, Lock } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import './Register.css'
@@ -52,6 +52,7 @@ export default function Register() {
     // Parent fields
     relation: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState(['','','','','',''])
   const [loading, setLoading] = useState(false)
 
@@ -161,8 +162,19 @@ export default function Register() {
                 </div>
                 <div className="input-group">
                   <label>Contraseña</label>
-                  <input type="password" className="input-field" placeholder="Mínimo 8 caracteres"
-                    value={form.password} onChange={e => upd('password', e.target.value)} />
+                  <div className="input-icon-wrap">
+                    <Lock size={16} className="input-icon" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="input-field with-icon pr"
+                      placeholder="Mínimo 8 caracteres"
+                      value={form.password}
+                      onChange={e => upd('password', e.target.value)}
+                    />
+                    <button type="button" className="eye-btn" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                      {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </button>
+                  </div>
                 </div>
 
                 {/* === STUDENT SPECIFIC === */}

@@ -118,6 +118,8 @@ input, textarea, select { font-family: inherit; outline: none; }
 /* Input */
 .input-group { display: flex; flex-direction: column; gap: 6px; }
 .input-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; font-family: 'Outfit', sans-serif; }
+.input-icon-wrap { position:relative; }
+.input-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-dim); }
 .input-field {
   background: var(--surface);
   border: 1px solid var(--border-light);
@@ -127,6 +129,14 @@ input, textarea, select { font-family: inherit; outline: none; }
 }
 .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(108,99,255,0.15); }
 .input-field::placeholder { color: var(--text-dim); }
+.input-field.with-icon { padding-left:42px; }
+.input-field.pr { padding-right:42px; }
+
+.eye-btn {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; padding:4px;
+}
+.eye-btn:hover { color:var(--text); }
 
 /* Badge */
 .badge {
@@ -202,6 +212,20 @@ input, textarea, select { font-family: inherit; outline: none; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-fadeInUp { animation: fadeInUp 0.5s ease forwards; }
 .animate-scaleIn { animation: scaleIn 0.3s ease forwards; }
+
+/* Hide native browser password reveal eye icon (Chrome, Edge, Safari) */
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Hide native password reveal in legacy Edge */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none !important;
+}
 
 /* Utility: center content vertically & horizontally */
 .center-all {
