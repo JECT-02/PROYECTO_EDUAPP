@@ -75,8 +75,9 @@
 .chevron.open { transform: rotate(180deg); }
 .dropdown-menu {
   position: absolute; top: calc(100% + 8px); right: 0;
-  width: 240px; background: var(--surface-2);
-  border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+  width: 240px; background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg); overflow: hidden;
   animation: scaleIn 0.15s ease;
   transform-origin: top right; z-index: 200;
@@ -106,8 +107,9 @@
 .notif-wrapper { position: relative; }
 .notif-dropdown {
   position: absolute; top: calc(100% + 8px); right: 0;
-  width: 320px; background: var(--surface-2);
-  border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+  width: 320px; background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg); overflow: hidden;
   z-index: 200;
 }

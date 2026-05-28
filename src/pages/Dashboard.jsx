@@ -57,10 +57,9 @@ export default function Dashboard() {
 
           {/* Continue card */}
           <motion.div
-            className="continue-card card"
-            whileHover={{ y:-3, boxShadow:'0 8px 32px rgba(108,99,255,0.25)' }}
+            className="continue-card"
             onClick={() => navigate('/roadmap/1')}
-            style={{ cursor:'pointer' }}
+            style={{ cursor:'pointer', '--course-color': '#22C55E' }}
           >
             <div className="continue-content">
               <div className="continue-badge badge badge-green">Continuar</div>
@@ -89,13 +88,13 @@ export default function Dashboard() {
             <div className="challenges-row">
               {CHALLENGES.map((c, i) => (
                 <motion.div
-                  key={i} className="challenge-card card card-hover"
+                  key={i} className="challenge-card"
                   whileTap={{ scale:0.97 }}
                   onClick={() => {
                     if (i === 1) navigate('/coliseo')
                     else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1')
                   }}
-                  style={{ cursor:'pointer', borderColor:`${c.color}44` }}
+                  style={{ cursor:'pointer', '--course-color': c.color }}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
                   <div className="ch-info">
@@ -118,12 +117,11 @@ export default function Dashboard() {
               {COURSES.map((c, i) => (
                 <motion.div
                   key={c.id}
-                  className="course-card card"
+                  className="course-card"
                   initial={{ opacity:0, y:20 }}
                   animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
-                  whileHover={{ y:-4, boxShadow:`0 8px 32px ${c.color}22` }}
                   onClick={() => navigate(`/roadmap/${c.id}`)}
-                  style={{ cursor:'pointer' }}
+                  style={{ cursor:'pointer', '--course-color': c.color }}
                 >
                   <div className="course-cover" style={{ background:`linear-gradient(135deg,${c.color}44,${c.color}11)` }}>
                     <div style={{ color: c.color }}>{c.icon}</div>
@@ -151,7 +149,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="dashboard-sidebar hide-mobile">
           {/* Mascot panel */}
-          <div className="sidebar-card card">
+          <div className="sidebar-card">
             <h3 className="sidebar-title">Tu compañero</h3>
             <div className="mascot-panel">
               <Mascot type="dragon" size="lg" mood="normal" />
@@ -172,7 +170,7 @@ export default function Dashboard() {
           </div>
 
           {/* Stats */}
-          <div className="sidebar-card card">
+          <div className="sidebar-card">
             <h3 className="sidebar-title">Tu semana</h3>
             <div className="stats-list">
               {[
@@ -193,7 +191,7 @@ export default function Dashboard() {
           </div>
 
           {/* Last medal */}
-          <div className="sidebar-card card medal-card">
+          <div className="sidebar-card medal-card">
             <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
             <div className="medal-info">
               <div className="medal-name">Explorador Curioso</div>

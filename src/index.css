@@ -7,7 +7,7 @@
   --emerald: #10B981;
   --emerald-light: #34D399;
   --emerald-dark: #059669;
-  --success: #22C55E;
+  --success: #3CAF66;
   --error: #EF4444;
   --warning: #F97316;
   --purple: #8B5CF6;
@@ -17,17 +17,17 @@
 
   --bg: #0A0A14;
   --bg-2: #0E0E1F;
-  --surface: #14142A;
-  --surface-2: #1A1A35;
-  --surface-3: #242445;
+  --surface: #151518;
+  --surface-2: #1C1C22;
+  --surface-3: #262630;
   --border: rgba(16,185,129,0.15);
   --border-light: rgba(255,255,255,0.06);
 
   --text: #F0F0F5;
-  --text-muted: #9494B8;
-  --text-dim: #5E5E7A;
+  --text-muted: #A6A6BC;
+  --text-dim: #BBBBC7;
 
-  --glass: rgba(20,20,42,0.8);
+  --glass: rgba(21,21,24,0.8);
   --glass-border: rgba(16,185,129,0.18);
 
   --radius: 12px;
@@ -53,7 +53,25 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  background: var(--bg);
+  background-color: #080814;
+  background-image:
+    /* Grid horizontal esmeralda */
+    linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px),
+    /* Grid vertical púrpura */
+    linear-gradient(90deg, rgba(108,99,255,0.05) 1px, transparent 1px),
+    /* Gradiente login-style (esmeralda + púrpura) */
+    linear-gradient(
+      135deg,
+      rgba(16,185,129,0.04),
+      rgba(108,99,255,0.03) 35%,
+      rgba(16,185,129,0.04) 55%,
+      rgba(16,185,129,0.03) 80%,
+      rgba(108,99,255,0.06)
+    );
+  background-size:
+    60px 60px,
+    60px 60px,
+    100% 100%;
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
@@ -104,7 +122,7 @@ input, textarea, select { font-family: inherit; outline: none; }
   border: 1px solid var(--border-light);
 }
 .btn-ghost:hover { background: var(--surface); color: var(--text); border-color: var(--primary); }
-.btn-success { background: linear-gradient(135deg, var(--success), #16A34A); color: white; }
+.btn-success { background: linear-gradient(135deg, var(--success), #23A754); color: black; }
 .btn-danger { background: linear-gradient(135deg, var(--error), #DC2626); color: white; }
 .btn-lg { padding: 16px 32px; font-size: 1.1rem; border-radius: var(--radius-lg); }
 .btn-sm { padding: 8px 16px; font-size: 0.85rem; }

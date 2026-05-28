@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import './Achievements.css'
 
 const ACHIEVEMENTS = [
   { id: 1, title: 'Maestro de la Célula', desc: 'Completaste el Coliseo con 100%', icon: '👑', color: '#F59E0B', unlocked: true },
@@ -15,36 +16,26 @@ export default function Achievements() {
   const navigate = useNavigate()
 
   return (
-    <PageWrapper style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+    <PageWrapper className="achievements-page">
+      <header className="achievements-header">
         <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
-        <h1 style={{ fontSize: '1.8rem' }}>Logros y Medallas</h1>
+        <h1 className="achievements-title">Logros y Medallas</h1>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+      <div className="achievements-grid">
         {ACHIEVEMENTS.map(a => (
-          <div key={a.id} className="card" style={{ 
-            padding: 24, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 16,
-            opacity: a.unlocked ? 1 : 0.5,
-            filter: a.unlocked ? 'none' : 'grayscale(1)',
+          <div key={a.id} className={`achievement-card ${a.unlocked ? '' : 'locked'}`} style={{ 
             borderColor: a.unlocked ? `${a.color}55` : 'var(--border-light)'
           }}>
-            <div style={{ 
-              fontSize: '2.5rem', 
-              width: 64, height: 64, 
-              borderRadius: '50%', 
+            <div className="achievement-icon-wrap" style={{ 
               background: a.unlocked ? `${a.color}22` : 'var(--surface-3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: a.unlocked ? `0 0 15px ${a.color}44` : 'none'
             }}>
               {a.icon}
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: 4 }}>{a.title}</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{a.desc}</p>
+              <h3 className="achievement-card-title">{a.title}</h3>
+              <p className="achievement-card-desc">{a.desc}</p>
             </div>
           </div>
         ))}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, Moon, Volume2, Eye, Type, Move, Mic, Glasses } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import './Settings.css'
 
 const ACCESSIBILITY_OPTIONS = [
   { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:<Eye size={20}/> },
@@ -36,30 +37,30 @@ export default function Settings() {
   }
 
   return (
-    <PageWrapper style={{ padding: '48px 40px', maxWidth: 600, margin: '0 auto' }}>
+    <PageWrapper className="settings-page">
       {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 40 }}>
+      <header className="settings-header">
         <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Configuración</h1>
+        <h1 className="settings-title">Configuración</h1>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {/* Preferencias */}
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
-            <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+        <div className="settings-section">
+          <div className="settings-section-header">
+            <h2 className="settings-section-title">
               Preferencias
             </h2>
           </div>
           <SettingRow icon={<Bell size={18}/>} label="Notificaciones" active={!!prefs.notifications} onToggle={() => toggle('notifications')} />
           <SettingRow icon={<Volume2 size={18}/>} label="Efectos de sonido" active={!!prefs.sound} onToggle={() => toggle('sound')} />
-          <SettingRow icon={<Moon size={18}/>} label="Modo oscuro" active={!!prefs.darkMode} onToggle={() => toggle('darkMode')} last />
+          <SettingRow icon={<Moon size={18}/>} label="Modo oscuro" active={!!prefs.darkMode} onToggle={() => toggle('darkMode')} />
         </div>
 
         {/* Accesibilidad — mismas opciones que el onboarding */}
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
-            <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+        <div className="settings-section">
+          <div className="settings-section-header">
+            <h2 className="settings-section-title">
               Accesibilidad
             </h2>
           </div>
@@ -71,7 +72,6 @@ export default function Settings() {
               desc={opt.desc}
               active={!!prefs[opt.key]}
               onToggle={() => toggle(opt.key)}
-              last={i === ACCESSIBILITY_OPTIONS.length - 1}
             />
           ))}
         </div>
@@ -82,18 +82,13 @@ export default function Settings() {
   )
 }
 
-function SettingRow({ icon, label, desc, active, onToggle, last }) {
+function SettingRow({ icon, label, desc, active, onToggle }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 16,
-      padding: '14px 20px',
-      borderBottom: last ? 'none' : '1px solid var(--border-light)',
-      transition: 'background 0.2s'
-    }}>
-      <div style={{ color: 'var(--primary-light)', display: 'flex', flexShrink: 0 }}>{icon}</div>
-      <div style={{ flex: 1 }}>
-        <span style={{ fontWeight: 500, fontSize: '0.95rem', display: 'block' }}>{label}</span>
-        {desc && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginTop: 1 }}>{desc}</span>}
+    <div className="setting-row">
+      <div className="setting-icon">{icon}</div>
+      <div className="setting-info">
+        <span className="setting-label">{label}</span>
+        {desc && <span className="setting-desc">{desc}</span>}
       </div>
       <label className="toggle-switch" onClick={e => e.stopPropagation()}>
         <input type="checkbox" checked={active} onChange={onToggle} />
