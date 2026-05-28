@@ -68,7 +68,7 @@ export default function OnboardingAvatar() {
                 {PETS.map(p => (
                   <div
                     key={p.id}
-                    className={`pet-card card ${pet===p.id?'selected':''}`}
+                    className={`pet-card ${pet===p.id?'selected':''}`}
                     style={{'--pet-color': p.color}}
                     onClick={() => setPet(p.id)}
                   >
