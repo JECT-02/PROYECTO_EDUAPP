@@ -25,22 +25,6 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  position: relative;
-}
-
-.settings-section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(16,185,129,0.02), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.settings-section > * {
-  position: relative;
-  z-index: 1;
 }
 
 .settings-section-header {

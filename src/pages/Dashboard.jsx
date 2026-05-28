@@ -21,7 +21,7 @@ const COURSE_QUIZ_MAP = {
 
 const CHALLENGES = [
   { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
-  { title:'Coliseo desbloqueado — Historia', icon:<Trophy size={20}/>, color:'#F59E0B', time:'30 min', course:'Historia del Mundo' },
+  { title:'Coliseo de Retos', icon:<Trophy size={20}/>, color:'#22C55E', time:'30 min', course:'Biología Celular' },
 ]
 
 function getGreeting() {
