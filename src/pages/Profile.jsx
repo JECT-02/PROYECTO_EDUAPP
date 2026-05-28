@@ -3,6 +3,7 @@ import { ArrowLeft, Copy, Check, LogOut, Users, GraduationCap, Heart } from 'luc
 import { useState } from 'react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
+import './Profile.css'
 
 const ROLE_META = {
   teacher: { label: 'Docente', icon: <GraduationCap size={16}/> },
@@ -47,29 +48,25 @@ export default function Profile() {
   }
 
   return (
-    <PageWrapper style={{ padding: '48px 40px', maxWidth: 600, margin: '0 auto' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 40 }}>
+    <PageWrapper className="profile-page">
+      <header className="profile-header">
         <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Mi Perfil</h1>
+        <h1 className="profile-title">Mi Perfil</h1>
       </header>
 
       {/* Avatar + nombre + rol */}
-      <div className="card" style={{ padding: 40, textAlign: 'center', marginBottom: 24 }}>
-        <div style={{
-          fontSize: '4rem', width: 100, height: 100, borderRadius: '50%',
-          background: 'var(--surface-2)', margin: '0 auto 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+      <div className="profile-avatar-card">
+        <div className="profile-avatar">
           {prefs.avatar || user?.avatar || '🦊'}
         </div>
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 4 }}>{user?.name || 'Usuario'}</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <h2 className="profile-name">{user?.name || 'Usuario'}</h2>
+        <p className="profile-role-badge">
           {meta.icon} {meta.label}
         </p>
 
         {/* Pet info — solo para estudiantes */}
         {role === 'student' && prefs.pet && (
-          <div style={{ marginTop: 12, fontSize: '0.85rem', color: 'var(--text-dim)' }}>
+          <div className="profile-pet">
             Mascota: {prefs.petName || prefs.pet}
           </div>
         )}
@@ -79,19 +76,12 @@ export default function Profile() {
       {role === 'student' && studentId && (
         <div
           onClick={copyId}
-          className="card"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 20px', marginBottom: 20, cursor: 'pointer',
-          }}
+          className="profile-id-card"
           title="Copiar ID de estudiante"
         >
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ID de Estudiante</span>
+          <span className="profile-id-label">ID de Estudiante</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              fontFamily: "'SF Mono', 'Fira Code', monospace",
-              fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary-light)',
-            }}>
+            <span className="profile-id-value">
               {studentId}
             </span>
             {copied ? <Check size={16} color="#22C55E" /> : <Copy size={16} style={{ color: 'var(--text-dim)' }} />}
@@ -100,7 +90,7 @@ export default function Profile() {
       )}
 
       {/* Información según el rol */}
-      <div className="card" style={{ overflow: 'hidden', marginBottom: 20 }}>
+      <div className="profile-info-card">
         {/* Fila común: Email */}
         <InfoRow label="Correo" value={user?.email || '—'} />
         <InfoRow label="Rol" value={meta.label} />
@@ -111,7 +101,7 @@ export default function Profile() {
             <InfoRow label="DNI" value={studentId || '—'} />
             <InfoRow label="Grado" value={extra.grade || '—'} />
             <InfoRow label="Edad" value={extra.age || '—'} />
-            <InfoRow label="DNI Apoderado" value={extra.guardianDni || '—'} last />
+            <InfoRow label="DNI Apoderado" value={extra.guardianDni || '—'} />
           </>
         )}
 
@@ -120,27 +110,19 @@ export default function Profile() {
           <InfoRow
             label="Estudiantes vinculados"
             value={linkedStudents.length > 0 ? linkedStudents.map(s => s.name).join(', ') : 'Ninguno'}
-            last
           />
         )}
 
         {/* Información de docente — solo email y rol, ya mostrados */}
         {role === 'teacher' && (
-          <InfoRow label="Nombre" value={user?.name || '—'} last />
+          <InfoRow label="Nombre" value={user?.name || '—'} />
         )}
       </div>
 
       {/* Cerrar sesión */}
       <button
-        className="card"
+        className="profile-logout-btn"
         onClick={handleLogout}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          padding: '16px 20px', width: '100%', cursor: 'pointer',
-          color: 'var(--error)', fontWeight: 700, fontSize: '0.95rem',
-          border: '1px solid rgba(239,68,68,0.2)',
-          transition: 'all 0.2s',
-        }}
       >
         <LogOut size={18} /> Cerrar Sesión
       </button>
@@ -148,15 +130,11 @@ export default function Profile() {
   )
 }
 
-function InfoRow({ label, value, last }) {
+function InfoRow({ label, value }) {
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '14px 20px',
-      borderBottom: last ? 'none' : '1px solid var(--border-light)',
-    }}>
-      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize: '0.95rem', fontWeight: 600, textAlign: 'right', maxWidth: '60%', wordBreak: 'break-word' }}>{value}</span>
+    <div className="profile-info-row">
+      <span className="profile-info-label">{label}</span>
+      <span className="profile-info-value">{value}</span>
     </div>
   )
 }

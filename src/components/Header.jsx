@@ -83,7 +83,7 @@ export default function Header() {
               <span className="notif-badge">{notifications.length}</span>
             </button>
             {showNotifs && (
-              <div className="notif-dropdown card animate-fadeInUp">
+              <div className="notif-dropdown animate-fadeInUp">
                 <div className="notif-header">
                   <h3>Notificaciones</h3>
                   <button className="btn btn-ghost btn-sm">Marcar todo como leído</button>

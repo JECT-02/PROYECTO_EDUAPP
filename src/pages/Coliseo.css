@@ -1,24 +1,218 @@
-.coliseo-page { height: 100vh; display: flex; flex-direction: column; background: radial-gradient(circle at top, #3A0D15 0%, #0F0E17 80%); }
+/* ===== Coliseo — Editorial Dark ===== */
 
-.coliseo-intro { max-width: 500px; width: 100%; padding: 40px; text-align: center; border-color: rgba(245,158,11,0.3); }
-.coliseo-icon-epic { font-size: 4rem; margin-bottom: 20px; display: inline-block; }
-.coliseo-rules { list-style: none; padding: 0; margin: 30px 0; text-align: left; background: var(--surface-2); padding: 20px; border-radius: var(--radius); color: var(--text); }
-.coliseo-rules li { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-weight: 600; }
-.coliseo-rules li:last-child { margin-bottom: 0; }
-.coliseo-actions { display: flex; gap: 16px; justify-content: center; }
+.coliseo-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-.coliseo-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(0,0,0,0.4); border-bottom: 1px solid rgba(245,158,11,0.2); }
-.coliseo-progress { font-weight: 700; color: var(--accent); font-family: 'Outfit', sans-serif; }
-.coliseo-timer { font-size: 1.5rem; font-weight: 800; font-family: 'Outfit', sans-serif; }
-.coliseo-lives { display: flex; gap: 8px; }
+/* Intro card — editorial style */
+.coliseo-intro {
+  max-width: 500px;
+  width: 100%;
+  padding: 40px;
+  text-align: center;
+  border: 1px solid rgba(245,158,11,0.2);
+  background: linear-gradient(170deg, #080814, #0A0A14);
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.02) inset;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.coliseo-intro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    rgba(245,158,11,0.03),
+    rgba(239,68,68,0.02) 35%,
+    rgba(245,158,11,0.02) 55%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.coliseo-intro > * {
+  position: relative;
+  z-index: 1;
+}
+.coliseo-icon-epic {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  display: inline-block;
+}
+.coliseo-rules {
+  list-style: none;
+  padding: 20px;
+  margin: 30px 0;
+  text-align: left;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  position: relative;
+  overflow: hidden;
+}
 
-.coliseo-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.coliseo-arena { display: flex; flex-direction: column; align-items: center; gap: 32px; width: 100%; max-width: 700px; }
-.coliseo-q-card { width: 100%; padding: 40px; border-color: rgba(245,158,11,0.3); box-shadow: 0 10px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(245,158,11,0.05); }
-.coliseo-q-card h2 { text-align: center; margin-bottom: 32px; line-height: 1.4; color: var(--text); font-weight: 700; }
+.coliseo-rules::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(245,158,11,0.02), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
 
-@media(max-width: 767px) {
-  .coliseo-actions { flex-direction: column; }
-  .coliseo-intro { padding: 24px; }
-  .coliseo-q-card { padding: 24px; }
+.coliseo-rules > * {
+  position: relative;
+  z-index: 1;
+}
+.coliseo-rules li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.coliseo-rules li:last-child {
+  margin-bottom: 0;
+}
+.coliseo-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+/* In-game header */
+.coliseo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: rgba(15,14,23,0.85);
+  border-bottom: 1px solid rgba(245,158,11,0.12);
+}
+.coliseo-progress {
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.coliseo-timer {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.coliseo-lives {
+  display: flex;
+  gap: 8px;
+}
+
+/* Arena */
+.coliseo-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.coliseo-arena {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  max-width: 700px;
+}
+.coliseo-q-card {
+  width: 100%;
+  padding: 40px;
+  border: 1px solid rgba(245,158,11,0.15);
+  background: linear-gradient(170deg, #080814, #0A0A14);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.coliseo-q-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    rgba(245,158,11,0.03),
+    rgba(239,68,68,0.02) 35%,
+    rgba(245,158,11,0.02) 55%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.coliseo-q-card h2 {
+  text-align: center;
+  margin-bottom: 32px;
+  line-height: 1.4;
+  color: var(--text);
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+.coliseo-q-card .quiz-options {
+  position: relative;
+  z-index: 1;
+}
+
+/* Quiz options inside Coliseo — hover con ámbar en vez de verde */
+.coliseo-q-card .quiz-opt-btn:hover:not(.disabled) {
+  border-color: rgba(245,158,11,0.5);
+  box-shadow: 0 4px 20px rgba(245,158,11,0.15), 0 0 0 1px rgba(245,158,11,0.08) inset;
+}
+
+/* Victory / Defeat cards */
+.coliseo-page.center-all .coliseo-intro {
+  border: 1px solid rgba(245,158,11,0.15);
+  background: linear-gradient(170deg, #080814, #0A0A14);
+  border-radius: var(--radius-xl);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.02) inset;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+.coliseo-page.center-all .coliseo-intro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    135deg,
+    rgba(245,158,11,0.03),
+    rgba(239,68,68,0.02) 35%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.coliseo-page.center-all .coliseo-intro > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .coliseo-actions {
+    flex-direction: column;
+  }
+  .coliseo-intro {
+    padding: 24px;
+  }
+  .coliseo-q-card {
+    padding: 24px;
+  }
 }

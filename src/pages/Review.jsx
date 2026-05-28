@@ -94,7 +94,7 @@ export default function Review() {
       <main className="review-content">
         <div className="review-container">
           {/* Question context */}
-          <div className="card review-q-card">
+          <div className="review-q-card">
             <h3 className="rq-title">Pregunta original</h3>
             <p className="rq-text">{currentAnswer.question}</p>
             <div className="rq-answer incorrect">
@@ -113,7 +113,7 @@ export default function Review() {
           </div>
 
           {/* AI Analysis */}
-          <div className="card ai-analysis-card">
+          <div className="ai-analysis-card">
             <div className="ai-header">
               <Mascot type="owl" size="sm" mood="normal" />
               <div>
@@ -146,7 +146,7 @@ export default function Review() {
             </div>
           ) : (
             /* Hub de Refuerzo Multifuente */
-            <div className="card hub-card animate-fadeInUp">
+            <div className="hub-card animate-fadeInUp">
               <h2 className="hub-title">Refuerzo</h2>
 
               <div className="hub-section">

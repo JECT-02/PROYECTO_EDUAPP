@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import './QuizResult.css'
 
 export default function QuizResult() {
   const { state } = useLocation()
@@ -19,47 +20,42 @@ export default function QuizResult() {
 
   return (
     <PageWrapper className="center-all">
-      <div className="card" style={{ padding: 40, textAlign: 'center', maxWidth: 420, width: '100%' }}>
+      <div className="quiz-result-card">
         {/* Icon */}
-        {passed ? (
-          <CheckCircle2 size={64} color="var(--success)" style={{ marginBottom: 16 }} />
-        ) : (
-          <XCircle size={64} color="var(--error)" style={{ marginBottom: 16 }} />
-        )}
+        <div className="result-icon">
+          {passed ? (
+            <CheckCircle2 size={64} color="var(--success)" />
+          ) : (
+            <XCircle size={64} color="var(--error)" />
+          )}
+        </div>
 
         {/* Title */}
-        <h1 style={{ marginBottom: 8 }}>
+        <h1 className="result-title">
           {passed ? '¡Bien hecho!' : 'Necesitas repasar'}
         </h1>
 
         {/* Score */}
-        <p style={{ color: 'var(--text-muted)', marginBottom: 4 }}>
+        <p className="result-sub">
           Obtuviste{' '}
-          <strong style={{ color: passed ? 'var(--success)' : 'var(--error)', fontSize: '1.4rem' }}>
+          <strong className="result-score" style={{ color: passed ? 'var(--success)' : 'var(--error)' }}>
             {score}
           </strong>
           {' '}de {total}
         </p>
 
         {/* Score ring */}
-        <div style={{
-          width: 100, height: 100, borderRadius: '50%', margin: '20px auto 28px',
-          background: `conic-gradient(${passed ? 'var(--success)' : 'var(--error)'} ${percentage}%, var(--surface-3) ${percentage}%)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        <div className="score-ring" style={{
+          background: `conic-gradient(${passed ? 'var(--success)' : 'var(--error)'} ${percentage}%, rgba(255,255,255,0.04) ${percentage}%)`
         }}>
-          <div style={{
-            width: 80, height: 80, borderRadius: '50%',
-            background: 'var(--glass)', backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '1.4rem'
-          }}>
+          <div className="score-ring-inner">
             {percentage}%
           </div>
         </div>
 
         {/* Summary */}
         {answers.length > 0 && (
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginBottom: 28 }}>
+          <p className="result-summary">
             {incorrectCount > 0
               ? `${incorrectCount} pregunta${incorrectCount !== 1 ? 's' : ''} con error${incorrectCount !== 1 ? 'es' : ''}`
               : '¡Respuestas perfectas!'}
@@ -67,7 +63,7 @@ export default function QuizResult() {
         )}
 
         {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="result-actions">
           {passed ? (
             <button className="btn btn-primary btn-lg" onClick={() => navigate(`/roadmap/${courseId}`)}>
               Continuar camino <ArrowRight size={18}/>

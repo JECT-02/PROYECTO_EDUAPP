@@ -1,0 +1,115 @@
+/* ===== Explore — Editorial Dark ===== */
+
+.explore-page {
+  min-height: 100vh;
+  position: relative;
+}
+
+.explore-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.explore-title {
+  font-size: 2rem;
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+}
+
+/* Search bar */
+.explore-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+/* Course grid */
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.explore-card {
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--course-color, #10B981) 12%, rgba(255,255,255,0.02));
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+  position: relative;
+}
+
+.explore-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #10B981) 14%, transparent), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.explore-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.explore-card:hover {
+  border-color: color-mix(in srgb, var(--course-color, #10B981) 50%, transparent);
+  background: color-mix(in srgb, var(--course-color, #10B981) 10%, var(--surface-2));
+  transform: translateY(-4px);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--course-color, #10B981) 18%, transparent);
+}
+
+.explore-card:hover::before {
+  opacity: 1;
+}
+
+.explore-cover {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+}
+
+.explore-body {
+  padding: 20px;
+}
+
+.explore-tags {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.explore-card-title {
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.explore-card-teacher {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.explore-card .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .explore-toolbar {
+    flex-direction: column;
+  }
+  .explore-container {
+    padding: 16px;
+  }
+}

@@ -63,7 +63,7 @@ export default function Coliseo() {
   if (victory) {
     return (
       <PageWrapper className="coliseo-page center-all">
-        <div className="card coliseo-intro animate-scaleIn">
+        <div className="coliseo-intro animate-scaleIn">
           <Trophy size={80} color="#FACC15" className="animate-bounce" style={{ margin: '0 auto 24px' }} />
           <h1 className="gradient-text" style={{ fontSize: '2.5rem' }}>¡MAESTRÍA LOGRADA!</h1>
           <p style={{ fontSize: '1.2rem', marginBottom: 32 }}>Has superado el Coliseo de Retos con éxito.</p>
@@ -78,7 +78,7 @@ export default function Coliseo() {
   if (defeat) {
     return (
       <PageWrapper className="coliseo-page center-all">
-        <div className="card coliseo-intro animate-scaleIn" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+        <div className="coliseo-intro animate-scaleIn" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
           <div style={{ fontSize: '5rem', marginBottom: 16 }}>😢</div>
           <h1 style={{ fontSize: '2.5rem', color: '#EF4444' }}>Derrota</h1>
           <p style={{ fontSize: '1.1rem', marginBottom: 8, color: '#A7A9BE' }}>
@@ -107,7 +107,7 @@ export default function Coliseo() {
   if (!started) {
     return (
       <PageWrapper className="coliseo-page center-all">
-        <div className="card coliseo-intro">
+        <div className="coliseo-intro">
           <button className="icon-btn close-arena" onClick={() => navigate('/dashboard')} title="Salir del Coliseo">
             <X size={20} />
           </button>
@@ -177,7 +177,7 @@ export default function Coliseo() {
       <main className="coliseo-main">
         <div className="coliseo-arena">
           <Mascot type="dragon" mood={status==='incorrect'?'sad':status==='correct'?'happy':'normal'} size="lg" />
-          <div className="card coliseo-q-card">
+          <div className="coliseo-q-card">
             <h2>{currentQ.q}</h2>
             <div className="quiz-options">
               {currentQ.options.map((opt, i) => (
