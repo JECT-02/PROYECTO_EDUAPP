@@ -106,7 +106,8 @@ export default function Register() {
   return (
     <PageWrapper>
       <div className="register-page">
-        <div className="register-wrap card">
+        <div className="reg-deco-grid" />
+        <div className="register-wrap">
 
           {/* Progress steps */}
           <div className="register-steps">
@@ -129,7 +130,7 @@ export default function Register() {
                 {ROLES.map(r => (
                   <div
                     key={r.id}
-                    className={`role-card card ${role === r.id ? 'selected' : ''}`}
+                    className={`role-card ${role === r.id ? 'selected' : ''}`}
                     style={{ '--role-color': r.color }}
                     onClick={() => setRole(r.id)}
                   >

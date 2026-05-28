@@ -32,14 +32,15 @@ export default function Login() {
   return (
     <PageWrapper>
       <div className="login-page">
-        {/* Left panel */}
+        {/* Left editorial panel */}
         <div className="login-left hide-mobile">
+          <div className="deco-grid" />
           <div className="login-brand">
             <div className="brand-icon">✦</div>
             <span className="brand-name">EduApp</span>
           </div>
           <div className="login-hero">
-            <h1 className="login-hero-title">Aprende sin límites.<br /><span className="gradient-text">Tu IA te guía.</span></h1>
+            <h1 className="login-hero-title">Aprende sin límites.<br /><span className="hero-highlight">Tu IA te guía.</span></h1>
             <p className="login-hero-sub">Rutas personalizadas, retroalimentación inteligente y gamificación real.</p>
           </div>
           <div className="features-list">
@@ -56,7 +57,7 @@ export default function Login() {
 
         {/* Right panel - form */}
         <div className="login-right">
-          <div className="login-form-wrap card">
+          <div className="login-form-wrap">
             <div className="form-header">
               <div className="brand-icon sm">✦</div>
               <h2>Bienvenido de vuelta</h2>

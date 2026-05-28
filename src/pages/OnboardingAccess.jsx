@@ -51,7 +51,6 @@ export default function OnboardingAccess() {
           </div>
 
           <div className="onb-hero">
-            <div className="onb-icon-wrap"><Sparkles size={48} color="var(--primary)"/></div>
             <h1>Personaliza tu experiencia</h1>
             <p>Activa las opciones que mejor se adapten a ti. Puedes cambiarlas cuando quieras.</p>
           </div>
@@ -60,7 +59,7 @@ export default function OnboardingAccess() {
             {OPTIONS.map(o => (
               <div
                 key={o.key}
-                className={`access-card card ${prefs[o.key] ? 'enabled' : ''}`}
+                className={`access-card ${prefs[o.key] ? 'enabled' : ''}`}
                 onClick={() => toggle(o.key)}
               >
                 <div className="access-icon">{o.icon}</div>
