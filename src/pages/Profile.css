@@ -27,23 +27,6 @@
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
   border-radius: var(--radius-lg);
-  position: relative;
-  overflow: hidden;
-}
-
-.profile-avatar-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.01) 50%, transparent 80%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.profile-avatar-card > * {
-  position: relative;
-  z-index: 1;
 }
 
 .profile-avatar {
@@ -91,23 +74,6 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   transition: var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-
-.profile-id-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(16,185,129,0.03), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.profile-id-card > * {
-  position: relative;
-  z-index: 1;
 }
 
 .profile-id-card:hover {
@@ -136,22 +102,6 @@
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
   border-radius: var(--radius-lg);
-  position: relative;
-}
-
-.profile-info-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(16,185,129,0.02), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.profile-info-card > * {
-  position: relative;
-  z-index: 1;
 }
 
 .profile-info-row {
@@ -196,23 +146,6 @@
   border-radius: var(--radius-lg);
   transition: var(--transition);
   font-family: 'Plus Jakarta Sans', sans-serif;
-  position: relative;
-  overflow: hidden;
-}
-
-.profile-logout-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, rgba(239,68,68,0.03), transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.profile-logout-btn > * {
-  position: relative;
-  z-index: 1;
 }
 
 .profile-logout-btn:hover {

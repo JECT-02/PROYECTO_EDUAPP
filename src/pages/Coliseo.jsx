@@ -111,11 +111,11 @@ export default function Coliseo() {
           <button className="icon-btn close-arena" onClick={() => navigate('/dashboard')} title="Salir del Coliseo">
             <X size={20} />
           </button>
-          <div className="coliseo-icon-epic animate-pulse-glow">👑</div>
+          <div className="coliseo-icon-epic animate-pulse-glow-gold">👑</div>
           <h1 className="gradient-text">Coliseo de Retos</h1>
           <p>Examen Final: Biología Celular</p>
           <ul className="coliseo-rules">
-            <li><Swords size={16}/> {QUESTIONS.length} preguntas adaptativas</li>
+            <li><Swords size={16}/> {QUESTIONS.length} preguntas</li>
             <li><ShieldAlert size={16}/> 30 minutos. NO se puede pausar.</li>
             <li><Heart size={16} color="#EF4444"/> 3 Vidas. Cada error resta una.</li>
           </ul>
