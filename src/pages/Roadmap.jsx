@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Map, Book, Zap, Puzzle, Trophy, Check, Sparkles } from 'lucide-react'
+import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import './Roadmap.css'
@@ -56,12 +57,26 @@ export default function Roadmap() {
   const course = COURSE_DATA[courseId] || COURSE_DATA['1']
   const nodes = course.nodes
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   const activeNode = nodes.find(n => n.status === 'in_progress' || n.status === 'available') || nodes[0]
 
-  // Dimensiones mejoradas para llenar el espacio
-  const nodeSpacing = 180; // Más espacio vertical
-  const pathWidth = 460;   // Más ancho para el zig-zag
-  const containerWidth = 1000; // Contenedor más amplio
+  // Dimensiones responsivas
+  const nodeSpacing = isMobile ? 110 : 180;
+  const pathWidth = isMobile ? 120 : 460;
+  const containerWidth = isMobile ? 340 : 1000;
+
+  // Nodos más pequeños en mobile
+  const nodeSize = isMobile ? 64 : 90;
+  const iconSize = isMobile ? 20 : 30;
+  const bossIconSize = isMobile ? 26 : 36;
+  const mascotOffset = isMobile ? -55 : -70
 
   // Función de posicionamiento robusta
   function getNodePos(index) {
@@ -99,43 +114,31 @@ export default function Roadmap() {
             </div>
           </div>
         </div>
-        <div className="rm-h-center hide-mobile">
-          <div className="sync-bar-wrap">
-            <span className="sync-label">Nivel de entendimiento</span>
-            <div className="sync-bar">
-              <div className="sync-fill" style={{width:'72%', background:'var(--primary)'}} />
-            </div>
-            <span className="sync-pct" style={{color:'var(--primary-light)'}}>72%</span>
-          </div>
-        </div>
-        <div className="rm-h-right">
-           <button className="icon-btn" title="Mapa del curso"><Map size={18}/></button>
-        </div>
       </div>
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
           {/* Centrado forzado del contenido */}
-          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200, margin: '0 auto', position: 'relative' }}>
+          <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200 }}>
             
             {/* SVG Lines - Capa de fondo */}
             <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
               <path
                 d={generateSVGPath(nodes.length)}
                 fill="none"
-                stroke="rgba(108, 99, 255, 0.12)"
-                strokeWidth="12"
+                stroke="rgba(255,255,255,0.05)"
+                strokeWidth="10"
                 strokeLinecap="round"
-                strokeDasharray="20 15"
+                strokeDasharray="3 22"
               />
               <path
                 className="active-path"
                 d={generateSVGPath(completedCount)}
                 fill="none"
-                stroke="var(--accent)"
-                strokeWidth="12"
+                stroke="rgba(255,255,255,0.35)"
+                strokeWidth="10"
                 strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 12px rgba(245,158,11,0.5))' }}
+                strokeDasharray="3 22"
               />
             </svg>
 
@@ -155,7 +158,8 @@ export default function Roadmap() {
                   }}
                 >
                   <div 
-                    className={`rm-node-v2 ${node.type} ${node.status}`}
+                    className={`rm-node-v2 ${node.type} ${node.status} ${isMobile ? 'mobile' : ''}`}
+                    style={{ width: nodeSize, height: nodeSize }}
                     onClick={() => {
                       if (node.status !== 'locked') {
                         const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
@@ -165,15 +169,9 @@ export default function Roadmap() {
                   >
                     <div className="node-glow" />
                     <div className="node-main">
-                      {node.type === 'theory' ? <Book size={30} /> : 
-                       node.type === 'practice' ? <Puzzle size={30} /> : 
-                       node.type === 'quiz' ? <Zap size={30} /> : <Trophy size={36} />}
-                      
-                      {node.status === 'completed' && (
-                        <div className="node-check-overlay">
-                          <Check size={18} strokeWidth={4} />
-                        </div>
-                      )}
+                      {node.type === 'theory' ? <Book size={iconSize} /> : 
+                       node.type === 'practice' ? <Puzzle size={iconSize} /> : 
+                       node.type === 'quiz' ? <Zap size={iconSize} /> : <Trophy size={bossIconSize} />}
                     </div>
                     
                     <div className="node-info-bubble">
@@ -186,7 +184,7 @@ export default function Roadmap() {
                   </div>
 
                   {node.id === activeNode.id && (
-                    <div className="rm-mascot-guide" style={{ position: 'absolute', top: -70, left: 40 }}>
+                    <div className="rm-mascot-guide" style={{ position: 'absolute', top: mascotOffset, left: isMobile ? 30 : 40 }}>
                       <Mascot type="dragon" size="sm" mood="normal" />
                     </div>
                   )}
@@ -194,6 +192,16 @@ export default function Roadmap() {
               )
             })}
           </div>
+        </div>
+      </div>
+
+      {/* Sync-bar flotante en la parte inferior */}
+      <div className="sync-float">        <div className="sync-float-inner">
+          <span className="sync-float-label">Nivel de entendimiento</span>
+          <div className="sync-float-bar">
+            <div className="sync-float-fill" style={{width:'72%', background:'var(--primary)'}} />
+          </div>
+          <span className="sync-float-pct" style={{color:'var(--primary-light)'}}>72%</span>
         </div>
       </div>
     </PageWrapper>
