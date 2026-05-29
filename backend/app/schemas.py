@@ -117,6 +117,24 @@ class ReadingProgressRequest(BaseSchema):
     reading_percentage: float
     time_seconds: int
 
+# AI Chat Schemas
+class ChatRequest(BaseSchema):
+    concept: str
+    question: str
+    difficulty_level: str = "intermedio"  # basico, intermedio, avanzado
+    conversation_history: Optional[List[Dict[str, str]]] = None
+
+class ChatResponse(BaseSchema):
+    response: str
+    new_difficulty_level: Optional[str] = None
+    suggested_simplification: Optional[bool] = False
+
+class SimplifyContentRequest(BaseSchema):
+    content_html: str
+    concept: str
+    current_difficulty: str = "intermedio"
+    target_difficulty: str = "basico"
+
 # Quiz Schemas
 class QuizQuestionResponse(BaseSchema):
     id: str

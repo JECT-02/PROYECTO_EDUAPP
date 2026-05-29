@@ -31,7 +31,7 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
     account_state = "active"
     if request.role == "student" and request.age_group in ["7-10", "11-14"]:
         if not request.parent_email:
-            raise BadRequestException(code="PARENT_EMAIL_REQUIRED", detail="Parent email is required for under 14")
+            raise BadRequestException(code="PARENT_EMAIL_REQUIRED", detail="Se requiere el correo del padre/tutor para menores de 14 años")
         account_state = "pending_parent"
         
     new_user = User(
@@ -87,8 +87,11 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).filter(User.email == request.email))
     user = result.scalars().first()
     
-    if not user or not verify_password(request.password, user.hashed_password):
-        raise UnauthorizedException(code="INVALID_CREDENTIALS", detail="Invalid email or password")
+    if not user:
+        raise UnauthorizedException(code="USER_NOT_FOUND", detail="El correo no está registrado. Verifica tus credenciales o crea una cuenta nueva.")
+        
+    if not verify_password(request.password, user.hashed_password):
+        raise UnauthorizedException(code="WRONG_PASSWORD", detail="Contraseña incorrecta. Verifica tus credenciales.")
         
     if not user.email_verified:
         raise UnauthorizedException(code="UNVERIFIED_EMAIL", detail="Email not verified")
@@ -115,4 +118,4 @@ async def forgot_password(request: ForgotPasswordRequest, db: AsyncSession = Dep
         # Simulate magic link sending
         print(f"--- DEVELOPMENT MAGIC LINK FOR {request.email}: http://localhost:5173/reset?token=simulated_token ---")
         
-    return {"message": "If the email is registered, a recovery link has been sent."}
+    return {"message": "Si el correo está registrado, se ha enviado un enlace de recuperación."}

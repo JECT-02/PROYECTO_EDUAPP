@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models import User, Course, Enrollment, CourseInvitation, Node, StudentActivity
 from app.schemas import EnrollRequest, CourseResponse, RoadmapResponse, NodeSchema
 from app.dependencies import get_current_user, require_role
-from app.utils.exceptions import NotFoundException, ConflictException, BadRequestException
+from app.utils.exceptions import NotFoundException, ConflictException, BadRequestException, ForbiddenException
 from typing import List
 import uuid
 

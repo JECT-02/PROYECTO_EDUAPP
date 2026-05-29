@@ -7,7 +7,6 @@ from app.models import User, Enrollment, Course, StudentActivity
 from app.schemas import DashboardResponse
 from app.dependencies import get_current_user, require_role
 from datetime import datetime
-import pytz
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
