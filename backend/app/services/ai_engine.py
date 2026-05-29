@@ -221,6 +221,102 @@ async def generate_chat_response(concept: str, question: str, difficulty_level: 
     return get_mock_chat_response(concept, question)
 
 
+async def generate_course_from_files(
+    course_name: str,
+    course_subject: str,
+    course_desc: str,
+    age_level: str,
+    files_context: str = "",
+    generate_topics: bool = True,
+    generate_content: bool = True,
+    generate_roadmap: bool = True,
+) -> dict:
+    """
+    Generate a complete course structure with roadmap from uploaded files using Gemini.
+    """
+    if not genai_client:
+        return None
+
+    prompt = f"""
+    Eres un experto en diseno curricular y pedagogia. Tu tarea es crear la estructura completa de un curso
+    basandote en la siguiente informacion:
+
+    Nombre del curso: {course_name}
+    Materia: {course_subject}
+    Descripcion: {course_desc}
+    Nivel de edad: {age_level}
+
+    Archivos de referencia subidos por el docente:
+    {files_context}
+
+    Basandote en los archivos de referencia, crea una estructura de curso con nodos de aprendizaje.
+    Cada nodo debe ser uno de estos tipos: theory (teoria), practice (practica), quiz (evaluacion), boss (examen final).
+
+    Reglas:
+    - 1 nodo introductorio de teoria
+    - Varios nodos de teoria intercalados con quizzes
+    - 1 nodo boss (examen final) al final
+    - Los prerequisites deben referenciar los IDs de nodos anteriores
+    - Distribucion: ~60% theory, ~20% quiz, ~10% practice, ~10% boss
+
+    Responde UNICAMENTE con un JSON valido:
+    {{
+        "nodes": [
+            {{
+                "id": "n1",
+                "type": "theory",
+                "title": "Titulo del nodo",
+                "description": "Breve descripcion del contenido",
+                "prerequisites": [],
+                "metadata": {{"estimated_minutes": 15}},
+                "content": {{
+                    "content_html": "<p>Contenido educativo en HTML</p>",
+                    "key_concepts": ["concepto1", "concepto2"]
+                }}
+            }}
+        ]
+    }}
+    """
+
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "nodes": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "id": {"type": "STRING"},
+                        "type": {"type": "STRING"},
+                        "title": {"type": "STRING"},
+                        "description": {"type": "STRING"},
+                        "prerequisites": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "metadata": {"type": "OBJECT", "properties": {"estimated_minutes": {"type": "INTEGER"}}},
+                        "content": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "content_html": {"type": "STRING"},
+                                "key_concepts": {"type": "ARRAY", "items": {"type": "STRING"}}
+                            },
+                            "required": ["content_html", "key_concepts"]
+                        }
+                    },
+                    "required": ["id", "type", "title", "prerequisites"]
+                }
+            }
+        },
+        "required": ["nodes"]
+    }
+
+    response = await _gemini_generate(prompt, schema)
+    if response and response.text:
+        try:
+            return json.loads(response.text)
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
 def get_mock_chat_response(concept: str, question: str) -> str:
     """Fallback mock response when no API key is configured."""
     responses = {

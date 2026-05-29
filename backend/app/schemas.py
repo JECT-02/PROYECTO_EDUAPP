@@ -196,3 +196,36 @@ class VoiceCommandResponse(BaseSchema):
     action: str
     params: Dict[str, Any]
     tts_feedback: str
+
+# AI Generation schemas
+class FileUploadResponse(BaseSchema):
+    file_id: str
+    filename: str
+    size: int
+    status: str
+
+class AIGenerateRequest(BaseSchema):
+    course_name: str
+    course_subject: str
+    course_desc: str
+    age_level: str = "15-17"
+    file_ids: List[str] = []
+    generate_topics: bool = True
+    generate_content: bool = True
+    generate_roadmap: bool = True
+    generate_quizzes: bool = True
+    generate_exercises: bool = False
+
+class AIGenerateResponse(BaseSchema):
+    course_id: str
+    course_title: str
+    nodes_created: int
+    message: str
+
+class UpdateNodeContentRequest(BaseSchema):
+    content_html: str
+    key_concepts: List[str] = []
+
+class UpdateNodeContentResponse(BaseSchema):
+    success: bool
+    message: str

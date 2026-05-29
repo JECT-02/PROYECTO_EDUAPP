@@ -181,6 +181,20 @@ export default function Lesson() {
     }
   }, [courseId, nodeId, lessonData.title, difficultyLevel, token])
 
+  const updateNodeContent = useCallback(async (contentHtml, keyConcepts = []) => {
+    if (!token) return false
+    try {
+      const res = await fetch(`${API_URL}/courses/${courseId}/nodes/${nodeId}/content`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ content_html: contentHtml, key_concepts: keyConcepts })
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  }, [courseId, nodeId, token])
+
   const simplifyContent = useCallback(async () => {
     if (!token) return false
 
@@ -209,9 +223,9 @@ export default function Lesson() {
 
       const data = await res.json()
       
-      // If we got simplified content back from the API, update the lesson
+      // If we got simplified content back from the API, update the lesson in REAL TIME
       if (data.content_html) {
-        // Split HTML into paragraphs and remove HTML tags for display
+        // Convert HTML to display lines
         const simplifiedLines = data.content_html
           .replace(/<p>/g, '')
           .split('</p>')
@@ -219,11 +233,15 @@ export default function Lesson() {
           .map(l => l.replace(/<concept>/g, '<key>').replace(/<\/concept>/g, '</key>'))
         
         if (simplifiedLines.length > 0) {
+          // Update local state immediately
           setContent(simplifiedLines)
           setReadIndex(0)
           setDisplayedText(['','','',''])
           setSkip(false)
           setProgress(0)
+          
+          // Persist the change to the backend so it stays after refresh
+          await updateNodeContent(data.content_html, data.key_concepts || [])
           return true
         }
       }
@@ -232,7 +250,7 @@ export default function Lesson() {
       console.error('Simplify API error:', error)
       return false
     }
-  }, [courseId, nodeId, lessonData.title, content, difficultyLevel, token])
+  }, [courseId, nodeId, lessonData.title, content, difficultyLevel, token, updateNodeContent])
 
   async function handleSendChat() {
     if (!inputText.trim() || isAiLoading) return

@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.database import get_db
-from app.models import User, Course, Enrollment, CourseInvitation, Node, StudentActivity
-from app.schemas import EnrollRequest, CourseResponse, RoadmapResponse, NodeSchema
+from app.models import User, Course, Enrollment, CourseInvitation, Node, StudentActivity, CourseMaterial
+from app.schemas import EnrollRequest, CourseResponse, RoadmapResponse, NodeSchema, AIGenerateRequest, AIGenerateResponse
 from app.dependencies import get_current_user, require_role
 from app.utils.exceptions import NotFoundException, ConflictException, BadRequestException, ForbiddenException
+from app.services.ai_engine import generate_course_from_files
 from typing import List
 import uuid
+import json
 
 router = APIRouter(prefix="/api/courses", tags=["courses"])
 
@@ -174,4 +176,114 @@ async def get_roadmap(
         title=course.title,
         nodes=node_schemas,
         sync_score=current_user.sync_score if current_user.role == "student" else None
+    )
+
+
+@router.post("/ai-generate", response_model=AIGenerateResponse)
+async def ai_generate_course(
+    request: AIGenerateRequest,
+    current_user: User = Depends(require_role(["teacher"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Generate a complete course with roadmap from uploaded files using Gemini AI.
+    """
+    # Get uploaded file contents
+    file_contents = []
+    for fid in request.file_ids:
+        mat_res = await db.execute(select(CourseMaterial).filter(CourseMaterial.id == fid))
+        mat = mat_res.scalars().first()
+        if mat and mat.extracted_text:
+            file_contents.append(f"--- {mat.original_name} ---\n{mat.extracted_text[:3000]}")
+        elif mat:
+            file_contents.append(f"--- {mat.original_name} --- (sin contenido extraido)")
+
+    files_context = "\n\n".join(file_contents) if file_contents else "No se subieron archivos"
+
+    # Generate course structure using Gemini
+    result = await generate_course_from_files(
+        course_name=request.course_name,
+        course_subject=request.course_subject,
+        course_desc=request.course_desc,
+        age_level=request.age_level,
+        files_context=files_context,
+        generate_topics=request.generate_topics,
+        generate_content=request.generate_content,
+        generate_roadmap=request.generate_roadmap,
+    )
+
+    if not result:
+        # Fallback: create basic structure
+        course_id = str(uuid.uuid4())
+        course = Course(
+            id=course_id,
+            teacher_id=current_user.id,
+            title=request.course_name,
+            description=request.course_desc,
+            category=request.course_subject or "General",
+            age_level=request.age_level,
+        )
+        db.add(course)
+
+        # Create default theory node
+        node_id = str(uuid.uuid4())
+        node = Node(
+            id=node_id,
+            course_id=course_id,
+            node_type="theory",
+            title=request.course_name,
+            description=request.course_desc,
+            order_index=0,
+            prerequisites=[],
+        )
+        db.add(node)
+        await db.commit()
+
+        return AIGenerateResponse(
+            course_id=course_id,
+            course_title=request.course_name,
+            nodes_created=1,
+            message=f"Curso '{request.course_name}' creado (modo basico)"
+        )
+
+    # Create course from AI result
+    course_id = str(uuid.uuid4())
+    course = Course(
+        id=course_id,
+        teacher_id=current_user.id,
+        title=request.course_name,
+        description=request.course_desc,
+        category=request.course_subject or "General",
+        age_level=request.age_level,
+        status="draft",
+        cached_graph=result.get("nodes", []),
+    )
+    db.add(course)
+
+    nodes = result.get("nodes", [])
+    node_count = 0
+    for i, node_data in enumerate(nodes):
+        node_id = str(uuid.uuid4())
+        node = Node(
+            id=node_id,
+            course_id=course_id,
+            node_type=node_data.get("type", "theory"),
+            title=node_data.get("title", f"Leccion {i+1}"),
+            description=node_data.get("description", ""),
+            order_index=i,
+            prerequisites=node_data.get("prerequisites", []),
+            metadata_json=node_data.get("metadata", {}),
+            ai_content=node_data.get("content", None),
+            teacher_review_status="pending",
+        )
+        db.add(node)
+        node_count += 1
+
+    await db.commit()
+
+    return AIGenerateResponse(
+        course_id=course_id,
+        course_title=request.course_name,
+        nodes_created=node_count,
+        message=f"Curso '{request.course_name}' creado con {node_count} nodos usando Gemini AI"
     )

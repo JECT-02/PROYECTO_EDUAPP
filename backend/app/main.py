@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.config import get_settings
-from app.routers import auth, onboarding, dashboard, courses, lessons, quizzes, exams, reinforcement, teacher, parent, accessibility
+from app.routers import auth, onboarding, dashboard, courses, lessons, quizzes, exams, reinforcement, teacher, parent, accessibility, materials
 from app.database import engine, Base
 
 settings = get_settings()
@@ -39,6 +39,7 @@ app.include_router(reinforcement.router)
 app.include_router(teacher.router)
 app.include_router(parent.router)
 app.include_router(accessibility.router)
+app.include_router(materials.router)
 
 # Database initialization
 @app.on_event("startup")

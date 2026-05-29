@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.database import get_db
 from app.models import User, Node, StudentActivity, Enrollment
-from app.schemas import LessonResponse, ReadingProgressRequest, ChatRequest, ChatResponse, SimplifyContentRequest
+from app.schemas import LessonResponse, ReadingProgressRequest, ChatRequest, ChatResponse, SimplifyContentRequest, UpdateNodeContentRequest, UpdateNodeContentResponse
 from app.dependencies import require_role
 from app.services.ai_engine import generate_lesson_content, generate_chat_response
 from app.services.rag_service import retrieve_context
@@ -215,4 +215,43 @@ async def simplify_lesson_content(
         content_html=request.content_html,
         key_concepts=[],
         reading_percentage=0.0
+    )
+
+
+@router.put("/{course_id}/nodes/{node_id}/content", response_model=UpdateNodeContentResponse)
+async def update_node_content(
+    course_id: str,
+    node_id: str,
+    request: UpdateNodeContentRequest,
+    current_user: User = Depends(require_role(["student"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update the AI-generated content of a lesson node in real-time.
+    Used when the AI tutor simplifies or rewrites content based on student feedback.
+    """
+    # Verify enrollment
+    enr_res = await db.execute(select(Enrollment).filter(
+        Enrollment.student_id == current_user.id, Enrollment.course_id == course_id))
+    if not enr_res.scalars().first():
+        raise ForbiddenException(code="NOT_ENROLLED", detail="Not enrolled")
+
+    # Get node
+    node_res = await db.execute(select(Node).filter(Node.id == node_id, Node.course_id == course_id))
+    node = node_res.scalars().first()
+    if not node:
+        raise NotFoundException(code="NODE_NOT_FOUND", detail="Node not found")
+
+    # Update the ai_content with the new simplified version
+    current_content = node.ai_content or {}
+    current_content["content_html"] = request.content_html
+    current_content["key_concepts"] = request.key_concepts
+    current_content["simplified"] = True
+    node.ai_content = current_content
+
+    await db.commit()
+
+    return UpdateNodeContentResponse(
+        success=True,
+        message="Contenido del nodo actualizado correctamente"
     )

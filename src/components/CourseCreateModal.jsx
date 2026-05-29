@@ -5,6 +5,7 @@ import {
   BrainCircuit, Sparkles, AlertCircle, Check, File as FileIcon,
   GraduationCap, Type
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const AUTO_GEN_OPTIONS = [
   {
@@ -51,6 +52,8 @@ const AUTO_GEN_OPTIONS = [
   },
 ]
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -58,11 +61,14 @@ function formatFileSize(bytes) {
 }
 
 export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
-  const [step, setStep] = useState('form') // form | generating | done
+  const { token } = useAuth()
+  const [step, setStep] = useState('form') // form | uploading | generating | done
   const [courseName, setCourseName] = useState('')
   const [courseSubject, setCourseSubject] = useState('')
   const [courseDesc, setCourseDesc] = useState('')
+  const [courseLevel, setCourseLevel] = useState('15-17')
   const [files, setFiles] = useState([])
+  const [fileIds, setFileIds] = useState([])
   const [dragging, setDragging] = useState(false)
   const [autoGen, setAutoGen] = useState({
     temas: true,
@@ -73,6 +79,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     ejercicios: false,
   })
   const [error, setError] = useState('')
+  const [progressMsg, setProgressMsg] = useState('')
   const fileInputRef = useRef(null)
 
   // Reset on open
@@ -82,9 +89,12 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
       setCourseName('')
       setCourseSubject('')
       setCourseDesc('')
+      setCourseLevel('15-17')
       setFiles([])
+      setFileIds([])
       setAutoGen({ temas: true, contenidos: true, roadmap: true, coliseo: false, examenes: true, ejercicios: false })
       setError('')
+      setProgressMsg('')
     }
   }, [isOpen])
 
@@ -93,7 +103,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     setDragging(false)
     const droppedFiles = Array.from(e.dataTransfer?.files || e.target?.files || [])
     if (droppedFiles.length > 0) {
-      setFiles(prev => [...prev, ...droppedFiles].slice(0, 10)) // max 10 files
+      setFiles(prev => [...prev, ...droppedFiles].slice(0, 10))
     }
     if (e.target) e.target.value = ''
   }, [])
@@ -106,23 +116,132 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     setAutoGen(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const handleCreate = () => {
-    // Validate
+  const uploadFilesToBackend = async () => {
+    if (files.length === 0) return []
+
+    // First, create the course to get a course ID
+    const createRes = await fetch(`${API_URL}/teacher/courses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        title: courseName,
+        description: courseDesc,
+        category: courseSubject || 'General',
+        age_level: courseLevel
+      })
+    })
+
+    if (!createRes.ok) {
+      throw new Error('Error al crear el curso')
+    }
+
+    const courseData = await createRes.json()
+    const courseId = courseData.id
+
+    if (files.length === 0) return [courseId, []]
+
+    // Upload files
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+
+    const uploadRes = await fetch(`${API_URL}/materials/upload/${courseId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    })
+
+    if (!uploadRes.ok) {
+      throw new Error('Error al subir archivos')
+    }
+
+    const uploadedFiles = await uploadRes.json()
+    const newFileIds = uploadedFiles.map(f => f.fileId || f.file_id)
+    setFileIds(newFileIds)
+
+    // Process files using Gemini (extract text and generate embeddings)
+    return [courseId, newFileIds]
+  }
+
+  const generateCourseWithAI = async (courseId, uploadedFileIds) => {
+    setProgressMsg('Generando contenido del curso con Gemini AI...')
+
+    const genRes = await fetch(`${API_URL}/courses/ai-generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        course_name: courseName,
+        course_subject: courseSubject || courseName,
+        course_desc: courseDesc,
+        age_level: courseLevel,
+        file_ids: uploadedFileIds,
+        generate_topics: autoGen.temas,
+        generate_content: autoGen.contenidos,
+        generate_roadmap: autoGen.roadmap,
+        generate_quizzes: autoGen.examenes,
+        generate_exercises: autoGen.ejercicios,
+      })
+    })
+
+    if (!genRes.ok) {
+      const err = await genRes.json().catch(() => ({}))
+      throw new Error(err.detail || 'Error al generar el curso con IA')
+    }
+
+    return await genRes.json()
+  }
+
+  const handleCreate = async () => {
     if (!courseName.trim()) {
       setError('El nombre del curso es obligatorio.')
       return
     }
     setError('')
 
-    // Simulate course creation with a short delay
-    setStep('generating')
-    setTimeout(() => {
+    try {
+      setStep('uploading')
+      setProgressMsg('Subiendo archivos...')
+
+      const [courseId, uploadedFileIds] = await uploadFilesToBackend()
+
+      setStep('generating')
+      setProgressMsg('Generando curso con Gemini AI...')
+
+      const result = await generateCourseWithAI(courseId, uploadedFileIds)
+
       setStep('done')
-    }, 2000)
+      setProgressMsg(`Curso creado: ${result.courseTitle}`)
+
+      const newCourse = {
+        id: result.courseId || courseId,
+        name: courseName,
+        subject: courseSubject || courseName,
+        description: courseDesc,
+        students: 0,
+        nodes: result.nodesCreated || 0,
+        progress: 0,
+        status: 'Borrador',
+        files: files.length,
+        autoGen: Object.entries(autoGen).filter(([, v]) => v).map(([k]) => k),
+        createdAt: new Date().toISOString(),
+      }
+      // Store for the onCreated callback
+      window.__lastCreatedCourse = newCourse
+    } catch (err) {
+      setError(err.message || 'Error al crear el curso')
+      setStep('form')
+    }
   }
 
   const handleFinish = () => {
-    const newCourse = {
+    const course = window.__lastCreatedCourse || {
       id: Date.now(),
       name: courseName,
       subject: courseSubject || courseName,
@@ -135,7 +254,9 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
       autoGen: Object.entries(autoGen).filter(([, v]) => v).map(([k]) => k),
       createdAt: new Date().toISOString(),
     }
-    onCreated?.(newCourse)
+    setProgressMsg('')
+    setStep('form')
+    onCreated?.(course)
     onClose()
   }
 
@@ -172,8 +293,9 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
             <div className="modal-header">
               <h2>
                 {step === 'form' && 'Crear nuevo curso'}
-                {step === 'generating' && 'Generando curso...'}
-                {step === 'done' && 'Curso creado'}
+                {step === 'uploading' && 'Subiendo archivos...'}
+                {step === 'generating' && 'Generando curso con IA...'}
+                {step === 'done' && 'Curso creado exitosamente'}
               </h2>
               <button className="modal-close-btn" onClick={onClose} aria-label="Cerrar">
                 <X size={18} />
@@ -212,12 +334,11 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                         </div>
                         <div className="input-group">
                           <label>Nivel</label>
-                          <select className="input-field" defaultValue="">
-                            <option value="" disabled>Seleccionar nivel</option>
-                            <option value="7-10">7-10 años</option>
-                            <option value="11-14">11-14 años</option>
-                            <option value="15-17">15-17 años</option>
-                            <option value="18+">18+ años</option>
+                          <select className="input-field" value={courseLevel} onChange={e => setCourseLevel(e.target.value)}>
+                            <option value="7-10">7-10 anos</option>
+                            <option value="11-14">11-14 anos</option>
+                            <option value="15-17">15-17 anos</option>
+                            <option value="18+">18+ anos</option>
                           </select>
                         </div>
                       </div>
@@ -233,7 +354,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     </div>
                   </div>
 
-                  {/* File upload (future RAG) */}
+                  {/* File upload */}
                   <div>
                     <div className="form-section-title">
                       <Upload size={14} />
@@ -252,8 +373,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                         {dragging ? 'Suelta los archivos aqui' : 'Arrastra archivos o haz clic'}
                       </div>
                       <div className="upload-zone-sub">
-                        Sube materiales de referencia (PDF, DOC, PPT, TXT) para que la IA genere
-                        el contenido del curso automaticamente. Soporte RAG proximamente.
+                        Sube PDF, DOC, TXT - la IA de Gemini analizara los archivos para generar el curso
                       </div>
                       <input
                         ref={fileInputRef}
@@ -286,7 +406,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                   <div>
                     <div className="form-section-title">
                       <Sparkles size={14} />
-                      Generacion automatica
+                      Generacion automatica con IA
                     </div>
                     <div className="auto-gen-grid">
                       {AUTO_GEN_OPTIONS.map(opt => (
@@ -339,7 +459,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                 </>
               )}
 
-              {step === 'generating' && (
+              {(step === 'uploading' || step === 'generating') && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, padding: '40px 0' }}>
                   <motion.div
                     animate={{ rotate: 360 }}
@@ -351,27 +471,31 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     }}
                   />
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>Creando curso con IA</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>
+                      {step === 'uploading' ? 'Subiendo archivos...' : 'Generando curso con Gemini AI'}
+                    </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Analizando archivos y generando {Object.values(autoGen).filter(Boolean).length} componentes...
+                      {progressMsg}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {Object.entries(autoGen).filter(([, v]) => v).map(([key]) => {
-                      const opt = AUTO_GEN_OPTIONS.find(o => o.id === key)
-                      return (
-                        <motion.div
-                          key={key}
-                          className="badge"
-                          style={{ background: `${opt.color}18`, color: opt.color }}
-                          animate={{ opacity: [0.5, 1, 0.5] }}
-                          transition={{ duration: 1.5, repeat: Infinity, delay: Math.random() }}
-                        >
-                          {opt.label}
-                        </motion.div>
-                      )
-                    })}
-                  </div>
+                  {step === 'generating' && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {Object.entries(autoGen).filter(([, v]) => v).map(([key]) => {
+                        const opt = AUTO_GEN_OPTIONS.find(o => o.id === key)
+                        return (
+                          <motion.div
+                            key={key}
+                            className="badge"
+                            style={{ background: `${opt.color}18`, color: opt.color }}
+                            animate={{ opacity: [0.5, 1, 0.5] }}
+                            transition={{ duration: 1.5, repeat: Infinity, delay: Math.random() }}
+                          >
+                            {opt.label}
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -393,7 +517,8 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>Curso creado exitosamente</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                      Se ha generado el curso &quot;{courseName}&quot; con los componentes seleccionados.
+                      Gemini AI ha generado el curso &quot;{courseName}&quot; con los componentes seleccionados.
+                      {files.length > 0 && ` Se analizaron ${files.length} archivo(s) de referencia.`}
                     </div>
                   </div>
                   <div className="card" style={{ padding: 16, width: '100%', maxWidth: 400, marginTop: 8 }}>
@@ -409,11 +534,6 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                       })}
                     </div>
                   </div>
-                  {files.length > 0 && (
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-dim)' }}>
-                      {files.length} archivo(s) de referencia almacenados para RAG
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -424,11 +544,12 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                 <>
                   <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
                   <button className="btn btn-primary btn-lg" onClick={handleCreate}>
-                    Crear curso
+                    <Sparkles size={16} />
+                    Crear curso con IA
                   </button>
                 </>
               )}
-              {step === 'generating' && (
+              {(step === 'uploading' || step === 'generating') && (
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div className="btn btn-ghost" style={{ opacity: 0.5 }}>
                     <motion.div
@@ -436,7 +557,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                       transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                       style={{ width: 16, height: 16, border: '2px solid var(--border-light)', borderTopColor: 'var(--primary)', borderRadius: '50%' }}
                     />
-                    Generando...
+                    {step === 'uploading' ? 'Subiendo...' : 'Generando...'}
                   </div>
                 </div>
               )}
