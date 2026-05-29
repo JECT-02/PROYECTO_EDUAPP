@@ -214,9 +214,10 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                           <label>Nivel</label>
                           <select className="input-field" defaultValue="">
                             <option value="" disabled>Seleccionar nivel</option>
-                            <option value="principiante">Principiante</option>
-                            <option value="intermedio">Intermedio</option>
-                            <option value="avanzado">Avanzado</option>
+                            <option value="7-10">7-10 años</option>
+                            <option value="11-14">11-14 años</option>
+                            <option value="15-17">15-17 años</option>
+                            <option value="18+">18+ años</option>
                           </select>
                         </div>
                       </div>
