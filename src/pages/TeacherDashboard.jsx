@@ -22,7 +22,7 @@ const INITIAL_COURSES = [
     progress: 72,
     status: 'Activo',
     color: '#22C55E',
-    level: 'Intermedio',
+    level: '11-14',
     createdAt: '2025-01-15',
   },
   {
@@ -35,7 +35,7 @@ const INITIAL_COURSES = [
     progress: 45,
     status: 'Activo',
     color: '#6C63FF',
-    level: 'Principiante',
+    level: '7-10',
     createdAt: '2025-02-20',
   },
   {
@@ -48,7 +48,7 @@ const INITIAL_COURSES = [
     progress: 15,
     status: 'Borrador',
     color: '#F59E0B',
-    level: 'Avanzado',
+    level: '18+',
     createdAt: '2025-03-10',
   },
 ]
@@ -122,36 +122,36 @@ export default function TeacherDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(108,99,255,0.12)', color: '#8B83FF' }}>
-              <GraduationCap size={22} />
+              <GraduationCap size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{courses.length}</div>
               <div className="stat-label">Total cursos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(34,197,94,0.12)', color: '#4ADE80' }}>
-              <Users size={22} />
+              <Users size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{totalStudents}</div>
               <div className="stat-label">Estudiantes activos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(245,158,11,0.12)', color: '#FCD34D' }}>
-              <Book size={22} />
+              <Book size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{activeCourses}</div>
               <div className="stat-label">Cursos activos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(139,92,246,0.12)', color: '#A78BFA' }}>
-              <TrendingUp size={22} />
+              <TrendingUp size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{avgProgress}%</div>
@@ -182,7 +182,8 @@ export default function TeacherDashboard() {
               {courses.map((course, i) => (
                 <motion.div
                   key={course.id}
-                  className="teacher-course-card card"
+                  className="teacher-course-card"
+                  style={{ '--course-color': course.color }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
@@ -208,7 +209,6 @@ export default function TeacherDashboard() {
 
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                     {statusBadge(course.status)}
-                    <span className="badge badge-blue">{course.level}</span>
                   </div>
 
                   <div className="teacher-course-title">{course.name}</div>
@@ -227,23 +227,6 @@ export default function TeacherDashboard() {
                       <Clock size={14} />
                       {course.createdAt}
                     </div>
-                  </div>
-
-                  <div className="teacher-course-footer">
-                    <div style={{ flex: 1, marginRight: 12 }}>
-                      <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${course.progress}%`,
-                            background: `linear-gradient(90deg, ${course.color}, ${course.color}aa)`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: course.color }}>
-                      {course.progress}%
-                    </span>
                   </div>
 
                   {/* Ver detalles button */}

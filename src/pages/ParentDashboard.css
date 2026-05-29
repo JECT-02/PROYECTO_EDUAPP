@@ -43,11 +43,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: all 0.25s ease;
-}
-
-.parent-student-card:hover {
-  border-color: rgba(108, 99, 255, 0.3);
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
 }
 
 .parent-student-top {
@@ -184,6 +182,9 @@
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
 }
 
 .parent-empty-icon {

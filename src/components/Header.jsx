@@ -116,7 +116,7 @@ export default function Header() {
                   <div className="user-avatar lg">{userData.avatar}</div>
                   <div>
                     <div className="dropdown-name">{userData.name}</div>
-                    <div className="dropdown-role" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div className="dropdown-role">
                       {roleIcon[userData.role]}
                       {roleLabels[userData.role]}
                     </div>

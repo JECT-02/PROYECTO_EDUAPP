@@ -128,7 +128,6 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
               <div>
                 <h2>{course.name}</h2>
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <span className="badge badge-blue">{course.level}</span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     {participants.length} participantes
                   </span>
@@ -188,19 +187,19 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
 
                   {/* Summary stats */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary-light)' }}>
                         {participants.length}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Participantes</div>
                     </div>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#22C55E' }}>
                         {Math.round(participants.reduce((s, p) => s + p.progress, 0) / participants.length)}%
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Progreso promedio</div>
                     </div>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#A78BFA' }}>
                         {Math.round(participants.reduce((s, p) => s + p.understanding, 0) / participants.length)}%
                       </div>
@@ -288,19 +287,19 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {/* Summary */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#EF4444' }}>
                         {activeAlerts.filter(a => a.severity === 'error').length}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Inactividad</div>
                     </div>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F97316' }}>
                         {activeAlerts.filter(a => a.severity === 'warning').length}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>Dificultades</div>
                     </div>
-                    <div className="card" style={{ padding: '12px 14px', textAlign: 'center' }}>
+                    <div className="detail-stat-card">
                       <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#22C55E' }}>
                         {destacados.length}
                       </div>
