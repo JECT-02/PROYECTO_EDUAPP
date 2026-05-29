@@ -121,7 +121,7 @@ export default function ParentDashboard() {
                 return (
                   <motion.div
                     key={s.id}
-                    className="card parent-student-card"
+                    className="parent-student-card"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
@@ -201,7 +201,7 @@ export default function ParentDashboard() {
             </div>
           ) : (
             <motion.div
-              className="card parent-empty-state"
+              className="parent-empty-state"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
             >
