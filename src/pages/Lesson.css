@@ -262,6 +262,45 @@
   border: none;
   cursor: pointer;
 }
+.chat-send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.chat-input:disabled {
+  opacity: 0.6;
+}
+
+/* Chat typing indicator */
+.chat-msg.typing {
+  background: transparent;
+  border: none;
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Difficulty badge in chat */
+.chat-header .difficulty-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+/* AI feedback badge animation */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ai-feedback-badge {
+  animation: slideDown 0.4s ease forwards;
+}
 
 /* Responsive */
 @media (max-width: 767px) {

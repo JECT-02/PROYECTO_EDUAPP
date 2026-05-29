@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles } from 'lucide-react'
+import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, Loader2 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import PageWrapper from '../components/PageWrapper'
 import './Lesson.css'
 
@@ -67,9 +68,12 @@ const COURSE_CONTENT = {
   }
 }
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
+  const { token } = useAuth()
   const lessonData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
   
   const [content, setContent] = useState(lessonData.content)
@@ -77,13 +81,14 @@ export default function Lesson() {
   const [readIndex, setReadIndex] = useState(0)
   const [displayedText, setDisplayedText] = useState(['', '', '', ''])
   const [skip, setSkip] = useState(false)
-  const [isTooltipOpen, setTooltip] = useState(null)
   
   const [showChat, setShowChat] = useState(false)
   const [messages, setMessages] = useState([
-    { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
+    { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?', isTyping: false }
   ])
   const [inputText, setInputText] = useState('')
+  const [isAiLoading, setIsAiLoading] = useState(false)
+  const [difficultyLevel, setDifficultyLevel] = useState('auto')
   const chatEndRef = useRef(null)
 
   useEffect(() => {
@@ -92,6 +97,7 @@ export default function Lesson() {
     setSkip(false)
     setContent(lessonData.content)
     setProgress(0)
+    setMessages([{ role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?', isTyping: false }])
   }, [courseId, nodeId, lessonData])
 
   useEffect(() => {
@@ -132,25 +138,176 @@ export default function Lesson() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  function handleSendChat() {
-    if (!inputText.trim()) return
-    const userMsg = inputText.trim()
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }])
-    setInputText('')
+  const callAiTutor = useCallback(async (question, conversationHistory) => {
+    if (!token) {
+      // Fallback: mock AI response when not authenticated
+      return null
+    }
 
-    setTimeout(() => {
-      if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
-        setTimeout(() => {
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+
+      const res = await fetch(`${API_URL}/courses/${courseId}/nodes/${nodeId}/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          concept: lessonData.title,
+          question,
+          difficulty_level: difficultyLevel,
+          conversation_history: conversationHistory.slice(-6)
+        })
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        console.error('Chat API error:', errData)
+        return null
+      }
+
+      const data = await res.json()
+      
+      // Update difficulty level if the AI suggests changing it
+      if (data.newDifficultyLevel) {
+        setDifficultyLevel(data.newDifficultyLevel)
+      }
+      
+      return data
+    } catch (error) {
+      console.error('Chat API error:', error)
+      return null
+    }
+  }, [courseId, nodeId, lessonData.title, difficultyLevel, token])
+
+  const simplifyContent = useCallback(async () => {
+    if (!token) return false
+
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+
+      const contentHtml = content.join('<br/>')
+      const currentDiff = difficultyLevel === 'auto' ? 'intermedio' : difficultyLevel
+      const targetDiff = currentDiff === 'avanzado' ? 'intermedio' : 'basico'
+
+      const res = await fetch(`${API_URL}/courses/${courseId}/nodes/${nodeId}/simplify`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          content_html: contentHtml,
+          concept: lessonData.title,
+          current_difficulty: currentDiff,
+          target_difficulty: targetDiff
+        })
+      })
+
+      if (!res.ok) return false
+
+      const data = await res.json()
+      
+      // If we got simplified content back from the API, update the lesson
+      if (data.content_html) {
+        // Split HTML into paragraphs and remove HTML tags for display
+        const simplifiedLines = data.content_html
+          .replace(/<p>/g, '')
+          .split('</p>')
+          .filter(l => l.trim())
+          .map(l => l.replace(/<concept>/g, '<key>').replace(/<\/concept>/g, '</key>'))
+        
+        if (simplifiedLines.length > 0) {
+          setContent(simplifiedLines)
           setReadIndex(0)
           setDisplayedText(['','','',''])
           setSkip(false)
-          setContent(lessonData.simplified)
-        }, 1000)
-      } else {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Buena pregunta. Estoy procesando una explicación más detallada sobre ese punto...' }])
+          setProgress(0)
+          return true
+        }
       }
-    }, 1000)
+      return false
+    } catch (error) {
+      console.error('Simplify API error:', error)
+      return false
+    }
+  }, [courseId, nodeId, lessonData.title, content, difficultyLevel, token])
+
+  async function handleSendChat() {
+    if (!inputText.trim() || isAiLoading) return
+    const userMsg = inputText.trim()
+    setMessages(prev => [...prev, { role: 'user', text: userMsg, isTyping: false }])
+    setInputText('')
+    setIsAiLoading(true)
+
+    // Add typing indicator
+    setMessages(prev => [...prev, { role: 'ai', text: '...', isTyping: true }])
+
+    // Try API first, fallback to mock
+    const apiResult = await callAiTutor(userMsg, messages)
+    
+    // Remove typing indicator
+    setMessages(prev => prev.filter(m => !m.isTyping))
+
+    if (apiResult) {
+      setMessages(prev => [...prev, { role: 'ai', text: apiResult.response, isTyping: false }])
+      
+      // If AI suggests simplification, simplify content
+      if (apiResult.suggestedSimplification) {
+        setTimeout(async () => {
+          const simplified = await simplifyContent()
+          if (simplified) {
+            setMessages(prev => [...prev, { 
+              role: 'ai', 
+              text: '✨ He simplificado el contenido de la lección para que sea más fácil de entender. ¡Espero que te ayude!', 
+              isTyping: false 
+            }])
+          }
+        }, 500)
+      }
+    } else {
+      // Fallback to mock responses when API is unavailable
+      setTimeout(() => {
+        let aiResponse = ''
+        const msgLower = userMsg.toLowerCase()
+        
+        if (msgLower.includes('no entiendo') || msgLower.includes('más fácil') || msgLower.includes('simplifica')) {
+          aiResponse = 'Entiendo que este concepto puede ser complicado. Voy a simplificarlo para ti.'
+          setTimeout(async () => {
+            const simplified = await simplifyContent()
+            if (simplified) {
+              setMessages(prev => [...prev, { 
+                role: 'ai', 
+                text: '✨ He simplificado el contenido de la lección para que sea más fácil de entender. ¡Espero que te ayude!', 
+                isTyping: false 
+              }])
+            } else {
+              // Fallback: use local simplified content
+              setReadIndex(0)
+              setDisplayedText(['','','',''])
+              setSkip(false)
+              setContent(lessonData.simplified)
+              setMessages(prev => [...prev, { 
+                role: 'ai', 
+                text: '✨ Contenido simplificado usando la versión local. ¡ Ahora debería ser más fácil!', 
+                isTyping: false 
+              }])
+            }
+          }, 1000)
+        } else if (msgLower.includes('hola') || msgLower.includes('buenos')) {
+          aiResponse = `¡Hola! 😊 Estoy aquí para ayudarte a entender mejor "${lessonData.title}". ¿Qué parte te gustaría que te explique?`
+        } else if (msgLower.includes('ejemplo')) {
+          aiResponse = `¡Claro! Aquí tienes un ejemplo sobre "${lessonData.title}": Imagina que estamos en una clase práctica y...`
+        } else {
+          aiResponse = `Buena pregunta sobre "${lessonData.title}". Déjame explicarte con más detalle...`
+        }
+        
+        setMessages(prev => [...prev, { role: 'ai', text: aiResponse, isTyping: false }])
+      }, 1200)
+    }
+    
+    setIsAiLoading(false)
   }
 
   return (
@@ -172,7 +329,7 @@ export default function Lesson() {
             </div>
           )}
           {displayedText.map((html, i) => (
-            <p key={i} className="lesson-paragraph" dangerouslySetInnerHTML={{ __html: html }} />
+            <p key={i} className="lesson-paragraph" dangerouslySetInnerHTML={{ __html: html || ' ' }} />
           ))}
           {!skip && readIndex < content.length && (
             <button className="btn btn-ghost skip-btn" onClick={() => setSkip(true)}>
@@ -196,22 +353,41 @@ export default function Lesson() {
         <div className="ai-chat-window">
           <div className="chat-header">
             <h3><Bot size={18}/> Tutor IA</h3>
+            <span className="difficulty-badge" style={{ fontSize: '0.7rem', background: 'rgba(16,185,129,0.1)', padding: '2px 8px', borderRadius: '10px', color: '#10B981' }}>
+              {difficultyLevel === 'basico' ? '🔵 Básico' : difficultyLevel === 'intermedio' ? '🟡 Intermedio' : difficultyLevel === 'avanzado' ? '🔴 Avanzado' : '⚪ Auto'}
+            </span>
             <button className="icon-btn sm" onClick={() => setShowChat(false)}><X size={14}/></button>
           </div>
           <div className="chat-messages">
             {messages.map((m, i) => (
-              <div key={i} className={`chat-msg ${m.role}`}>{m.text}</div>
+              <div key={i} className={`chat-msg ${m.role} ${m.isTyping ? 'typing' : ''}`}>
+                {m.isTyping ? (
+                  <span className="typing-indicator"><Loader2 size={14} className="spin" /> Pensando...</span>
+                ) : (
+                  m.text
+                )}
+              </div>
             ))}
             <div ref={chatEndRef} />
           </div>
           <div className="chat-input-area">
-            <input type="text" className="chat-input" placeholder="Pregunta algo..." value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} />
-            <button className="chat-send" onClick={handleSendChat}><Send size={16}/></button>
+            <input 
+              type="text" 
+              className="chat-input" 
+              placeholder={isAiLoading ? 'Esperando respuesta...' : 'Pregunta algo sobre esta lección...'} 
+              value={inputText} 
+              onChange={e => setInputText(e.target.value)} 
+              onKeyDown={e => e.key === 'Enter' && handleSendChat()}
+              disabled={isAiLoading}
+            />
+            <button className="chat-send" onClick={handleSendChat} disabled={isAiLoading}>
+              {isAiLoading ? <Loader2 size={16} className="spin"/> : <Send size={16}/>}
+            </button>
           </div>
         </div>
       )}
       <button className="ai-chat-trigger animate-bounce" onClick={() => setShowChat(!showChat)}>
-        <Bot size={28} />
+        {isAiLoading ? <Loader2 size={28} className="spin" /> : <Bot size={28} />}
       </button>
     </PageWrapper>
   )
