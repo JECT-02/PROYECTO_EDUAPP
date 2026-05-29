@@ -122,36 +122,36 @@ export default function TeacherDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(108,99,255,0.12)', color: '#8B83FF' }}>
-              <GraduationCap size={22} />
+              <GraduationCap size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{courses.length}</div>
               <div className="stat-label">Total cursos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(34,197,94,0.12)', color: '#4ADE80' }}>
-              <Users size={22} />
+              <Users size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{totalStudents}</div>
               <div className="stat-label">Estudiantes activos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(245,158,11,0.12)', color: '#FCD34D' }}>
-              <Book size={22} />
+              <Book size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{activeCourses}</div>
               <div className="stat-label">Cursos activos</div>
             </div>
           </div>
-          <div className="stat-card card">
+          <div className="stat-card">
             <div className="stat-icon-wrap" style={{ background: 'rgba(139,92,246,0.12)', color: '#A78BFA' }}>
-              <TrendingUp size={22} />
+              <TrendingUp size={18} />
             </div>
             <div className="stat-info">
               <div className="stat-value">{avgProgress}%</div>
@@ -182,7 +182,8 @@ export default function TeacherDashboard() {
               {courses.map((course, i) => (
                 <motion.div
                   key={course.id}
-                  className="teacher-course-card card"
+                  className="teacher-course-card"
+                  style={{ '--course-color': course.color }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}

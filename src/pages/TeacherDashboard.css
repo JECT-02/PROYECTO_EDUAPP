@@ -34,25 +34,29 @@
 .stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .stat-card {
-  padding: 20px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   transition: var(--transition);
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius-lg);
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.08);
 }
 
 .stat-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -64,14 +68,13 @@
 }
 
 .stat-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
   line-height: 1.2;
 }
 
 .stat-label {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -101,12 +104,34 @@
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--course-color, #6C63FF) 12%, rgba(255,255,255,0.02));
+  border-radius: var(--radius-lg);
+}
+.teacher-course-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #6C63FF) 14%, transparent), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.teacher-course-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .teacher-course-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-glow);
-  border-color: var(--primary);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--course-color, #6C63FF) 50%, transparent);
+  background: color-mix(in srgb, var(--course-color, #6C63FF) 10%, var(--surface-2));
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--course-color, #6C63FF) 18%, transparent);
+}
+.teacher-course-card:hover::before {
+  opacity: 1;
 }
 
 .teacher-course-top {
@@ -225,9 +250,9 @@
 .modal-container {
   width: 100%;
   max-width: 640px;
-  background: var(--surface-2);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: scaleIn 0.25s ease;
@@ -274,22 +299,24 @@
 }
 
 .form-section-title {
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  margin: 12px 0 6px;
+  padding: 10px 0 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--emerald-light);
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .form-section-title::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border-light);
+  background: linear-gradient(90deg, rgba(16,185,129,0.12), transparent);
 }
 
 .form-row {

@@ -237,17 +237,12 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     <div className="form-section-title">
                       <Upload size={14} />
                       Archivos de referencia
-                      <span className="rag-badge">
-                        <Sparkles size={10} />
-                        RAG (proximamente)
-                      </span>
                     </div>
                     <div
                       className={`upload-zone ${dragging ? 'dragging' : ''}`}
                       onDragOver={e => { e.preventDefault(); setDragging(true) }}
                       onDragLeave={() => setDragging(false)}
                       onDrop={handleFileDrop}
-                      onClick={() => fileInputRef.current?.click()}
                     >
                       <div className="upload-zone-icon">
                         <Upload size={24} />
@@ -428,8 +423,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                 <>
                   <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
                   <button className="btn btn-primary btn-lg" onClick={handleCreate}>
-                    <Sparkles size={16} />
-                    Crear curso con IA
+                    Crear curso
                   </button>
                 </>
               )}
