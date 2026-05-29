@@ -14,13 +14,13 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 def get_greeting():
     hour = datetime.now().hour
     if 5 <= hour < 12:
-        return "¡Buenos días"
+        return "Buenos dias"
     elif 12 <= hour < 19:
-        return "¡Buenas tardes"
+        return "Buenas tardes"
     elif 19 <= hour <= 23:
-        return "¡Buenas noches"
+        return "Buenas noches"
     else:
-        return "¡Hola"
+        return "Hola"
 
 @router.get("", response_model=DashboardResponse)
 async def get_dashboard(

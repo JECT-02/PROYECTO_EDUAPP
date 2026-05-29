@@ -15,12 +15,12 @@ async def process_voice_command(
     command = request.command.lower()
     action = "unknown"
     params = {}
-    tts = "No entendí el comando."
+    tts = "No entendi el comando."
     
     if "siguiente" in command or "avanzar" in command:
         action = "navigate"
         params = {"direction": "next"}
-        tts = "Avanzando a la siguiente sección."
+        tts = "Avanzando a la siguiente seccion."
     elif "repetir" in command:
         action = "read_content"
         tts = "Repitiendo el contenido actual."

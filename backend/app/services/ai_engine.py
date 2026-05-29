@@ -19,14 +19,14 @@ async def generate_lesson_content(topic: str, context: str, sync_score: float) -
         tone_instruction = "Usa lenguaje técnico preciso y académico formal."
         
     prompt = f"""
-    Eres un tutor experto en {topic}. Crea una lección teórica corta basada en el siguiente contexto:
+    Eres un tutor experto en {topic}. Crea una leccion teorica corta basada en el siguiente contexto:
     {context}
     
     Instrucciones de tono: {tone_instruction}
     
-    Debes envolver los conceptos clave más importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
+    Debes envolver los conceptos clave mas importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
     
-    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
+    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
     {{
         "content_html": "HTML de la lección usando <p>, <ul>, etc.",
         "key_concepts": ["lista", "de", "conceptos"]
@@ -61,9 +61,9 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
     Crea 3 preguntas tipo test sobre {topic} basadas en:
     {context}
     
-    Presta especial atención a estos conceptos débiles: {weaknesses_str}
+    Presta especial atencion a estos conceptos debiles: {weaknesses_str}
     
-    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
+    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
     {{
         "questions": [
             {{
@@ -72,7 +72,7 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
                 "type": "multiple_choice",
                 "options": {{"a": "opcion", "b": "opcion", "c": "opcion", "d": "opcion"}},
                 "correct_answer": "a",
-                "explanation": "Por qué la 'a' es correcta",
+                "explanation": "Por que la 'a' es correcta",
                 "concept_tag": "Concepto evaluado"
             }}
         ]
@@ -97,11 +97,11 @@ async def generate_reinforcement(concept: str, style: str) -> dict:
         }
         
     prompt = f"""
-    Explica el concepto '{concept}' usando el siguiente estilo/analogía: {style}.
+    Explica el concepto '{concept}' usando el siguiente estilo/analogia: {style}.
     
-    Responde ÚNICAMENTE con un objeto JSON válido:
+    Responde UNICAMENTE con un objeto JSON valido:
     {{
-        "analogy": "Texto de la analogía",
+        "analogy": "Texto de la analogia",
         "external_resources": [
             {{"title": "Video de refuerzo", "url": "https://youtube.com/..."}}
         ],

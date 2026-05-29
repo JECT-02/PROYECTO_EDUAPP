@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
       const res = await apiCall('/auth/login', 'POST', { email, password, role })
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.detail?.message || "Error de inicio de sesión")
+        throw new Error(error.detail?.message || "Error de inicio de sesion")
       }
       const data = await res.json()
       
@@ -100,7 +100,7 @@ export function AuthProvider({ children }) {
   const verifyOTP = async (email, code) => {
     try {
       const res = await apiCall('/auth/verify', 'POST', { email, code })
-      if (!res.ok) throw new Error("Código inválido")
+      if (!res.ok) throw new Error("Codigo invalido")
       const data = await res.json()
       
       const newUser = { ...data.user, isAuthenticated: true, avatar: getDefaultAvatar(data.user.role) }
@@ -164,6 +164,6 @@ function getDefaultName(email, role) {
 }
 
 function getDefaultAvatar(role) {
-  const avatars = { teacher: '👩‍🏫', student: '🦊', parent: '👨‍👩‍👧' }
-  return avatars[role] || '🦊'
+  const avatars = { teacher: 'teacher_avatar.png', student: 'student_avatar.png', parent: 'parent_avatar.png' }
+  return avatars[role] || 'student_avatar.png'
 }
