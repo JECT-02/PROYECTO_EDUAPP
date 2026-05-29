@@ -38,21 +38,21 @@ async def generate_lesson_content(topic: str, context: str, sync_score: float) -
         
     tone_instruction = "Usa lenguaje claro y educativo."
     if sync_score < 0.4:
-        tone_instruction = "Usa analogías muy simples, explicaciones paso a paso y lenguaje básico."
+        tone_instruction = "Usa analogias muy simples, explicaciones paso a paso y lenguaje basico."
     elif sync_score > 0.8:
-        tone_instruction = "Usa lenguaje técnico preciso y académico formal."
+        tone_instruction = "Usa lenguaje tecnico preciso y academico formal."
         
     prompt = f"""
-    Eres un tutor experto en {topic}. Crea una lección teórica corta basada en el siguiente contexto:
+    Eres un tutor experto en {topic}. Crea una leccion teorica corta basada en el siguiente contexto:
     {context}
     
     Instrucciones de tono: {tone_instruction}
     
-    Debes envolver los conceptos clave más importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
+    Debes envolver los conceptos clave mas importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
     
-    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
+    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
     {{
-        "content_html": "HTML de la lección usando <p>, <ul>, etc.",
+        "content_html": "HTML de la leccion usando <p>, <ul>, etc.",
         "key_concepts": ["lista", "de", "conceptos"]
     }}
     """
@@ -79,22 +79,22 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
                 "id": "q1",
                 "text": f"Pregunta simulada sobre {topic}?",
                 "type": "multiple_choice",
-                "options": {"a": "Opción 1", "b": "Opción 2", "c": "Opción 3", "d": "Opción 4"},
+                "options": {"a": "Opcion 1", "b": "Opcion 2", "c": "Opcion 3", "d": "Opcion 4"},
                 "correct_answer": "a",
-                "explanation": "Explicación simulada",
+                "explanation": "Explicacion simulada",
                 "concept_tag": "Simulado"
             }
         ]
         
-    weaknesses_str = ", ".join(weaknesses) if weaknesses else "Ninguna debilidad específica."
+    weaknesses_str = ", ".join(weaknesses) if weaknesses else "Ninguna debilidad especifica."
     
     prompt = f"""
     Crea 3 preguntas tipo test sobre {topic} basadas en:
     {context}
     
-    Presta especial atención a estos conceptos débiles: {weaknesses_str}
+    Presta especial atencion a estos conceptos debiles: {weaknesses_str}
     
-    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
+    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
     {{
         "questions": [
             {{
@@ -103,7 +103,7 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
                 "type": "multiple_choice",
                 "options": {{"a": "opcion", "b": "opcion", "c": "opcion", "d": "opcion"}},
                 "correct_answer": "a",
-                "explanation": "Por qué la 'a' es correcta",
+                "explanation": "Por que la 'a' es correcta",
                 "concept_tag": "Concepto evaluado"
             }}
         ]
@@ -143,17 +143,17 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
 async def generate_reinforcement(concept: str, style: str) -> dict:
     if not genai_client:
         return {
-            "analogy": f"Analogía simulada sobre {concept} en estilo {style}",
+            "analogy": f"Analogia simulada sobre {concept} en estilo {style}",
             "external_resources": [],
             "guided_practice": {}
         }
         
     prompt = f"""
-    Explica el concepto '{concept}' usando el siguiente estilo/analogía: {style}.
+    Explica el concepto '{concept}' usando el siguiente estilo/analogia: {style}.
     
-    Responde ÚNICAMENTE con un objeto JSON válido:
+    Responde UNICAMENTE con un objeto JSON valido:
     {{
-        "analogy": "Texto de la analogía",
+        "analogy": "Texto de la analogia",
         "external_resources": [
             {{"title": "Video de refuerzo", "url": "https://youtube.com/..."}}
         ],
@@ -195,9 +195,9 @@ async def generate_chat_response(concept: str, question: str, difficulty_level: 
         return get_mock_chat_response(concept, question)
     
     level_prompt = {
-        "basico": "Usa lenguaje muy simple, analogías cotidianas y ejemplos concretos. Explica como si tuvieras 10 años.",
-        "intermedio": "Usa lenguaje claro con algunos términos técnicos bien explicados. Proporciona ejemplos prácticos.",
-        "avanzado": "Usa terminología precisa y profundiza en los detalles técnicos y académicos."
+        "basico": "Usa lenguaje muy simple, analogias cotidianas y ejemplos concretos. Explica como si tuvieras 10 anos.",
+        "intermedio": "Usa lenguaje claro con algunos terminos tecnicos bien explicados. Proporciona ejemplos practicos.",
+        "avanzado": "Usa terminologia precisa y profundiza en los detalles tecnicos y academicos."
     }.get(difficulty_level, "Usa lenguaje claro y educativo.")
     
     history_text = "\n".join([f"{'Estudiante' if m['role'] == 'user' else 'Tutor'}: {m['content']}" for m in conversation_history[-6:-1]])
@@ -207,12 +207,12 @@ async def generate_chat_response(concept: str, question: str, difficulty_level: 
     
     {level_prompt}
     
-    Historial reciente de la conversación:
+    Historial reciente de la conversacion:
     {history_text}
     
     Pregunta del estudiante: {question}
     
-    Responde de manera clara y útil, adaptándote al nivel del estudiante.
+    Responde de manera clara y util, adaptandote al nivel del estudiante.
     """
     
     response = await _gemini_generate(prompt)
@@ -252,12 +252,14 @@ async def generate_course_from_files(
     Basandote en los archivos de referencia, crea una estructura de curso con nodos de aprendizaje.
     Cada nodo debe ser uno de estos tipos: theory (teoria), practice (practica), quiz (evaluacion), boss (examen final).
 
-    Reglas:
-    - 1 nodo introductorio de teoria
-    - Varios nodos de teoria intercalados con quizzes
+    REGLAS OBLIGATORIAS (no las ignores):
+    - 1 nodo introductorio de teoria al inicio
+    - Cada 2 o maximo 3 nodos de teoria debe haber 1 nodo de quiz
+      Ejemplo CORRECTO: theory, theory, quiz, theory, practice, quiz, theory, theory, quiz, boss
+      Ejemplo INCORRECTO: theory, theory, theory, quiz (NUNCA 3+ teorias seguidas sin quiz)
     - 1 nodo boss (examen final) al final
-    - Los prerequisites deben referenciar los IDs de nodos anteriores
-    - Distribucion: ~60% theory, ~20% quiz, ~10% practice, ~10% boss
+    - Los prerequisites deben referenciar los IDs de nodos anteriores (ej. si n3 es quiz, sus prerequisites son n1,n2)
+    - Distribucion: ~50% theory, ~20% quiz, ~15% practice, ~10% boss, ~5% reward
 
     Responde UNICAMENTE con un JSON valido:
     {{
@@ -320,13 +322,13 @@ async def generate_course_from_files(
 def get_mock_chat_response(concept: str, question: str) -> str:
     """Fallback mock response when no API key is configured."""
     responses = {
-        "no entiendo": f"¡Entiendo! Vamos a explicar '{concept}' de una forma más sencilla. Imagina que {concept} es como...",
-        "explica": f"Claro, '{concept}' se refiere a un concepto importante. Déjame darte una explicación más detallada...",
-        "ejemplo": f"¡Excelente pregunta! Aquí tienes un ejemplo práctico sobre '{concept}'...",
+        "no entiendo": f"Entiendo! Vamos a explicar '{concept}' de una forma mas sencilla. Imagina que {concept} es como...",
+        "explica": f"Claro, '{concept}' se refiere a un concepto importante. Dejame darte una explicacion mas detallada...",
+        "ejemplo": f"Excelente pregunta! Aqui tienes un ejemplo practico sobre '{concept}'...",
     }
     
     question_lower = question.lower()
     for key, response in responses.items():
         if key in question_lower:
             return response
-    return f"Excelente pregunta sobre '{concept}'. Déjame explicarte con más detalle: {concept} es fundamental para entender este tema porque..."
+    return f"Excelente pregunta sobre '{concept}'. Dejame explicarte con mas detalle: {concept} es fundamental para entender este tema porque..."

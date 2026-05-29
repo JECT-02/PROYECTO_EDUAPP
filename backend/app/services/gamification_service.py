@@ -5,17 +5,24 @@ from app.models import User, StudentActivity, ExamSession, StudyTime
 from datetime import datetime, timedelta
 
 async def recalculate_sync_score(student_id: str, db: AsyncSession):
-    # Retrieve total completed nodes / total nodes across enrolled courses
-    # For now, a simplified approximation.
-    # In a fully fleshed out scenario, we'd count total nodes for enrolled courses.
+    # Get total completed nodes and total available nodes across enrolled courses
+    # Count completed activities
     result = await db.execute(
         select(func.count(StudentActivity.id))
         .filter(StudentActivity.student_id == student_id, StudentActivity.status == "completed")
     )
     completed_nodes = result.scalar() or 0
-    # Let's say a course has an average of 10 nodes and the user has 1 course. 
-    # This is a placeholder since the total node count requires a join.
-    total_expected_nodes = max(completed_nodes, 10) 
+    
+    # Get total nodes across all enrolled courses
+    from app.models import Node, Enrollment
+    enr_result = await db.execute(
+        select(func.count(Node.id))
+        .join(Enrollment, Node.course_id == Enrollment.course_id)
+        .filter(Enrollment.student_id == student_id)
+    )
+    total_nodes = enr_result.scalar() or 1
+    
+    total_expected_nodes = max(total_nodes, 1) 
     nc = min(completed_nodes / total_expected_nodes, 1.0)
     
     # Average score in tests
