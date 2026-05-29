@@ -611,6 +611,14 @@
    Course Detail Modal
    ======================================== */
 
+.detail-stat-card {
+  padding: 12px 14px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: var(--radius-lg);
+}
+
 .course-detail-modal .modal-container {
   max-width: 720px;
 }
