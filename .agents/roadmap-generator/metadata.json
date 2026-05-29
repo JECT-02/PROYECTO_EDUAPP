@@ -1,0 +1,12 @@
+{
+  "name": "roadmap-generator",
+  "description": "Generate adaptive learning roadmaps (node graphs) for courses using AI. The AI analyzes course materials, student level, and pedagogical best practices to create an optimal learning path.",
+  "version": "1.0.0",
+  "author": "EduApp Team",
+  "models": ["gemini-2.0-flash", "gemini-1.5-pro"],
+  "parameters": {
+    "temperature": 0.3,
+    "topP": 0.9,
+    "maxOutputTokens": 8192
+  }
+}
