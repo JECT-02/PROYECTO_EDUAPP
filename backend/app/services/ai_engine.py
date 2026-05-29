@@ -1,12 +1,36 @@
-from openai import AsyncOpenAI
+from google import genai
+from google.genai import types
 from app.config import get_settings
 import json
+import asyncio
 
 settings = get_settings()
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+genai_client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
+
+async def _gemini_generate(prompt: str, response_schema=None) -> str:
+    """Helper to call Gemini with JSON mode."""
+    if not genai_client:
+        return None
+    
+    config = {}
+    if response_schema:
+        config["response_mime_type"] = "application/json"
+        config["response_schema"] = response_schema
+    
+    def _sync_call():
+        return genai_client.models.generate_content(
+            model=settings.GEMINI_MODEL_GEN,
+            contents=prompt,
+            config=config,
+        )
+    
+    return await asyncio.to_thread(_sync_call)
+
+
+# ---- Public API ----
 
 async def generate_lesson_content(topic: str, context: str, sync_score: float) -> dict:
-    if not client:
+    if not genai_client:
         return {
             "content_html": f"<p>Contenido simulado para <b>{topic}</b>.</p><p><concept>Concepto clave simulado</concept></p>",
             "key_concepts": ["Concepto clave simulado"]
@@ -19,30 +43,37 @@ async def generate_lesson_content(topic: str, context: str, sync_score: float) -
         tone_instruction = "Usa lenguaje técnico preciso y académico formal."
         
     prompt = f"""
-    Eres un tutor experto en {topic}. Crea una leccion teorica corta basada en el siguiente contexto:
+    Eres un tutor experto en {topic}. Crea una lección teórica corta basada en el siguiente contexto:
     {context}
     
     Instrucciones de tono: {tone_instruction}
     
-    Debes envolver los conceptos clave mas importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
+    Debes envolver los conceptos clave más importantes con la etiqueta HTML personalizada <concept>concepto</concept>.
     
-    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
+    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
     {{
         "content_html": "HTML de la lección usando <p>, <ul>, etc.",
         "key_concepts": ["lista", "de", "conceptos"]
     }}
     """
     
-    response = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL_GEN,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "content_html": {"type": "STRING"},
+            "key_concepts": {"type": "ARRAY", "items": {"type": "STRING"}}
+        },
+        "required": ["content_html", "key_concepts"]
+    }
     
-    return json.loads(response.choices[0].message.content)
+    response = await _gemini_generate(prompt, schema)
+    if response and response.text:
+        return json.loads(response.text)
+    return {"content_html": "<p>Contenido no disponible</p>", "key_concepts": []}
+
 
 async def generate_quiz_questions(topic: str, context: str, weaknesses: list = []) -> list:
-    if not client:
+    if not genai_client:
         return [
             {
                 "id": "q1",
@@ -61,9 +92,9 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
     Crea 3 preguntas tipo test sobre {topic} basadas en:
     {context}
     
-    Presta especial atencion a estos conceptos debiles: {weaknesses_str}
+    Presta especial atención a estos conceptos débiles: {weaknesses_str}
     
-    Responde UNICAMENTE con un objeto JSON valido con la siguiente estructura:
+    Responde ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
     {{
         "questions": [
             {{
@@ -72,24 +103,45 @@ async def generate_quiz_questions(topic: str, context: str, weaknesses: list = [
                 "type": "multiple_choice",
                 "options": {{"a": "opcion", "b": "opcion", "c": "opcion", "d": "opcion"}},
                 "correct_answer": "a",
-                "explanation": "Por que la 'a' es correcta",
+                "explanation": "Por qué la 'a' es correcta",
                 "concept_tag": "Concepto evaluado"
             }}
         ]
     }}
     """
     
-    response = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL_GEN,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "questions": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "id": {"type": "STRING"},
+                        "text": {"type": "STRING"},
+                        "type": {"type": "STRING"},
+                        "options": {"type": "OBJECT", "properties": {"a": {"type": "STRING"}, "b": {"type": "STRING"}, "c": {"type": "STRING"}, "d": {"type": "STRING"}}},
+                        "correct_answer": {"type": "STRING"},
+                        "explanation": {"type": "STRING"},
+                        "concept_tag": {"type": "STRING"}
+                    },
+                    "required": ["id", "text", "type", "options", "correct_answer", "explanation", "concept_tag"]
+                }
+            }
+        },
+        "required": ["questions"]
+    }
     
-    data = json.loads(response.choices[0].message.content)
-    return data.get("questions", [])
+    response = await _gemini_generate(prompt, schema)
+    if response and response.text:
+        data = json.loads(response.text)
+        return data.get("questions", [])
+    return []
+
 
 async def generate_reinforcement(concept: str, style: str) -> dict:
-    if not client:
+    if not genai_client:
         return {
             "analogy": f"Analogía simulada sobre {concept} en estilo {style}",
             "external_resources": [],
@@ -97,11 +149,11 @@ async def generate_reinforcement(concept: str, style: str) -> dict:
         }
         
     prompt = f"""
-    Explica el concepto '{concept}' usando el siguiente estilo/analogia: {style}.
+    Explica el concepto '{concept}' usando el siguiente estilo/analogía: {style}.
     
-    Responde UNICAMENTE con un objeto JSON valido:
+    Responde ÚNICAMENTE con un objeto JSON válido:
     {{
-        "analogy": "Texto de la analogia",
+        "analogy": "Texto de la analogía",
         "external_resources": [
             {{"title": "Video de refuerzo", "url": "https://youtube.com/..."}}
         ],
@@ -109,10 +161,76 @@ async def generate_reinforcement(concept: str, style: str) -> dict:
     }}
     """
     
-    response = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL_GEN,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "analogy": {"type": "STRING"},
+            "external_resources": {
+                "type": "ARRAY",
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "title": {"type": "STRING"},
+                        "url": {"type": "STRING"}
+                    },
+                    "required": ["title", "url"]
+                }
+            },
+            "guided_practice": {"type": "OBJECT", "properties": {"pregunta": {"type": "STRING"}, "respuesta": {"type": "STRING"}}}
+        },
+        "required": ["analogy", "external_resources", "guided_practice"]
+    }
     
-    return json.loads(response.choices[0].message.content)
+    response = await _gemini_generate(prompt, schema)
+    if response and response.text:
+        return json.loads(response.text)
+    return {"analogy": "", "external_resources": [], "guided_practice": {}}
+
+
+async def generate_chat_response(concept: str, question: str, difficulty_level: str, conversation_history: list) -> str:
+    """
+    Generate an AI tutor chat response that adapts to the student's level.
+    """
+    if not genai_client:
+        return get_mock_chat_response(concept, question)
+    
+    level_prompt = {
+        "basico": "Usa lenguaje muy simple, analogías cotidianas y ejemplos concretos. Explica como si tuvieras 10 años.",
+        "intermedio": "Usa lenguaje claro con algunos términos técnicos bien explicados. Proporciona ejemplos prácticos.",
+        "avanzado": "Usa terminología precisa y profundiza en los detalles técnicos y académicos."
+    }.get(difficulty_level, "Usa lenguaje claro y educativo.")
+    
+    history_text = "\n".join([f"{'Estudiante' if m['role'] == 'user' else 'Tutor'}: {m['content']}" for m in conversation_history[-6:-1]])
+    
+    prompt = f"""
+    Eres un tutor educativo experto en el concepto: {concept}.
+    
+    {level_prompt}
+    
+    Historial reciente de la conversación:
+    {history_text}
+    
+    Pregunta del estudiante: {question}
+    
+    Responde de manera clara y útil, adaptándote al nivel del estudiante.
+    """
+    
+    response = await _gemini_generate(prompt)
+    if response and response.text:
+        return response.text
+    return get_mock_chat_response(concept, question)
+
+
+def get_mock_chat_response(concept: str, question: str) -> str:
+    """Fallback mock response when no API key is configured."""
+    responses = {
+        "no entiendo": f"¡Entiendo! Vamos a explicar '{concept}' de una forma más sencilla. Imagina que {concept} es como...",
+        "explica": f"Claro, '{concept}' se refiere a un concepto importante. Déjame darte una explicación más detallada...",
+        "ejemplo": f"¡Excelente pregunta! Aquí tienes un ejemplo práctico sobre '{concept}'...",
+    }
+    
+    question_lower = question.lower()
+    for key, response in responses.items():
+        if key in question_lower:
+            return response
+    return f"Excelente pregunta sobre '{concept}'. Déjame explicarte con más detalle: {concept} es fundamental para entender este tema porque..."

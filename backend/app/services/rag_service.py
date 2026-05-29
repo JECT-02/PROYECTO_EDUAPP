@@ -1,13 +1,14 @@
-from openai import AsyncOpenAI
+from google import genai
 from app.config import get_settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models import MaterialEmbedding
 import json
 import math
+import asyncio
 
 settings = get_settings()
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+genai_client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
 
 def cosine_similarity(v1, v2):
     dot_product = sum(a * b for a, b in zip(v1, v2))
@@ -18,13 +19,17 @@ def cosine_similarity(v1, v2):
     return dot_product / (norm_v1 * norm_v2)
 
 async def get_embedding(text: str) -> list[float]:
-    if not client:
-        return [0.0] * 1536
-    response = await client.embeddings.create(
-        input=text,
-        model=settings.OPENAI_MODEL_EMB
-    )
-    return response.data[0].embedding
+    if not genai_client:
+        return [0.0] * 768
+    
+    def _sync_embed():
+        result = genai_client.models.embed_content(
+            model=settings.GEMINI_MODEL_EMB,
+            contents=text,
+        )
+        return result.embeddings[0].values
+    
+    return await asyncio.to_thread(_sync_embed)
 
 async def retrieve_context(course_id: str, query: str, db: AsyncSession, top_k: int = 3) -> str:
     # 1. Embed query

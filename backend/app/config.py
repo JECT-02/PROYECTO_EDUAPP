@@ -11,10 +11,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # OpenAI
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL_GEN: str = "gpt-4o-mini"
-    OPENAI_MODEL_EMB: str = "text-embedding-3-small"
+    # Google Gemini (Google AI Studio)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL_GEN: str = "gemini-2.0-flash"
+    GEMINI_MODEL_EMB: str = "text-embedding-004"
     
     # CORS
     FRONTEND_URL: str = "http://localhost:5173"
