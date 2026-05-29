@@ -12,7 +12,10 @@ if not exist "node_modules\" (
     exit /b
 )
 
-echo Abriendo el servidor de desarrollo...
+echo Iniciando el backend (FastAPI)...
+start "EduApp Backend" cmd /c "cd backend && python run.py"
+
+echo Abriendo el servidor de desarrollo del frontend...
 :: npm run dev inicia Vite. 
 :: Vite correrá en localhost:5173 por defecto.
 :: Vamos a abrir el navegador y ejecutar el comando a la vez.
