@@ -3,7 +3,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_dashboard_unauthorized(async_client):
     response = await async_client.get("/api/dashboard")
-    assert response.status_code == 403 # Since no token provided
+    assert response.status_code == 401 # Since no token provided
 
 @pytest.mark.asyncio
 async def test_dashboard_authorized(async_client):
