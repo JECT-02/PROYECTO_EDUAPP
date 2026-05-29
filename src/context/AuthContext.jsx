@@ -43,19 +43,20 @@ export function AuthProvider({ children }) {
       
     const res = await fetch(`${API_URL}${endpoint}`, config)
     if (res.status === 401 && endpoint !== '/auth/login') {
-      logout()
-      throw new Error("No autorizado")
+      // Don't logout on 401 from login endpoint
+      const errorData = await res.json().catch(() => ({ detail: { message: 'No autorizado' } }))
+      throw new Error(errorData.detail?.message || errorData.detail || 'No autorizado')
     }
     return res
   }
 
-  const login = async (email, role, password = "default_password_if_magic_link_not_used") => {
-    // The previous frontend used only email and role. We simulate password.
+  const login = async (email, password, role = "student") => {
     try {
       const res = await apiCall('/auth/login', 'POST', { email, password, role })
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail?.message || "Error de inicio de sesion")
+        const errorData = await res.json()
+        const errorMessage = errorData.detail?.message || errorData.detail || "Error de inicio de sesión"
+        throw new Error(errorMessage)
       }
       const data = await res.json()
       
@@ -72,7 +73,7 @@ export function AuthProvider({ children }) {
       
       return newUser
     } catch (error) {
-      console.error(error)
+      console.error('Login error:', error)
       throw error
     }
   }

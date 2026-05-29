@@ -17,16 +17,28 @@ export default function Login() {
   const [magicMode, setMagicMode] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault()
     if (!email || (!magicMode && !password)) { setError('Completa todos los campos'); return }
     setLoading(true); setError('')
-    setTimeout(() => {
-      setLoading(false)
-      if (magicMode) { setMagicSent(true); return }
-      login(email, role)
+
+    if (magicMode) {
+      // Magic link mode - simulate sending email
+      setTimeout(() => {
+        setLoading(false)
+        setMagicSent(true)
+      }, 1000)
+      return
+    }
+
+    try {
+      await login(email, password, role)
       // PublicRoute maneja la redirección al dashboard u onboarding
-    }, 1400)
+    } catch (err) {
+      setError(err.message || 'Error de inicio de sesión. Verifica tus credenciales.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

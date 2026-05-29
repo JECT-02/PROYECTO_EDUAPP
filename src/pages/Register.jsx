@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle, Eye, EyeOff, Lock } from 'lucide-react'
+import { ChevronRight, ChevronLeft, GraduationCap, BookOpen, Users, CheckCircle, Eye, EyeOff, Lock, AlertCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import './Register.css'
@@ -40,7 +40,7 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, login, register } = useAuth()
 
   // Si ya está autenticado al montar el componente, redirigir (solo en mount, no interfiere con registro)
   useEffect(() => {
@@ -61,6 +61,7 @@ export default function Register() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState(['','','','','',''])
+  const [otpError, setOtpError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const upd = (key, val) => setForm(p => ({ ...p, [key]: val }))
@@ -77,22 +78,56 @@ export default function Register() {
     return true
   }
 
-  function next() {
+  const buildRegisterPayload = () => {
+    const payload = {
+      email: form.email,
+      password: form.password,
+      name: `${form.firstName} ${form.lastName}`,
+      role: role,
+    }
+    if (role === 'student') {
+      payload.ageGroup = form.age || '15-18'
+      payload.dni = form.dni
+      payload.guardianDni = form.guardianDni
+      payload.grade = form.grade
+    }
+    if (role === 'teacher') {
+      payload.institution = form.institution
+      payload.mainSubject = form.subject
+    }
+    if (role === 'parent') {
+      payload.relationship = form.relation
+    }
+    return payload
+  }
+
+  async  async function next() {
     if (!canAdvance()) return
+    
+    // Clear any previous errors when changing steps
+    setOtpError('')
+    
     if (step === 3) {
       setLoading(true)
-      setTimeout(() => {
-        // Login the user so DNI is used as student ID at registration time
-        login(form.email, role, `${form.firstName} ${form.lastName}`, form.dni)
+      try {
+        const payload = buildRegisterPayload()
+        await register(payload)
+        
         // Save extra student data for profile display
         if (role === 'student' && form.dni) {
           const extra = JSON.parse(localStorage.getItem('eduapp_student_extra') || '{}')
           extra[form.dni] = { grade: form.grade, age: form.age, guardianDni: form.guardianDni }
           localStorage.setItem('eduapp_student_extra', JSON.stringify(extra))
         }
-        setLoading(false)
+
+        // Auto-login after successful registration
+        await login(form.email, form.password, role)
         navigate('/onboarding/accessibility')
-      }, 1500)
+      } catch (err) {
+        setOtpError(err.message || 'Error al registrar. Intenta de nuevo.')
+      } finally {
+        setLoading(false)
+      }
     } else {
       setStep(s => Math.min(s + 1, 3))
     }
@@ -286,6 +321,11 @@ export default function Register() {
               <p className="step-sub">
                 Ingresa el código de 6 dígitos enviado a <strong>{form.email || 'tu correo'}</strong>
               </p>
+              {otpError && (
+                <div className="form-error" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertCircle size={16}/> {otpError}
+                </div>
+              )}
               <div className="otp-inputs">
                 {otp.map((v, i) => (
                   <input
