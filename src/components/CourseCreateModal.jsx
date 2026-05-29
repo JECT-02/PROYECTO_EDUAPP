@@ -214,9 +214,10 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                           <label>Nivel</label>
                           <select className="input-field" defaultValue="">
                             <option value="" disabled>Seleccionar nivel</option>
-                            <option value="principiante">Principiante</option>
-                            <option value="intermedio">Intermedio</option>
-                            <option value="avanzado">Avanzado</option>
+                            <option value="7-10">7-10 años</option>
+                            <option value="11-14">11-14 años</option>
+                            <option value="15-17">15-17 años</option>
+                            <option value="18+">18+ años</option>
                           </select>
                         </div>
                       </div>
@@ -237,17 +238,12 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     <div className="form-section-title">
                       <Upload size={14} />
                       Archivos de referencia
-                      <span className="rag-badge">
-                        <Sparkles size={10} />
-                        RAG (proximamente)
-                      </span>
                     </div>
                     <div
                       className={`upload-zone ${dragging ? 'dragging' : ''}`}
                       onDragOver={e => { e.preventDefault(); setDragging(true) }}
                       onDragLeave={() => setDragging(false)}
                       onDrop={handleFileDrop}
-                      onClick={() => fileInputRef.current?.click()}
                     >
                       <div className="upload-zone-icon">
                         <Upload size={24} />
@@ -428,8 +424,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                 <>
                   <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
                   <button className="btn btn-primary btn-lg" onClick={handleCreate}>
-                    <Sparkles size={16} />
-                    Crear curso con IA
+                    Crear curso
                   </button>
                 </>
               )}
