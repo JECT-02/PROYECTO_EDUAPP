@@ -73,13 +73,7 @@ export function AuthProvider({ children }) {
       return newUser
     } catch (error) {
       console.error(error)
-      // Fallback for MVP if backend is down
-      const fallbackUser = {
-        email, role, name: getDefaultName(email, role),
-        avatar: getDefaultAvatar(role), isAuthenticated: true
-      }
-      setUser(fallbackUser)
-      return fallbackUser
+      throw error
     }
   }
 
@@ -164,6 +158,6 @@ function getDefaultName(email, role) {
 }
 
 function getDefaultAvatar(role) {
-  const avatars = { teacher: 'teacher_avatar.png', student: 'student_avatar.png', parent: 'parent_avatar.png' }
-  return avatars[role] || 'student_avatar.png'
+  const avatars = { teacher: '👩‍🏫', student: '🦊', parent: '👨‍👩‍👧' }
+  return avatars[role] || '🦊'
 }
