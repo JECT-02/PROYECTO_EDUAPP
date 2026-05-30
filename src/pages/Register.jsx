@@ -40,7 +40,7 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
-  const { isAuthenticated, login, register } = useAuth()
+  const { isAuthenticated, register, verifyOTP } = useAuth()
 
   // Si ya está autenticado al montar el componente, redirigir (solo en mount, no interfiere con registro)
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function Register() {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '',
     // Student fields
-    dni: '', guardianDni: '', grade: '', age: '',
+    dni: '', guardianDni: '', grade: '', age: '', parentEmail: '',
     // Teacher fields
     institution: '', subject: '',
     // Parent fields
@@ -62,15 +62,40 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState(['','','','','',''])
   const [otpError, setOtpError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const upd = (key, val) => setForm(p => ({ ...p, [key]: val }))
+  const upd = (key, val) => {
+    setForm(p => ({ ...p, [key]: val }))
+    // Validate password in real-time
+    if (key === 'password') {
+      validatePassword(val)
+    }
+  }
+
+  function validatePassword(pw) {
+    if (!pw) {
+      setPasswordError('')
+      return true
+    }
+    if (pw.length < 6) {
+      setPasswordError('Mínimo 6 caracteres')
+      return false
+    }
+    setPasswordError('')
+    return true
+  }
 
   function canAdvance() {
     if (step === 1) return !!role
     if (step === 2) {
-      const base = form.firstName && form.lastName && form.email && form.password
-      if (role === 'student') return base && form.dni && form.guardianDni && form.grade
+      const base = form.firstName && form.lastName && form.email && form.password && !passwordError
+      if (role === 'student') {
+        // Menores de 14 requieren parentEmail
+        const isMinor = ['7-10 años', '11-14 años'].includes(form.age)
+        if (isMinor) return base && form.dni && form.guardianDni && form.grade && form.parentEmail
+        return base && form.dni && form.grade
+      }
       if (role === 'teacher') return base && form.institution && form.subject
       if (role === 'parent') return base && form.relation
       return base
@@ -86,10 +111,18 @@ export default function Register() {
       role: role,
     }
     if (role === 'student') {
-      payload.ageGroup = form.age || '15-18'
+      // Mapear grupo de edad del formato frontend al backend
+      const ageMap = {
+        '7-10 años': '7-10',
+        '11-14 años': '11-14',
+        '15-17 años': '15-17',
+        '18+ años': '18+',
+      }
+      payload.ageGroup = ageMap[form.age] || '15-17'
       payload.dni = form.dni
       payload.guardianDni = form.guardianDni
       payload.grade = form.grade
+      payload.parentEmail = form.parentEmail || undefined
     }
     if (role === 'teacher') {
       payload.institution = form.institution
@@ -101,8 +134,13 @@ export default function Register() {
     return payload
   }
 
-  async  async function next() {
+  async function next() {
     if (!canAdvance()) return
+    
+    // Password validation on advance from step 2
+    if (step === 2 && !validatePassword(form.password)) {
+      return
+    }
     
     // Clear any previous errors when changing steps
     setOtpError('')
@@ -110,8 +148,13 @@ export default function Register() {
     if (step === 3) {
       setLoading(true)
       try {
+        // 1. Register the user in the backend
         const payload = buildRegisterPayload()
         await register(payload)
+        
+        // 2. Verify OTP — dev mode accepts any code (even empty)
+        const otpCode = otp.join('') || '000000'
+        await verifyOTP(form.email, otpCode)
         
         // Save extra student data for profile display
         if (role === 'student' && form.dni) {
@@ -120,8 +163,6 @@ export default function Register() {
           localStorage.setItem('eduapp_student_extra', JSON.stringify(extra))
         }
 
-        // Auto-login after successful registration
-        await login(form.email, form.password, role)
         navigate('/onboarding/accessibility')
       } catch (err) {
         setOtpError(err.message || 'Error al registrar. Intenta de nuevo.')
@@ -217,8 +258,8 @@ export default function Register() {
                     <Lock size={16} className="input-icon" />
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      className="input-field with-icon pr"
-                      placeholder="Mínimo 8 caracteres"
+                      className={`input-field with-icon pr ${passwordError ? 'input-error' : ''}`}
+                      placeholder="Mínimo 6 caracteres"
                       value={form.password}
                       onChange={e => upd('password', e.target.value)}
                     />
@@ -226,6 +267,11 @@ export default function Register() {
                       {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
                     </button>
                   </div>
+                  {passwordError && (
+                    <div className="field-error" style={{ marginTop: 4, fontSize: 12, color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <AlertCircle size={12}/> {passwordError}
+                    </div>
+                  )}
                 </div>
 
                 {/* === STUDENT SPECIFIC === */}
@@ -262,6 +308,21 @@ export default function Register() {
                     <div className="register-hint">
                       El DNI del apoderado es requerido para validar la cuenta de menores de edad.
                     </div>
+
+                    {/* Parent email for minors (7-10 and 11-14) */}
+                    {['7-10 años', '11-14 años'].includes(form.age) && (
+                      <>
+                        <div className="register-section-label">Contacto del apoderado</div>
+                        <div className="input-group">
+                          <label>Correo del padre/madre/tutor</label>
+                          <input type="email" className="input-field" placeholder="apoderado@email.com"
+                            value={form.parentEmail} onChange={e => upd('parentEmail', e.target.value)} />
+                        </div>
+                        <div className="register-hint">
+                          Requerido para menores de 14 anos. El apoderado recibira una notificacion para aprobar la cuenta.
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 

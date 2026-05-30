@@ -52,7 +52,7 @@ const AUTO_GEN_OPTIONS = [
   },
 ]
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B'

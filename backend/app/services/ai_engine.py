@@ -3,9 +3,17 @@ from google.genai import types
 from app.config import get_settings
 import json
 import asyncio
+import logging
+
+logger = logging.getLogger("eduapp.ai_engine")
 
 settings = get_settings()
 genai_client = genai.Client(api_key=settings.GEMINI_API_KEY) if settings.GEMINI_API_KEY else None
+
+if not genai_client:
+    logger.warning("GEMINI_API_KEY no configurada en .env. El modo simulado (mock) estara activo.")
+else:
+    logger.info(f"Cliente Gemini inicializado con modelo: {settings.GEMINI_MODEL}")
 
 async def _gemini_generate(prompt: str, response_schema=None) -> str:
     """Helper to call Gemini with JSON mode."""
@@ -19,7 +27,7 @@ async def _gemini_generate(prompt: str, response_schema=None) -> str:
     
     def _sync_call():
         return genai_client.models.generate_content(
-            model=settings.GEMINI_MODEL_GEN,
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=config,
         )

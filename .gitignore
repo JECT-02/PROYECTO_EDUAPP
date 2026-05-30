@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Python virtual environment
+backend/venv/
+
 # Environment files (API keys, secrets)
 .env
 .env.local

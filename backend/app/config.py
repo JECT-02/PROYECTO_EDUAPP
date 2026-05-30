@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     # Google Gemini (Google AI Studio)
     GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # CORS
     FRONTEND_URL: str = "http://localhost:5173"

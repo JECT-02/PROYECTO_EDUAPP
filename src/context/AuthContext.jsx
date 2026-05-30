@@ -10,7 +10,7 @@ const ROLE_ROUTES = {
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/onboarding/accessibility', '/onboarding/avatar']
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -41,7 +41,12 @@ export function AuthProvider({ children }) {
     const config = { method, headers }
     if (body) config.body = JSON.stringify(body)
       
-    const res = await fetch(`${API_URL}${endpoint}`, config)
+    let res
+    try {
+      res = await fetch(`${API_URL}${endpoint}`, config)
+    } catch (err) {
+      throw new Error('No se pudo conectar con el servidor. Asegúrate de que el backend esté funcionando (ejecuta iniciar.bat).')
+    }
     if (res.status === 401 && endpoint !== '/auth/login') {
       // Don't logout on 401 from login endpoint
       const errorData = await res.json().catch(() => ({ detail: { message: 'No autorizado' } }))
@@ -54,7 +59,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await apiCall('/auth/login', 'POST', { email, password, role })
       if (!res.ok) {
-        const errorData = await res.json()
+        const errorData = await res.json().catch(() => ({}))
         const errorMessage = errorData.detail?.message || errorData.detail || "Error de inicio de sesión"
         throw new Error(errorMessage)
       }
@@ -82,8 +87,9 @@ export function AuthProvider({ children }) {
     try {
       const res = await apiCall('/auth/register', 'POST', userData)
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.detail?.message || "Error al registrar")
+        const error = await res.json().catch(() => ({}))
+        const msg = error.detail?.message || error.detail || error.message || "Error al registrar"
+        throw new Error(msg)
       }
       return await res.json()
     } catch (error) {
@@ -95,7 +101,10 @@ export function AuthProvider({ children }) {
   const verifyOTP = async (email, code) => {
     try {
       const res = await apiCall('/auth/verify', 'POST', { email, code })
-      if (!res.ok) throw new Error("Codigo invalido")
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.detail?.message || error.detail || 'Código inválido')
+      }
       const data = await res.json()
       
       const newUser = { ...data.user, isAuthenticated: true, avatar: getDefaultAvatar(data.user.role) }

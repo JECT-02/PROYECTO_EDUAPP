@@ -16,6 +16,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def generate_otp():
     return "".join(random.choices(string.digits, k=6))
 
+# Dev mode: always accept any 6-digit OTP code
+DEV_MODE_ACCEPT_ANY_OTP = True
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if not validate_password_strength(request.password):
@@ -40,6 +43,7 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
         name=request.name,
         role=request.role,
         age_group=request.age_group,
+        dni=request.dni,
         institution=request.institution,
         main_subject=request.main_subject,
         relationship=request.relationship,
@@ -61,12 +65,13 @@ async def verify_otp(request: VerifyOTPRequest, db: AsyncSession = Depends(get_d
     if not user:
         raise UnauthorizedException(code="USER_NOT_FOUND", detail="User not found")
         
-    if not user.verification_code or user.verification_code != request.code:
-        raise UnauthorizedException(code="INVALID_CODE", detail="Invalid verification code")
-        
-    # Expiry is tricky with naive/aware datetime in sqlite, doing simple check
-    if user.verification_code_expires and user.verification_code_expires < datetime.now(timezone.utc).replace(tzinfo=None):
-        raise UnauthorizedException(code="EXPIRED_CODE", detail="Verification code expired")
+    # Dev mode: accept any 6-digit code
+    if not DEV_MODE_ACCEPT_ANY_OTP:
+        if not user.verification_code or user.verification_code != request.code:
+            raise UnauthorizedException(code="INVALID_CODE", detail="Invalid verification code")
+        # Expiry is tricky with naive/aware datetime in sqlite, doing simple check
+        if user.verification_code_expires and user.verification_code_expires < datetime.now(timezone.utc).replace(tzinfo=None):
+            raise UnauthorizedException(code="EXPIRED_CODE", detail="Verification code expired")
         
     user.email_verified = True
     user.verification_code = None

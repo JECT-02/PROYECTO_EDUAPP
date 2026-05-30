@@ -14,6 +14,9 @@ class RegisterRequest(BaseSchema):
     role: str
     # Student
     age_group: Optional[str] = None
+    dni: Optional[str] = None
+    guardian_dni: Optional[str] = None
+    grade: Optional[str] = None
     parent_email: Optional[EmailStr] = None
     # Teacher
     institution: Optional[str] = None
