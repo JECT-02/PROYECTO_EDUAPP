@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users, PanelRightOpen } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import './Header.css'
@@ -23,7 +23,7 @@ const NOTIFICATIONS_BY_ROLE = {
   ],
 }
 
-export default function Header() {
+export default function Header({ onToggleSidebar }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
@@ -73,6 +73,15 @@ export default function Header() {
 
         {/* Right side */}
         <div className="header-right">
+          {onToggleSidebar && (
+            <button
+              className="icon-btn sidebar-toggle-btn"
+              onClick={onToggleSidebar}
+              aria-label="Abrir panel lateral"
+            >
+              <PanelRightOpen size={18} />
+            </button>
+          )}
           <div className="notif-wrapper">
             <button 
               className={`icon-btn notif-btn ${showNotifs ? 'active' : ''}`} 
