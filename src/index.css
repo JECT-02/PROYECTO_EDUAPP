@@ -375,3 +375,371 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
 @media (min-width: 768px) {
   .hide-desktop { display: none !important; }
 }
+
+/* ========================================
+   High Contrast Mode (WCAG 2.1 AA)
+   ======================================== */
+.high-contrast {
+  --bg: #000000;
+  --bg-2: #050505;
+  --surface: #0D0D0D;
+  --surface-2: #141414;
+  --surface-3: #1E1E1E;
+  --border: rgba(255,255,255,0.25);
+  --border-light: rgba(255,255,255,0.18);
+
+  --text: #FFFFFF;
+  --text-muted: #CCCCCC;
+  --text-dim: #AAAAAA;
+
+  --glass: rgba(0,0,0,0.95);
+  --glass-border: rgba(255,255,255,0.22);
+
+  --primary: #8B83FF;
+  --primary-light: #A59EFF;
+  --primary-dark: #6C63FF;
+  --emerald: #22D98A;
+  --emerald-light: #4AE3A0;
+
+  --shadow-sm: 0 2px 8px rgba(255,255,255,0.08);
+  --shadow: 0 4px 20px rgba(255,255,255,0.06);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.8);
+}
+
+.high-contrast .btn-ghost {
+  border-color: rgba(255,255,255,0.3);
+  color: #FFFFFF;
+}
+
+.high-contrast .btn-ghost:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--primary-light);
+}
+
+.high-contrast .input-field {
+  border-color: rgba(255,255,255,0.3);
+  background: #000000;
+}
+
+.high-contrast .card {
+  background: rgba(0,0,0,0.98);
+  border-color: rgba(255,255,255,0.22);
+}
+
+.high-contrast .stat-card,
+.high-contrast .teacher-course-card,
+.high-contrast .setting-row,
+.high-contrast .settings-section {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .modal-container {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .notif-dropdown,
+.high-contrast .dropdown-menu {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .progress-bar {
+  background: #1E1E1E;
+}
+
+/* ========================================
+   Reduce Motion Mode
+   ======================================== */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .star {
+  display: none;
+}
+
+.reduce-motion .animate-float,
+.reduce-motion .animate-pulse-glow,
+.reduce-motion .animate-pulse-glow-gold,
+.reduce-motion .animate-bounce {
+  animation: none !important;
+}
+
+.reduce-motion .card-hover:hover {
+  transform: none;
+}
+
+.reduce-motion .btn:hover {
+  transform: none;
+}
+
+.reduce-motion .stat-card:hover {
+  transform: none;
+}
+
+.reduce-motion .teacher-course-card:hover {
+  transform: none;
+}
+
+.reduce-motion .progress-fill {
+  transition: none;
+}
+
+.reduce-motion .toast {
+  animation: none;
+  opacity: 1;
+}
+
+.reduce-motion .animate-fadeInUp,
+.reduce-motion .animate-scaleIn {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* ========================================
+   Large Text Mode
+   ========================================
+   Aumenta base font-size a 18px (WCAG 2.1 AA).
+   ======================================== */
+.large-text {
+  font-size: 18px;
+}
+
+.large-text .btn {
+  font-size: 1rem;
+}
+
+.large-text .btn-lg {
+  font-size: 1.15rem;
+}
+
+.large-text .btn-sm {
+  font-size: 0.9rem;
+}
+
+.large-text .input-field {
+  font-size: 1rem;
+}
+
+.large-text .input-group label {
+  font-size: 0.9rem;
+}
+
+.large-text .toast {
+  font-size: 0.95rem;
+}
+
+.large-text .badge {
+  font-size: 0.82rem;
+}
+
+.large-text .section-title {
+  font-size: 1.45rem;
+}
+
+.large-text .settings-title {
+  font-size: 1.65rem;
+}
+
+.large-text .header-logo .logo-text {
+  font-size: 1.25rem;
+}
+
+.large-text .nav-link {
+  font-size: 0.95rem;
+}
+
+/* ========================================
+   Colorblind Mode (Daltonismo)
+   Paleta basada en Viridis (perceptually uniform,
+   colorblind-safe colormap).
+
+   Viridis key colors:
+     #440154  (deep purple)
+     #3B528B  (steel blue)
+     #21918C  (teal)
+     #5EC962  (green-yellow)
+     #FDE725  (bright yellow)
+
+   Mapa de la UI:
+     Emerald/Success → viridis teal (#21918C)
+     Error           → orange (no hay rojo en viridis;
+                       el naranja es universalmente
+                       distinguible en todo tipo de
+                       daltonismo)
+     Primary/Purple  → se mantiene (ya es distinguible)
+   ======================================== */
+.colorblind {
+  --emerald: #21918C;
+  --emerald-light: #5EC962;
+  --emerald-dark: #1A7A76;
+  --success: #21918C;
+  --error: #F97316;
+  --warning: #F97316;
+
+  --shadow-emerald: 0 0 20px rgba(33,145,140,0.25);
+  --shadow-gold: 0 0 20px rgba(245,158,11,0.4);
+}
+
+/* Badges */
+.colorblind .badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+.colorblind .badge-blue {
+  background: rgba(94,201,98,0.15);
+  color: #5EC962;
+}
+
+.colorblind .badge-orange {
+  background: rgba(249,115,22,0.2);
+  color: #FDBA74;
+}
+
+/* Buttons */
+.colorblind .btn-emerald {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+  box-shadow: 0 4px 15px rgba(33,145,140,0.4);
+}
+.colorblind .btn-emerald:hover {
+  box-shadow: 0 6px 25px rgba(33,145,140,0.5);
+}
+.colorblind .btn-success {
+  background: linear-gradient(135deg, var(--success), #1A7A76);
+}
+.colorblind .btn-danger {
+  background: linear-gradient(135deg, var(--error), #EA580C);
+}
+
+/* Progress bars */
+.colorblind .progress-fill {
+  background: linear-gradient(90deg, var(--emerald), var(--emerald-light));
+}
+
+/* Input focus */
+.colorblind .input-field:focus {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(33,145,140,0.15);
+}
+
+/* Toggle switch */
+.colorblind input:checked + .toggle-slider {
+  background: var(--emerald);
+}
+
+/* Card hover */
+.colorblind .card-hover:hover {
+  box-shadow: var(--shadow-emerald);
+  border-color: var(--emerald);
+}
+
+/* Quiz answer states */
+.colorblind .quiz-option.correct {
+  border-color: var(--success);
+  color: var(--success);
+}
+.colorblind .quiz-option.correct .quiz-option-indicator {
+  background: var(--success);
+}
+.colorblind .quiz-option.incorrect {
+  border-color: var(--error);
+  color: var(--error);
+}
+.colorblind .quiz-option.incorrect .quiz-option-indicator {
+  background: var(--error);
+}
+
+/* Timeline/dot nodes on roadmap */
+.colorblind .roadmap-node.completed {
+  background: var(--success) !important;
+}
+
+/* Gradient text */
+.colorblind .gradient-text {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Login/Register emerald accents */
+.colorblind .login-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+.colorblind .register-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+.colorblind .forgot-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+
+/* Lesson continue button */
+.colorblind .lesson-continue-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+
+/* Dashboard continue badge */
+.colorblind .continue-badge.badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+/* Notif badge (red) */
+.colorblind .notif-badge,
+.colorblind .notification-dot {
+  background: var(--error);
+}
+
+/* Error text */
+.colorblind .error-text,
+.colorblind .text-error {
+  color: var(--error);
+}
+
+/* Register role selector */
+.colorblind .role-option.selected {
+  border-color: var(--emerald);
+}
+.colorblind .role-option.selected .role-option-text {
+  color: var(--emerald-light);
+}
+.colorblind .role-checkmark {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-light));
+}
+
+/* Register accent color on radio/checkbox */
+.colorblind input[type="checkbox"],
+.colorblind input[type="radio"] {
+  accent-color: var(--emerald);
+}
+
+/* Teacher dashboard */
+.colorblind .teacher-active-badge.badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+/* Header notification badge (red dot) */
+.colorblind .header-notif-dot {
+  background: var(--error);
+}
+
+/* ======== */
+
+/* Respect system preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
@@ -41,9 +42,77 @@ export default function Dashboard() {
   const { user } = useAuth()
   const userName = user?.name?.split(' ')[0] || 'Sofía'
 
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [sidebarOpen])
+
+  const sidebarContent = (
+    <>
+      {/* Mascot panel */}
+      <div className="sidebar-card">
+        <h3 className="sidebar-title">Tu compañero</h3>
+        <div className="mascot-panel">
+          <Mascot type="dragon" size="lg" mood="normal" />
+          <div className="mascot-info">
+            <div className="mascot-nm">Ember</div>
+            <div className="mascot-lvl">Nivel 2 – Juvenil</div>
+          </div>
+        </div>
+        <div className="xp-bar-wrap">
+          <div className="xp-labels">
+            <span>820 XP</span><span>1500 XP</span>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
+          </div>
+          <p className="xp-hint">680 XP para nivel 3</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="sidebar-card">
+        <h3 className="sidebar-title">Tu semana</h3>
+        <div className="stats-list">
+          {[
+            { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
+            { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
+            { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
+            { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
+          ].map(s => (
+            <div key={s.label} className="stat-item">
+              <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
+              <div className="stat-info">
+                <div className="stat-val">{s.val}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Last medal */}
+      <div className="sidebar-card medal-card">
+        <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
+        <div className="medal-info">
+          <div className="medal-name">Explorador Curioso</div>
+          <div className="medal-sub">Última medalla obtenida</div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')}>Ver todas</button>
+      </div>
+    </>
+  )
+
   return (
     <PageWrapper>
-      <Header />
+      <Header onToggleSidebar={() => setSidebarOpen(true)} />
       <div className="dashboard-layout">
         {/* Main content */}
         <main className="dashboard-main">
@@ -146,60 +215,51 @@ export default function Dashboard() {
           </section>
         </main>
 
-        {/* Sidebar */}
-        <aside className="dashboard-sidebar hide-mobile">
-          {/* Mascot panel */}
-          <div className="sidebar-card">
-            <h3 className="sidebar-title">Tu compañero</h3>
-            <div className="mascot-panel">
-              <Mascot type="dragon" size="lg" mood="normal" />
-              <div className="mascot-info">
-                <div className="mascot-nm">Ember</div>
-                <div className="mascot-lvl">Nivel 2 – Juvenil</div>
-              </div>
-            </div>
-            <div className="xp-bar-wrap">
-              <div className="xp-labels">
-                <span>820 XP</span><span>1500 XP</span>
-              </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
-              </div>
-              <p className="xp-hint">680 XP para nivel 3</p>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="sidebar-card">
-            <h3 className="sidebar-title">Tu semana</h3>
-            <div className="stats-list">
-              {[
-                { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
-                { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
-                { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
-                { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
-              ].map(s => (
-                <div key={s.label} className="stat-item">
-                  <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
-                  <div className="stat-info">
-                    <div className="stat-val">{s.val}</div>
-                    <div className="stat-label">{s.label}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Last medal */}
-          <div className="sidebar-card medal-card">
-            <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
-            <div className="medal-info">
-              <div className="medal-name">Explorador Curioso</div>
-              <div className="medal-sub">Última medalla obtenida</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')}>Ver todas</button>
-          </div>
+        {/* Sidebar — desktop */}
+        <aside className="dashboard-sidebar hide-tablet">
+          {sidebarContent}
         </aside>
+
+        {/* Mobile sidebar drawer */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              key="sidebar-overlay"
+              className="sidebar-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              key="sidebar-drawer"
+              className="dashboard-sidebar mobile-drawer"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            >
+              <div className="drawer-header">
+                <h3 className="sidebar-title" style={{ marginBottom: 0 }}>Panel</h3>
+                <button
+                  className="drawer-close-btn"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-label="Cerrar panel"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="drawer-body">
+                {sidebarContent}
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
     </PageWrapper>
   )

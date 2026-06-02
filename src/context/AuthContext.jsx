@@ -125,6 +125,8 @@ export function AuthProvider({ children }) {
 
   function logout() {
     setUser(null)
+    document.body.classList.remove('high-contrast', 'reduce-motion', 'colorblind', 'large-text')
+    document.documentElement.style.fontSize = ''
   }
 
   const isAuthenticated = !!user

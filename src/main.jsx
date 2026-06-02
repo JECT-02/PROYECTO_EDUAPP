@@ -4,6 +4,22 @@ import { AuthProvider } from './context/AuthContext'
 import App from './App.jsx'
 import './index.css'
 
+// Apply saved accessibility preferences on load
+(function applySavedPrefs() {
+  try {
+    const raw = localStorage.getItem('eduapp_prefs')
+    if (!raw) return
+    const prefs = JSON.parse(raw)
+    if (prefs.contrast) document.body.classList.add('high-contrast')
+    if (prefs.reduced) document.body.classList.add('reduce-motion')
+    if (prefs.colorblind) document.body.classList.add('colorblind')
+    if (prefs.largeText) {
+      document.body.classList.add('large-text')
+      document.documentElement.style.fontSize = '18px'
+    }
+  } catch { /* ignore */ }
+})()
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>

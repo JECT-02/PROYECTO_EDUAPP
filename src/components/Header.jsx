@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users } from 'lucide-react'
-import { useState } from 'react'
+import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users, PanelRightOpen } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import './Header.css'
 
@@ -23,12 +23,26 @@ const NOTIFICATIONS_BY_ROLE = {
   ],
 }
 
-export default function Header() {
+export default function Header({ onToggleSidebar }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
   const [dropdown, setDropdown] = useState(false)
   const [showNotifs, setShowNotifs] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const mobileNavRef = useRef(null)
+
+  // Close mobile nav on click outside
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const handleClick = (e) => {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(e.target)) {
+        setMobileNavOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [mobileNavOpen])
 
   const notifications = NOTIFICATIONS_BY_ROLE[user?.role || 'student'] || NOTIFICATIONS_BY_ROLE.student
 
@@ -55,10 +69,27 @@ export default function Header() {
   return (
     <header className="app-header">
       <div className="header-inner">
-        {/* Logo */}
+        {/* Logo + mobile nav toggle */}
         <div className="header-logo" onClick={() => navigate(homeRoute[userData.role] || '/dashboard')}>
           <div className="logo-icon">✦</div>
           <span className="logo-text">EduApp</span>
+          {userData.role === 'student' && (
+            <div className="mobile-nav-wrapper hide-desktop" ref={mobileNavRef}>
+              <button
+                className={`mobile-nav-arrow-btn ${mobileNavOpen ? 'open' : ''}`}
+                onClick={(e) => { e.stopPropagation(); setMobileNavOpen(!mobileNavOpen); setShowNotifs(false); setDropdown(false) }}
+                aria-label="Menú de navegación"
+              >
+                <ChevronDown size={16} />
+              </button>
+              {mobileNavOpen && (
+                <div className="mobile-nav-dropdown animate-fadeInUp">
+                  <MobileNavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
+                  <MobileNavLink to="/achievements" icon={<Trophy size={16}/>} label="Logros" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Nav (desktop) - role specific */}
@@ -73,6 +104,15 @@ export default function Header() {
 
         {/* Right side */}
         <div className="header-right">
+          {onToggleSidebar && (
+            <button
+              className="icon-btn sidebar-toggle-btn"
+              onClick={onToggleSidebar}
+              aria-label="Abrir panel lateral"
+            >
+              <PanelRightOpen size={18} />
+            </button>
+          )}
           <div className="notif-wrapper">
             <button 
               className={`icon-btn notif-btn ${showNotifs ? 'active' : ''}`} 
@@ -151,6 +191,20 @@ function NavLink({ to, icon, label, current }) {
       onClick={() => navigate(to)}
     >
       {icon} {label}
+    </button>
+  )
+}
+
+function MobileNavLink({ to, icon, label, current, onClose }) {
+  const navigate = useNavigate()
+  const active = current === to
+  return (
+    <button
+      className={`mobile-nav-link ${active ? 'active' : ''}`}
+      onClick={(e) => { e.stopPropagation(); navigate(to); onClose() }}
+    >
+      <span className="mobile-nav-link-icon" style={{ color: active ? 'var(--primary-light)' : 'var(--text-muted)' }}>{icon}</span>
+      <span>{label}</span>
     </button>
   )
 }

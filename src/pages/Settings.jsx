@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bell, Moon, Volume2, Eye, Type, Move, Mic, Glasses } from 'lucide-react'
+import { ArrowLeft, Bell, Volume2, Eye, Type, Move, Mic, Glasses, Smartphone } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Settings.css'
 
 const ACCESSIBILITY_OPTIONS = [
-  { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:<Eye size={20}/> },
-  { key:'narration', label:'Narración por voz', desc:'El sistema lee el contenido en voz alta', icon:<Volume2 size={20}/> },
-  { key:'reduced', label:'Reducir animaciones', desc:'Fades simples en lugar de efectos complejos', icon:<Move size={20}/> },
-  { key:'voice', label:'Navegación por voz', desc:'Controla la app con comandos de voz', icon:<Mic size={20}/> },
-  { key:'largeText', label:'Texto grande', desc:'Aumenta el tamaño de letra base', icon:<Type size={20}/> },
-  { key:'colorblind', label:'Modo para daltónismo', desc:'Paletas de color accesibles', icon:<Glasses size={20}/> },
+  { key: 'contrast', label: 'Modo de alto contraste', desc: 'Máximo contraste en colores', icon: <Eye size={20} /> },
+  { key: 'narration', label: 'Narración por voz', desc: 'El sistema lee el contenido en voz alta', icon: <Volume2 size={20} /> },
+  { key: 'reduced', label: 'Reducir animaciones', desc: 'Fades simples en lugar de efectos complejos', icon: <Move size={20} /> },
+  { key: 'voice', label: 'Navegación por voz', desc: 'Controla la app con comandos de voz', icon: <Mic size={20} /> },
+  { key: 'largeText', label: 'Texto grande', desc: 'Aumenta el tamaño de letra base', icon: <Type size={20} /> },
+  { key: 'colorblind', label: 'Modo para daltónismo', desc: 'Paletas de color accesibles', icon: <Glasses size={20} /> },
 ]
 
 export default function Settings() {
@@ -24,12 +24,27 @@ export default function Settings() {
   })
 
   const toggle = (key) => {
+    const nextVal = !prefs[key]
     setPrefs(p => {
-      const next = { ...p, [key]: !p[key] }
+      const next = { ...p, [key]: nextVal }
       localStorage.setItem('eduapp_prefs', JSON.stringify(next))
       return next
     })
-    if (key === 'narration' && !prefs[key] && 'speechSynthesis' in window) {
+    // Apply/remove high contrast class on body
+    if (key === 'contrast') {
+      document.body.classList.toggle('high-contrast', nextVal)
+    }
+    if (key === 'reduced') {
+      document.body.classList.toggle('reduce-motion', nextVal)
+    }
+    if (key === 'colorblind') {
+      document.body.classList.toggle('colorblind', nextVal)
+    }
+    if (key === 'largeText') {
+      document.body.classList.toggle('large-text', nextVal)
+      document.documentElement.style.fontSize = nextVal ? '18px' : ''
+    }
+    if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
       window.speechSynthesis.speak(u)
@@ -40,7 +55,7 @@ export default function Settings() {
     <PageWrapper className="settings-page">
       {/* Header */}
       <header className="settings-header">
-        <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
+        <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18} /></button>
         <h1 className="settings-title">Configuración</h1>
       </header>
 
@@ -52,9 +67,9 @@ export default function Settings() {
               Preferencias
             </h2>
           </div>
-          <SettingRow icon={<Bell size={18}/>} label="Notificaciones" active={!!prefs.notifications} onToggle={() => toggle('notifications')} />
-          <SettingRow icon={<Volume2 size={18}/>} label="Efectos de sonido" active={!!prefs.sound} onToggle={() => toggle('sound')} />
-          <SettingRow icon={<Moon size={18}/>} label="Modo oscuro" active={!!prefs.darkMode} onToggle={() => toggle('darkMode')} />
+          <SettingRow icon={<Bell size={18} />} label="Notificaciones" active={!!prefs.notifications} onToggle={() => toggle('notifications')} />
+          <SettingRow icon={<Volume2 size={18} />} label="Efectos de sonido" active={!!prefs.sound} onToggle={() => toggle('sound')} />
+          <SettingRow icon={<Smartphone size={18} />} label="Vibración" active={!!prefs.vibration} onToggle={() => toggle('vibration')} />
         </div>
 
         {/* Accesibilidad — mismas opciones que el onboarding */}
@@ -97,3 +112,5 @@ function SettingRow({ icon, label, desc, active, onToggle }) {
     </div>
   )
 }
+
+

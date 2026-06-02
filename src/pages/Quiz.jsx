@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { X, Mic, Volume2 } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
+import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
 import './Quiz.css'
 
@@ -64,6 +66,8 @@ export default function Quiz() {
   }
 
   function handleTimeOut() {
+    playTimeout()
+    vibrateTimeout()
     recordAnswer(-1) // no seleccionó nada
     setStatus('incorrect')
     setTimeout(nextQuestion, 2000)
@@ -74,8 +78,12 @@ export default function Quiz() {
     setSelected(index)
     recordAnswer(index)
     if (index === q.correct) {
+      playCorrect()
+      vibrateCorrect()
       setStatus('correct')
     } else {
+      playIncorrect()
+      vibrateIncorrect()
       setStatus('incorrect')
     }
     setTimeout(nextQuestion, 1500)
