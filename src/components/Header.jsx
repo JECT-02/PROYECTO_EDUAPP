@@ -73,25 +73,23 @@ export default function Header({ onToggleSidebar }) {
         <div className="header-logo" onClick={() => navigate(homeRoute[userData.role] || '/dashboard')}>
           <div className="logo-icon">✦</div>
           <span className="logo-text">EduApp</span>
-          <div className="mobile-nav-wrapper hide-desktop" ref={mobileNavRef}>
-            <button
-              className={`mobile-nav-arrow-btn ${mobileNavOpen ? 'open' : ''}`}
-              onClick={(e) => { e.stopPropagation(); setMobileNavOpen(!mobileNavOpen); setShowNotifs(false); setDropdown(false) }}
-              aria-label="Menú de navegación"
-            >
-              <ChevronDown size={16} />
-            </button>
-            {mobileNavOpen && (
-              <div className="mobile-nav-dropdown animate-fadeInUp">
-                {userData.role === 'student' && (
-                  <>
-                    <MobileNavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
-                    <MobileNavLink to="/achievements" icon={<Trophy size={16}/>} label="Logros" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+          {userData.role === 'student' && (
+            <div className="mobile-nav-wrapper hide-desktop" ref={mobileNavRef}>
+              <button
+                className={`mobile-nav-arrow-btn ${mobileNavOpen ? 'open' : ''}`}
+                onClick={(e) => { e.stopPropagation(); setMobileNavOpen(!mobileNavOpen); setShowNotifs(false); setDropdown(false) }}
+                aria-label="Menú de navegación"
+              >
+                <ChevronDown size={16} />
+              </button>
+              {mobileNavOpen && (
+                <div className="mobile-nav-dropdown animate-fadeInUp">
+                  <MobileNavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
+                  <MobileNavLink to="/achievements" icon={<Trophy size={16}/>} label="Logros" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Nav (desktop) - role specific */}
