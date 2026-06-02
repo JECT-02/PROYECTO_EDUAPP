@@ -23,16 +23,31 @@ export default function OnboardingAccess() {
   })
 
   function toggle(key) {
+    const nextVal = !prefs[key]
     setPrefs(p => {
-      const next = { ...p, [key]: !p[key] }
+      const next = { ...p, [key]: nextVal }
       localStorage.setItem('eduapp_prefs', JSON.stringify(next))
       return next
     })
-    if (key === 'narration' && !prefs[key] && 'speechSynthesis' in window) {
+    if (key === 'contrast') {
+      document.body.classList.toggle('high-contrast', nextVal)
+    }
+    if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
       window.speechSynthesis.speak(u)
     }
+  }
+
+  function handleContinue() {
+    // Apply high contrast from localStorage (closure state may be stale if toggle was just called)
+    try {
+      const saved = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
+      if (saved.contrast) {
+        document.body.classList.add('high-contrast')
+      }
+    } catch { /* ignore */ }
+    navigate('/onboarding/avatar')
   }
 
   function handleContinue() {

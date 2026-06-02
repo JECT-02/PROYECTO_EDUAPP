@@ -125,6 +125,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     setUser(null)
+    document.body.classList.remove('high-contrast')
   }
 
   const isAuthenticated = !!user

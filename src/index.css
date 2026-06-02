@@ -375,3 +375,73 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
 @media (min-width: 768px) {
   .hide-desktop { display: none !important; }
 }
+
+/* ========================================
+   High Contrast Mode (WCAG 2.1 AA)
+   ======================================== */
+.high-contrast {
+  --bg: #000000;
+  --bg-2: #050505;
+  --surface: #0D0D0D;
+  --surface-2: #141414;
+  --surface-3: #1E1E1E;
+  --border: rgba(255,255,255,0.25);
+  --border-light: rgba(255,255,255,0.18);
+
+  --text: #FFFFFF;
+  --text-muted: #CCCCCC;
+  --text-dim: #AAAAAA;
+
+  --glass: rgba(0,0,0,0.95);
+  --glass-border: rgba(255,255,255,0.22);
+
+  --primary: #8B83FF;
+  --primary-light: #A59EFF;
+  --primary-dark: #6C63FF;
+  --emerald: #22D98A;
+  --emerald-light: #4AE3A0;
+
+  --shadow-sm: 0 2px 8px rgba(255,255,255,0.08);
+  --shadow: 0 4px 20px rgba(255,255,255,0.06);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.8);
+}
+
+.high-contrast .btn-ghost {
+  border-color: rgba(255,255,255,0.3);
+  color: #FFFFFF;
+}
+
+.high-contrast .btn-ghost:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--primary-light);
+}
+
+.high-contrast .input-field {
+  border-color: rgba(255,255,255,0.3);
+  background: #000000;
+}
+
+.high-contrast .card {
+  background: rgba(0,0,0,0.98);
+  border-color: rgba(255,255,255,0.22);
+}
+
+.high-contrast .stat-card,
+.high-contrast .teacher-course-card,
+.high-contrast .setting-row,
+.high-contrast .settings-section {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .modal-container {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .notif-dropdown,
+.high-contrast .dropdown-menu {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.high-contrast .progress-bar {
+  background: #1E1E1E;
+}
