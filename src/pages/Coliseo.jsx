@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home } from 'lucide-react'
 import Mascot from '../components/Mascot'
+import { initAudio, playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import PageWrapper from '../components/PageWrapper'
 import './Coliseo.css'
 
@@ -121,7 +122,7 @@ export default function Coliseo() {
           </ul>
           <div className="coliseo-actions">
             <button className="btn btn-ghost" onClick={() => navigate('/dashboard')}>Volver al dashboard</button>
-            <button className="btn btn-accent btn-lg" onClick={() => setStarted(true)}>¡Entrar a la Arena!</button>
+            <button className="btn btn-accent btn-lg" onClick={() => { initAudio(); setStarted(true) }}>¡Entrar a la Arena!</button>
           </div>
         </div>
       </PageWrapper>
@@ -131,16 +132,19 @@ export default function Coliseo() {
   function handleSelect(option) {
     if (status !== 'idle') return
     if (option === currentQ.a) {
+      playCorrect()
       setStatus('correct')
       setTimeout(() => {
         if (qIndex + 1 < QUESTIONS.length) { 
           setQIndex(qIndex + 1)
           setStatus('idle') 
         } else {
+          playVictory()
           setVictory(true)
         }
       }, 1000)
     } else {
+      playIncorrect()
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
