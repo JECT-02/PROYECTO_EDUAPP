@@ -13,6 +13,10 @@ import './index.css'
     if (prefs.contrast) document.body.classList.add('high-contrast')
     if (prefs.reduced) document.body.classList.add('reduce-motion')
     if (prefs.colorblind) document.body.classList.add('colorblind')
+    if (prefs.largeText) {
+      document.body.classList.add('large-text')
+      document.documentElement.style.fontSize = '18px'
+    }
   } catch { /* ignore */ }
 })()
 

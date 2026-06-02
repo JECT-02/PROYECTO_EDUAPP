@@ -502,6 +502,59 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
 }
 
 /* ========================================
+   Large Text Mode
+   ========================================
+   Aumenta base font-size a 18px (WCAG 2.1 AA).
+   ======================================== */
+.large-text {
+  font-size: 18px;
+}
+
+.large-text .btn {
+  font-size: 1rem;
+}
+
+.large-text .btn-lg {
+  font-size: 1.15rem;
+}
+
+.large-text .btn-sm {
+  font-size: 0.9rem;
+}
+
+.large-text .input-field {
+  font-size: 1rem;
+}
+
+.large-text .input-group label {
+  font-size: 0.9rem;
+}
+
+.large-text .toast {
+  font-size: 0.95rem;
+}
+
+.large-text .badge {
+  font-size: 0.82rem;
+}
+
+.large-text .section-title {
+  font-size: 1.45rem;
+}
+
+.large-text .settings-title {
+  font-size: 1.65rem;
+}
+
+.large-text .header-logo .logo-text {
+  font-size: 1.25rem;
+}
+
+.large-text .nav-link {
+  font-size: 0.95rem;
+}
+
+/* ========================================
    Colorblind Mode (Daltonismo)
    Paleta basada en Viridis (perceptually uniform,
    colorblind-safe colormap).

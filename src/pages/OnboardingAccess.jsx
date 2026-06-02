@@ -38,6 +38,10 @@ export default function OnboardingAccess() {
     if (key === 'colorblind') {
       document.body.classList.toggle('colorblind', nextVal)
     }
+    if (key === 'largeText') {
+      document.body.classList.toggle('large-text', nextVal)
+      document.documentElement.style.fontSize = nextVal ? '18px' : ''
+    }
     if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
@@ -52,6 +56,10 @@ export default function OnboardingAccess() {
       if (saved.contrast) document.body.classList.add('high-contrast')
       if (saved.reduced) document.body.classList.add('reduce-motion')
       if (saved.colorblind) document.body.classList.add('colorblind')
+      if (saved.largeText) {
+        document.body.classList.add('large-text')
+        document.documentElement.style.fontSize = '18px'
+      }
     } catch { /* ignore */ }
     navigate('/onboarding/avatar')
   }
