@@ -24,12 +24,17 @@ export default function Settings() {
   })
 
   const toggle = (key) => {
+    const nextVal = !prefs[key]
     setPrefs(p => {
-      const next = { ...p, [key]: !p[key] }
+      const next = { ...p, [key]: nextVal }
       localStorage.setItem('eduapp_prefs', JSON.stringify(next))
       return next
     })
-    if (key === 'narration' && !prefs[key] && 'speechSynthesis' in window) {
+    // Apply/remove high contrast class on body
+    if (key === 'contrast') {
+      document.body.classList.toggle('high-contrast', nextVal)
+    }
+    if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
       window.speechSynthesis.speak(u)
