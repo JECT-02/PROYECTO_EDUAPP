@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
+import { vibrateLocked } from '../utils/vibration'
 import './Roadmap.css'
 
 const COURSE_DATA = {
@@ -164,6 +165,8 @@ export default function Roadmap() {
                       if (node.status !== 'locked') {
                         const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
                         navigate(`${path}/${courseId}/${node.id}`)
+                      } else {
+                        vibrateLocked()
                       }
                     }}
                   >

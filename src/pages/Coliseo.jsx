@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { initAudio, playCorrect, playIncorrect, playVictory } from '../utils/sounds'
+import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import './Coliseo.css'
 
@@ -133,6 +134,7 @@ export default function Coliseo() {
     if (status !== 'idle') return
     if (option === currentQ.a) {
       playCorrect()
+      vibrateCorrect()
       setStatus('correct')
       setTimeout(() => {
         if (qIndex + 1 < QUESTIONS.length) { 
@@ -140,11 +142,13 @@ export default function Coliseo() {
           setStatus('idle') 
         } else {
           playVictory()
+          vibrateVictory()
           setVictory(true)
         }
       }, 1000)
     } else {
       playIncorrect()
+      vibrateIncorrect()
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
