@@ -40,6 +40,10 @@ export default function Settings() {
     if (key === 'colorblind') {
       document.body.classList.toggle('colorblind', nextVal)
     }
+    if (key === 'largeText') {
+      document.body.classList.toggle('large-text', nextVal)
+      document.documentElement.style.fontSize = nextVal ? '18px' : ''
+    }
     if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
