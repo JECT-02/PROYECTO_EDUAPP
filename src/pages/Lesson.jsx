@@ -188,7 +188,7 @@ export default function Lesson() {
           <span className="progress-lbl">{Math.round(progress)}% completado</span>
         </div>
         <button className="btn btn-primary btn-lg" disabled={progress < 75} onClick={() => navigate(`/roadmap/${courseId}`)}>
-          Terminar Nodo <Check size={16}/>
+          Terminar Nodo
         </button>
       </footer>
 
@@ -210,9 +210,11 @@ export default function Lesson() {
           </div>
         </div>
       )}
-      <button className="ai-chat-trigger animate-bounce" onClick={() => setShowChat(!showChat)}>
-        <Bot size={28} />
-      </button>
+      {!showChat && (
+        <button className="ai-chat-trigger" onClick={() => setShowChat(true)}>
+          <Bot size={28} />
+        </button>
+      )}
     </PageWrapper>
   )
 }

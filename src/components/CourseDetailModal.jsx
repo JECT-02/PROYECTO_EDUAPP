@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Users, AlertTriangle, TrendingUp, Clock,
@@ -84,9 +84,18 @@ function getAlertTypeLabel(type) {
 export default function CourseDetailModal({ isOpen, onClose, course, onDelete }) {
   const [activeTab, setActiveTab] = useState('participantes')
   const [searchQuery, setSearchQuery] = useState('')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+
+  // Reset state when switching to a different course
+  useEffect(() => {
+    setShowDeleteModal(false)
+    setConfirmText('')
+  }, [course?.id])
 
   if (!course) return null
+
+  const deleteSlug = `eliminar_${course.name.toLowerCase().replace(/\s+/g, '_')}`
 
   const participants = PARTICIPANT_DATA[course.id] || []
   const alerts = COURSE_ALERTS[course.id] || []
@@ -108,6 +117,7 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="course-detail-overlay"
           className="modal-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -116,6 +126,7 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
           onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
         >
           <motion.div
+            key="course-detail-container"
             className="modal-container course-detail-modal"
             initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -208,77 +219,79 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                   </div>
 
                   {/* Participants list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div className="participants-header-row">
-                      <span style={{ flex: '0 0 200px' }}>Estudiante</span>
-                      <span style={{ flex: '0 0 120px', textAlign: 'center' }}>Progreso</span>
-                      <span style={{ flex: '0 0 120px', textAlign: 'center' }}>Entendimiento</span>
-                      <span style={{ flex: '0 0 100px', textAlign: 'right' }}>Estado</span>
-                    </div>
-                    {filteredParticipants.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)', fontSize: '0.88rem' }}>
-                        No se encontraron participantes con ese nombre.
+                  <div className="participants-table-wrapper">
+                    <div className="participants-table-inner">
+                      <div className="participants-header-row">
+                        <span style={{ flex: '0 0 200px' }}>Estudiante</span>
+                        <span style={{ flex: '0 0 120px', textAlign: 'center' }}>Progreso</span>
+                        <span style={{ flex: '0 0 120px', textAlign: 'center' }}>Entendimiento</span>
+                        <span style={{ flex: '0 0 100px', textAlign: 'right' }}>Estado</span>
                       </div>
-                    ) : (
-                      filteredParticipants.map((p, i) => (
-                        <motion.div
-                          key={p.id}
-                          className="participant-row"
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.03 }}
-                        >
-                          <div style={{ flex: '0 0 200px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div className="participant-avatar">{p.avatar}</div>
-                            <div>
-                              <div className="participant-name">{p.name}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{p.lastActive}</div>
+                      {filteredParticipants.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)', fontSize: '0.88rem' }}>
+                          No se encontraron participantes con ese nombre.
+                        </div>
+                      ) : (
+                        filteredParticipants.map((p, i) => (
+                          <motion.div
+                            key={p.id}
+                            className="participant-row"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                          >
+                            <div style={{ flex: '0 0 200px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div className="participant-avatar">{p.avatar}</div>
+                              <div>
+                                <div className="participant-name">{p.name}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>{p.lastActive}</div>
+                              </div>
+                              {p.alerts.length > 0 && (
+                                <AlertTriangle size={12} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+                              )}
                             </div>
-                            {p.alerts.length > 0 && (
-                              <AlertTriangle size={12} style={{ color: 'var(--warning)', flexShrink: 0 }} />
-                            )}
-                          </div>
-                          <div style={{ flex: '0 0 120px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div className="progress-bar" style={{ flex: 1, height: 6 }}>
-                              <div
-                                className="progress-fill"
+                            <div style={{ flex: '0 0 120px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div className="progress-bar" style={{ flex: 1, height: 6 }}>
+                                <div
+                                  className="progress-fill"
+                                  style={{
+                                    width: `${p.progress}%`,
+                                    background: `linear-gradient(90deg, ${p.progress >= 60 ? '#22C55E' : p.progress >= 30 ? '#F59E0B' : '#EF4444'}, ${p.progress >= 60 ? '#4ADE80' : p.progress >= 30 ? '#FCD34D' : '#FCA5A5'})`,
+                                  }}
+                                />
+                              </div>
+                              <span
                                 style={{
-                                  width: `${p.progress}%`,
-                                  background: `linear-gradient(90deg, ${p.progress >= 60 ? '#22C55E' : p.progress >= 30 ? '#F59E0B' : '#EF4444'}, ${p.progress >= 60 ? '#4ADE80' : p.progress >= 30 ? '#FCD34D' : '#FCA5A5'})`,
+                                  fontSize: '0.78rem', fontWeight: 700, minWidth: 35, textAlign: 'right',
+                                  color: p.progress >= 60 ? '#22C55E' : p.progress >= 30 ? '#F59E0B' : '#EF4444',
                                 }}
-                              />
+                              >
+                                {p.progress}%
+                              </span>
                             </div>
-                            <span
-                              style={{
-                                fontSize: '0.78rem', fontWeight: 700, minWidth: 35, textAlign: 'right',
-                                color: p.progress >= 60 ? '#22C55E' : p.progress >= 30 ? '#F59E0B' : '#EF4444',
-                              }}
-                            >
-                              {p.progress}%
-                            </span>
-                          </div>
-                          <div style={{ flex: '0 0 120px', textAlign: 'center' }}>
-                            <div
-                              className="understanding-dot"
-                              style={{
-                                background: `${getUnderstandingColor(p.understanding)}22`,
-                                borderColor: `${getUnderstandingColor(p.understanding)}44`,
-                                color: getUnderstandingColor(p.understanding),
-                              }}
-                            >
-                              {getUnderstandingLabel(p.understanding)}
+                            <div style={{ flex: '0 0 120px', textAlign: 'center' }}>
+                              <div
+                                className="understanding-dot"
+                                style={{
+                                  background: `${getUnderstandingColor(p.understanding)}22`,
+                                  borderColor: `${getUnderstandingColor(p.understanding)}44`,
+                                  color: getUnderstandingColor(p.understanding),
+                                }}
+                              >
+                                {getUnderstandingLabel(p.understanding)}
+                              </div>
                             </div>
-                          </div>
-                          <div style={{ flex: '0 0 100px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
-                            {p.lastActive === 'Hoy' ? (
-                              <span style={{ color: '#22C55E' }}>Activo</span>
-                            ) : (
-                              <span>{p.lastActive}</span>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))
-                    )}
+                            <div style={{ flex: '0 0 100px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                              {p.lastActive === 'Hoy' ? (
+                                <span style={{ color: '#22C55E' }}>Activo</span>
+                              ) : (
+                                <span>{p.lastActive}</span>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -394,40 +407,125 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
             {/* Footer */}
             <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
               <div>
-                {onDelete && !showDeleteConfirm && (
+                {onDelete && (
                   <button
                     className="btn btn-ghost btn-sm"
                     style={{ color: 'var(--error)' }}
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => { setShowDeleteModal(true); setConfirmText('') }}
                   >
                     <AlertTriangle size={14} />
                     Eliminar curso
                   </button>
                 )}
-                {onDelete && showDeleteConfirm && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem' }}>
-                    <span style={{ color: 'var(--error)' }}>¿Eliminar "{course.name}"?</span>
-                    <button
-                      className="btn btn-sm"
-                      style={{
-                        background: 'rgba(239,68,68,0.15)',
-                        color: '#FCA5A5',
-                        border: '1px solid rgba(239,68,68,0.3)',
-                      }}
-                      onClick={() => { onDelete(course.id); setShowDeleteConfirm(false) }}
-                    >
-                      Si, eliminar
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                )}
               </div>
               <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <motion.div
+          key="delete-confirm-overlay"
+          className="modal-overlay"
+          style={{ zIndex: 1100 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowDeleteModal(false) }}
+        >
+          <motion.div
+            key="delete-confirm-container"
+            className="modal-container"
+            style={{ maxWidth: 420 }}
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 style={{ color: 'var(--error)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AlertTriangle size={20} />
+                Eliminar curso
+              </h2>
+              <button className="modal-close-btn" onClick={() => setShowDeleteModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ gap: 16 }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                Esta accion <strong style={{ color: 'var(--error)' }}>no se puede deshacer</strong>.
+                Se eliminaran permanentemente el curso y todo su contenido asociado.
+              </p>
+
+              <div style={{
+                background: 'rgba(239,68,68,0.06)',
+                border: '1px solid rgba(239,68,68,0.15)',
+                borderRadius: 'var(--radius)',
+                padding: '14px 16px',
+                fontSize: '0.82rem',
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Curso: <span style={{ color: 'var(--text)' }}>"{course.name}"</span>
+                </div>
+                <div style={{ color: 'var(--text-dim)' }}>
+                  {course.students} estudiantes &middot; {course.nodes} nodos
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{
+                  fontSize: '0.8rem', color: 'var(--text-dim)',
+                  fontWeight: 600,
+                }}>
+                  Escribe <code style={{
+                    background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4,
+                    fontSize: '0.78rem', color: 'var(--error)',
+                  }}>{deleteSlug}</code> para confirmar
+                </label>
+                <input
+                  className="input-field"
+                  placeholder={deleteSlug}
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn"
+                style={{
+                  background: confirmText === deleteSlug
+                    ? 'rgba(239,68,68,0.9)'
+                    : 'rgba(239,68,68,0.25)',
+                  color: confirmText === deleteSlug
+                    ? '#fff'
+                    : '#888',
+                  border: confirmText === deleteSlug
+                    ? '1px solid rgba(239,68,68,0.6)'
+                    : '1px solid transparent',
+                  cursor: confirmText === deleteSlug
+                    ? 'pointer'
+                    : 'not-allowed',
+                  transition: 'all 0.2s ease',
+                }}
+                disabled={confirmText !== deleteSlug}
+                onClick={() => { onDelete(course.id); setShowDeleteModal(false) }}
+              >
+                Eliminar permanentemente
+              </button>
             </div>
           </motion.div>
         </motion.div>

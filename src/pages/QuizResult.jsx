@@ -1,6 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { vibrateWarning } from '../utils/vibration'
 import './QuizResult.css'
 
 export default function QuizResult() {
@@ -17,6 +19,13 @@ export default function QuizResult() {
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0
   const passed = percentage >= 60
   const incorrectCount = answers.filter(a => !a.isCorrect).length
+
+  // Vibrate warning if score < 40% (desempeño bajo — ee2.md CU-02)
+  useEffect(() => {
+    if (percentage < 40) {
+      vibrateWarning()
+    }
+  }, [percentage])
 
   return (
     <PageWrapper className="center-all">
