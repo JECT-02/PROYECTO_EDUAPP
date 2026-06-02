@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence, MotionConfig } from 'framer-motion'
 import { useAuth } from './context/AuthContext'
 import StarsBackground from './components/StarsBackground'
 import Login from './pages/Login'
@@ -64,9 +65,23 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  const [reducedMotion, setReducedMotion] = useState(
+    () => document.body.classList.contains('reduce-motion')
+  )
+
+  // Watch body class changes for reduce-motion toggle
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setReducedMotion(document.body.classList.contains('reduce-motion'))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <HashRouter>
       <StarsBackground />
+      <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <AnimatePresence mode="wait">
         <Routes>
           {/* Public routes */}
@@ -98,6 +113,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Settings /></ProtectedRoute>} />
         </Routes>
       </AnimatePresence>
+      </MotionConfig>
     </HashRouter>
   )
 }

@@ -445,3 +445,70 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
 .high-contrast .progress-bar {
   background: #1E1E1E;
 }
+
+/* ========================================
+   Reduce Motion Mode
+   ======================================== */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .star {
+  display: none;
+}
+
+.reduce-motion .animate-float,
+.reduce-motion .animate-pulse-glow,
+.reduce-motion .animate-pulse-glow-gold,
+.reduce-motion .animate-bounce {
+  animation: none !important;
+}
+
+.reduce-motion .card-hover:hover {
+  transform: none;
+}
+
+.reduce-motion .btn:hover {
+  transform: none;
+}
+
+.reduce-motion .stat-card:hover {
+  transform: none;
+}
+
+.reduce-motion .teacher-course-card:hover {
+  transform: none;
+}
+
+.reduce-motion .progress-fill {
+  transition: none;
+}
+
+.reduce-motion .toast {
+  animation: none;
+  opacity: 1;
+}
+
+.reduce-motion .animate-fadeInUp,
+.reduce-motion .animate-scaleIn {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* Respect system preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

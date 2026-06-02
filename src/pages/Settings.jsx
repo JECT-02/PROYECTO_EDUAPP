@@ -34,6 +34,9 @@ export default function Settings() {
     if (key === 'contrast') {
       document.body.classList.toggle('high-contrast', nextVal)
     }
+    if (key === 'reduced') {
+      document.body.classList.toggle('reduce-motion', nextVal)
+    }
     if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9

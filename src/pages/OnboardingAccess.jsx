@@ -32,6 +32,9 @@ export default function OnboardingAccess() {
     if (key === 'contrast') {
       document.body.classList.toggle('high-contrast', nextVal)
     }
+    if (key === 'reduced') {
+      document.body.classList.toggle('reduce-motion', nextVal)
+    }
     if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
@@ -40,18 +43,12 @@ export default function OnboardingAccess() {
   }
 
   function handleContinue() {
-    // Apply high contrast from localStorage (closure state may be stale if toggle was just called)
+    // Apply accessibility classes from localStorage (closure state may be stale if toggle was just called)
     try {
       const saved = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
-      if (saved.contrast) {
-        document.body.classList.add('high-contrast')
-      }
+      if (saved.contrast) document.body.classList.add('high-contrast')
+      if (saved.reduced) document.body.classList.add('reduce-motion')
     } catch { /* ignore */ }
-    navigate('/onboarding/avatar')
-  }
-
-  function handleContinue() {
-    localStorage.setItem('eduapp_prefs', JSON.stringify(prefs))
     navigate('/onboarding/avatar')
   }
 
