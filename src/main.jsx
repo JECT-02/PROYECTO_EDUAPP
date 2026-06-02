@@ -10,9 +10,8 @@ import './index.css'
     const raw = localStorage.getItem('eduapp_prefs')
     if (!raw) return
     const prefs = JSON.parse(raw)
-    if (prefs.contrast) {
-      document.body.classList.add('high-contrast')
-    }
+    if (prefs.contrast) document.body.classList.add('high-contrast')
+    if (prefs.reduced) document.body.classList.add('reduce-motion')
   } catch { /* ignore */ }
 })()
 
