@@ -501,6 +501,184 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
   transform: none;
 }
 
+/* ========================================
+   Colorblind Mode (Daltonismo)
+   Paleta basada en Viridis (perceptually uniform,
+   colorblind-safe colormap).
+
+   Viridis key colors:
+     #440154  (deep purple)
+     #3B528B  (steel blue)
+     #21918C  (teal)
+     #5EC962  (green-yellow)
+     #FDE725  (bright yellow)
+
+   Mapa de la UI:
+     Emerald/Success → viridis teal (#21918C)
+     Error           → orange (no hay rojo en viridis;
+                       el naranja es universalmente
+                       distinguible en todo tipo de
+                       daltonismo)
+     Primary/Purple  → se mantiene (ya es distinguible)
+   ======================================== */
+.colorblind {
+  --emerald: #21918C;
+  --emerald-light: #5EC962;
+  --emerald-dark: #1A7A76;
+  --success: #21918C;
+  --error: #F97316;
+  --warning: #F97316;
+
+  --shadow-emerald: 0 0 20px rgba(33,145,140,0.25);
+  --shadow-gold: 0 0 20px rgba(245,158,11,0.4);
+}
+
+/* Badges */
+.colorblind .badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+.colorblind .badge-blue {
+  background: rgba(94,201,98,0.15);
+  color: #5EC962;
+}
+
+.colorblind .badge-orange {
+  background: rgba(249,115,22,0.2);
+  color: #FDBA74;
+}
+
+/* Buttons */
+.colorblind .btn-emerald {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+  box-shadow: 0 4px 15px rgba(33,145,140,0.4);
+}
+.colorblind .btn-emerald:hover {
+  box-shadow: 0 6px 25px rgba(33,145,140,0.5);
+}
+.colorblind .btn-success {
+  background: linear-gradient(135deg, var(--success), #1A7A76);
+}
+.colorblind .btn-danger {
+  background: linear-gradient(135deg, var(--error), #EA580C);
+}
+
+/* Progress bars */
+.colorblind .progress-fill {
+  background: linear-gradient(90deg, var(--emerald), var(--emerald-light));
+}
+
+/* Input focus */
+.colorblind .input-field:focus {
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(33,145,140,0.15);
+}
+
+/* Toggle switch */
+.colorblind input:checked + .toggle-slider {
+  background: var(--emerald);
+}
+
+/* Card hover */
+.colorblind .card-hover:hover {
+  box-shadow: var(--shadow-emerald);
+  border-color: var(--emerald);
+}
+
+/* Quiz answer states */
+.colorblind .quiz-option.correct {
+  border-color: var(--success);
+  color: var(--success);
+}
+.colorblind .quiz-option.correct .quiz-option-indicator {
+  background: var(--success);
+}
+.colorblind .quiz-option.incorrect {
+  border-color: var(--error);
+  color: var(--error);
+}
+.colorblind .quiz-option.incorrect .quiz-option-indicator {
+  background: var(--error);
+}
+
+/* Timeline/dot nodes on roadmap */
+.colorblind .roadmap-node.completed {
+  background: var(--success) !important;
+}
+
+/* Gradient text */
+.colorblind .gradient-text {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Login/Register emerald accents */
+.colorblind .login-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+.colorblind .register-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+.colorblind .forgot-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+
+/* Lesson continue button */
+.colorblind .lesson-continue-btn {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+}
+
+/* Dashboard continue badge */
+.colorblind .continue-badge.badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+/* Notif badge (red) */
+.colorblind .notif-badge,
+.colorblind .notification-dot {
+  background: var(--error);
+}
+
+/* Error text */
+.colorblind .error-text,
+.colorblind .text-error {
+  color: var(--error);
+}
+
+/* Register role selector */
+.colorblind .role-option.selected {
+  border-color: var(--emerald);
+}
+.colorblind .role-option.selected .role-option-text {
+  color: var(--emerald-light);
+}
+.colorblind .role-checkmark {
+  background: linear-gradient(135deg, var(--emerald), var(--emerald-light));
+}
+
+/* Register accent color on radio/checkbox */
+.colorblind input[type="checkbox"],
+.colorblind input[type="radio"] {
+  accent-color: var(--emerald);
+}
+
+/* Teacher dashboard */
+.colorblind .teacher-active-badge.badge-green {
+  background: rgba(33,145,140,0.2);
+  color: #5EC962;
+}
+
+/* Header notification badge (red dot) */
+.colorblind .header-notif-dot {
+  background: var(--error);
+}
+
+/* ======== */
+
 /* Respect system preference */
 @media (prefers-reduced-motion: reduce) {
   *,

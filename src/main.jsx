@@ -12,6 +12,7 @@ import './index.css'
     const prefs = JSON.parse(raw)
     if (prefs.contrast) document.body.classList.add('high-contrast')
     if (prefs.reduced) document.body.classList.add('reduce-motion')
+    if (prefs.colorblind) document.body.classList.add('colorblind')
   } catch { /* ignore */ }
 })()
 

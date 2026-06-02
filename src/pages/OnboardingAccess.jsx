@@ -35,6 +35,9 @@ export default function OnboardingAccess() {
     if (key === 'reduced') {
       document.body.classList.toggle('reduce-motion', nextVal)
     }
+    if (key === 'colorblind') {
+      document.body.classList.toggle('colorblind', nextVal)
+    }
     if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
       u.lang = 'es-ES'; u.rate = 0.9
@@ -48,6 +51,7 @@ export default function OnboardingAccess() {
       const saved = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
       if (saved.contrast) document.body.classList.add('high-contrast')
       if (saved.reduced) document.body.classList.add('reduce-motion')
+      if (saved.colorblind) document.body.classList.add('colorblind')
     } catch { /* ignore */ }
     navigate('/onboarding/avatar')
   }
