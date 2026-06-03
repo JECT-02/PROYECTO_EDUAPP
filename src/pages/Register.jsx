@@ -40,7 +40,7 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, register } = useAuth()
 
   // Si ya está autenticado al montar el componente, redirigir (solo en mount, no interfiere con registro)
   useEffect(() => {
@@ -52,55 +52,81 @@ export default function Register() {
   const [role, setRole] = useState('')
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '',
-    // Student fields
     dni: '', guardianDni: '', grade: '', age: '',
-    // Teacher fields
     institution: '', subject: '',
-    // Parent fields
     relation: '',
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [otp, setOtp] = useState(['','','','','',''])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otpHint] = useState(() => {
+    // En modo simulación, mostramos el "código" que el sistema "envió" para UX,
+    // pero el usuario puede escribir cualquier valor.
+    return String(Math.floor(100000 + Math.random() * 900000))
+  })
 
   const upd = (key, val) => setForm(p => ({ ...p, [key]: val }))
+
+  function setOtpDigit(i, val) {
+    const v = String(val).replace(/\D/g, '').slice(0, 1)
+    setOtp((p) => p.map((d, idx) => (idx === i ? v : d)))
+    // autofocus siguiente
+    if (v && i < 5) {
+      const el = document.getElementById(`otp-${i + 1}`)
+      if (el) el.focus()
+    }
+  }
+
+  function fillOtpDemo() {
+    setOtp(otpHint.split(''))
+  }
 
   function canAdvance() {
     if (step === 1) return !!role
     if (step === 2) {
-      const base = form.firstName && form.lastName && form.email && form.password
+      const base = form.firstName && form.lastName && form.email && form.password && form.password.length >= 6
       if (role === 'student') return base && form.dni && form.guardianDni && form.grade
       if (role === 'teacher') return base && form.institution && form.subject
       if (role === 'parent') return base && form.relation
       return base
     }
+    if (step === 3) {
+      // OTP simulado: cualquier combinación de 6 dígitos es válida.
+      return true
+    }
     return true
   }
 
-  function next() {
+  async function next() {
     if (!canAdvance()) return
     if (step === 3) {
+      // Validación simulada: el OTP puede ser cualquier cosa, siempre es true.
       setLoading(true)
-      setTimeout(() => {
-        // Login the user so DNI is used as student ID at registration time
-        login(form.email, role, `${form.firstName} ${form.lastName}`, form.dni)
-        // Save extra student data for profile display
-        if (role === 'student' && form.dni) {
-          const extra = JSON.parse(localStorage.getItem('eduapp_student_extra') || '{}')
-          extra[form.dni] = { grade: form.grade, age: form.age, guardianDni: form.guardianDni }
-          localStorage.setItem('eduapp_student_extra', JSON.stringify(extra))
-        }
-        setLoading(false)
+      try {
+        const fullName = `${form.firstName} ${form.lastName}`.trim()
+        const ageBandMap = { '7-10 años': '7-10', '11-14 años': '11-14', '15-17 años': '15-17', '18+ años': '18+' }
+        await register({
+          email: form.email,
+          password: form.password,
+          fullName,
+          role,
+          ageBand: ageBandMap[form.age],
+          institution: form.institution,
+          subject: form.subject,
+          relation: form.relation,
+          dni: form.dni,
+        })
+        // Auto-login ya se hizo dentro de register() — saltamos al onboarding
         navigate('/onboarding/accessibility')
-      }, 1500)
+      } catch (err) {
+        setError(err.message || 'No se pudo crear la cuenta. Intenta de nuevo.')
+      } finally {
+        setLoading(false)
+      }
     } else {
-      setStep(s => Math.min(s + 1, 3))
+      setStep((s) => Math.min(s + 1, 3))
     }
-  }
-
-  function handleOtp(i, val) {
-    const n = [...otp]; n[i] = val.slice(-1); setOtp(n)
-    if (val && i < 5) document.getElementById(`otp-${i+1}`)?.focus()
   }
 
   return (
@@ -271,7 +297,7 @@ export default function Register() {
             </div>
           )}
 
-          {/* Step 3 — OTP verification */}
+          {/* Step 3 — Simulated 6-digit OTP verification (any value works) */}
           {step === 3 && (
             <div className="step-content animate-fadeInUp">
               <div className="otp-icon-wrap">
@@ -284,20 +310,37 @@ export default function Register() {
               </div>
               <h2 className="step-title">Verifica tu correo</h2>
               <p className="step-sub">
-                Ingresa el código de 6 dígitos enviado a <strong>{form.email || 'tu correo'}</strong>
+                Ingresa el código de 6 dígitos que <em>simulamos haber enviado</em> a <strong>{form.email || 'tu correo'}</strong>.
               </p>
+              <p className="step-sub" style={{ fontSize: '0.78rem', marginTop: 4, color: 'var(--text-dim)' }}>
+                <strong>Modo simulación:</strong> cualquier código de 6 dígitos es válido. No se envía correo real.
+              </p>
+
               <div className="otp-inputs">
-                {otp.map((v, i) => (
+                {otp.map((d, i) => (
                   <input
-                    key={i} id={`otp-${i}`} type="text"
-                    className="otp-box" maxLength={1} value={v}
-                    onChange={e => handleOtp(i, e.target.value)}
+                    key={i}
+                    id={`otp-${i}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    className="otp-box"
+                    value={d}
+                    onChange={(e) => setOtpDigit(i, e.target.value)}
+                    aria-label={`Dígito ${i + 1}`}
                   />
                 ))}
               </div>
-              <button className="link-btn" style={{ margin: '8px auto 0', display: 'flex' }}>
-                Reenviar código
+
+              <button type="button" className="link-btn" style={{ marginTop: 12, fontSize: '0.82rem' }} onClick={fillOtpDemo}>
+                Usar código sugerido ({otpHint})
               </button>
+
+              {error && (
+                <div className="form-error" role="alert" style={{ marginTop: 16 }}>
+                  {error}
+                </div>
+              )}
             </div>
           )}
 
