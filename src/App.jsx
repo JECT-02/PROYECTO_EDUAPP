@@ -18,6 +18,7 @@ import Coliseo from './pages/Coliseo'
 import Achievements from './pages/Achievements'
 import TeacherDashboard from './pages/TeacherDashboard'
 import Review from './pages/Review'
+import ContentReview from './pages/ContentReview'
 import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
@@ -30,8 +31,12 @@ function isOnboardingComplete(role) {
 }
 
 function ProtectedRoute({ children, allowedRoles }) {
-  const { isAuthenticated, role } = useAuth()
+  const { isAuthenticated, role, loading } = useAuth()
   const location = useLocation()
+
+  if (loading) {
+    return <RouteFallback />
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />
@@ -51,7 +56,11 @@ function ProtectedRoute({ children, allowedRoles }) {
 }
 
 function PublicRoute({ children }) {
-  const { isAuthenticated, role } = useAuth()
+  const { isAuthenticated, role, loading } = useAuth()
+
+  if (loading) {
+    return <RouteFallback />
+  }
 
   if (isAuthenticated) {
     if (!isOnboardingComplete(role)) {
@@ -62,6 +71,22 @@ function PublicRoute({ children }) {
   }
 
   return children
+}
+
+function RouteFallback() {
+  return (
+    <div
+      style={{
+        minHeight: '60vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'var(--text-muted)',
+      }}
+    >
+      <div className="spinner" />
+    </div>
+  )
 }
 
 export default function App() {
@@ -94,6 +119,8 @@ export default function App() {
 
           {/* Teacher routes */}
           <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherDashboard /></ProtectedRoute>} />
+          <Route path="/teacher/courses/:courseId/review" element={<ProtectedRoute allowedRoles={['teacher']}><ContentReview /></ProtectedRoute>} />
+          <Route path="/teacher/review" element={<ProtectedRoute allowedRoles={['teacher']}><ContentReview /></ProtectedRoute>} />
 
           {/* Parent routes */}
           <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
