@@ -194,9 +194,13 @@ export default function Quiz() {
       <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
-      {/* Voice Control FAB */}
-      <button className="fab-mic" title="Mantener para responder por voz">
-        <Mic size={24} />
+      {/* FAB de respuesta por voz (estándar RF-25) */}
+      <button
+        className="fab-mic"
+        aria-label="Responder por voz. Mantén presionado para dictar tu respuesta."
+        title="Mantener para responder por voz"
+      >
+        <Mic size={24} aria-hidden="true" />
       </button>
 
 
