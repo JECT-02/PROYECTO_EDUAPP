@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles } from 'lucide-react'
+import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { getCourseNodes, markNodeProgress, isSupabaseConfigured } from '../lib/api'
+import { sanitizeHtml } from '../lib/sanitize'
+import { getAccessToken } from '../lib/supabase'
 import './Lesson.css'
 
 const COURSE_CONTENT = {
@@ -70,21 +73,76 @@ const COURSE_CONTENT = {
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
-  const lessonData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
-  
+  const [dbNode, setDbNode] = useState(null)
+  const [dbLoading, setDbLoading] = useState(true)
+
+  const fallbackData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
+
+  // Carga nodo desde la DB; si no hay contenido generado, lo solicita a la IA
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setDbLoading(true)
+      if (!isSupabaseConfigured) {
+        setDbNode(null)
+        setDbLoading(false)
+        return
+      }
+      const { data: nodes } = await getCourseNodes(courseId)
+      if (cancelled) return
+      const found = (nodes || []).find((n) => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
+      if (found?.content) {
+        setDbNode(found)
+        setDbLoading(false)
+        return
+      }
+      // Sin contenido -> pedir a generate-lesson
+      try {
+        const accessToken = await getAccessToken()
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lesson`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ courseId, nodeId }),
+        })
+        if (res.ok) {
+          const json = await res.json()
+          if (!cancelled && json?.content) {
+            setDbNode({ ...found, content: json.content, title: json.title || found?.title })
+          }
+        }
+      } catch (e) {
+        console.warn('generate-lesson fallback', e)
+      } finally {
+        if (!cancelled) setDbLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [courseId, nodeId])
+
+  const lessonData = dbNode
+    ? {
+        title: dbNode.title || fallbackData.title,
+        content: splitContent(dbNode.content),
+        simplified: fallbackData.simplified,
+      }
+    : fallbackData
+
   const [content, setContent] = useState(lessonData.content)
   const [progress, setProgress] = useState(0)
   const [readIndex, setReadIndex] = useState(0)
   const [displayedText, setDisplayedText] = useState(['', '', '', ''])
   const [skip, setSkip] = useState(false)
   const [isTooltipOpen, setTooltip] = useState(null)
-  
+
   const [showChat, setShowChat] = useState(false)
   const [messages, setMessages] = useState([
     { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
   ])
   const [inputText, setInputText] = useState('')
+  const [chatStreaming, setChatStreaming] = useState(false)
   const chatEndRef = useRef(null)
+  const chatAbortRef = useRef(null)
 
   useEffect(() => {
     setReadIndex(0)
@@ -92,11 +150,11 @@ export default function Lesson() {
     setSkip(false)
     setContent(lessonData.content)
     setProgress(0)
-  }, [courseId, nodeId, lessonData])
+  }, [courseId, nodeId, dbNode])
 
   useEffect(() => {
     if (skip) {
-      setDisplayedText(content.map(t => t.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')))
+      setDisplayedText(content.map(t => formatParagraph(t)))
       setProgress(100)
       return
     }
@@ -104,12 +162,12 @@ export default function Lesson() {
     if (readIndex < content.length) {
       const fullText = content[readIndex]
       let currentLength = 0
-      
+
       const interval = setInterval(() => {
         currentLength += 2
         let textToShow = fullText.slice(0, currentLength)
-        textToShow = textToShow.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')
-        
+        textToShow = formatParagraph(textToShow)
+
         setDisplayedText(prev => {
           const next = [...prev]
           next[readIndex] = textToShow
@@ -132,25 +190,118 @@ export default function Lesson() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  function handleSendChat() {
-    if (!inputText.trim()) return
+  const abortChat = useCallback(() => {
+    if (chatAbortRef.current) {
+      chatAbortRef.current.abort()
+      chatAbortRef.current = null
+    }
+    setChatStreaming(false)
+  }, [])
+
+  async function handleSendChat() {
+    if (!inputText.trim() || chatStreaming) return
     const userMsg = inputText.trim()
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setInputText('')
 
-    setTimeout(() => {
-      if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
-        setTimeout(() => {
-          setReadIndex(0)
-          setDisplayedText(['','','',''])
-          setSkip(false)
-          setContent(lessonData.simplified)
-        }, 1000)
-      } else {
-        setMessages(prev => [...prev, { role: 'ai', text: 'Buena pregunta. Estoy procesando una explicación más detallada sobre ese punto...' }])
+    if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
+      setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
+      setTimeout(() => {
+        setReadIndex(0)
+        setDisplayedText(['','','',''])
+        setSkip(false)
+        setContent(lessonData.simplified)
+      }, 1000)
+      return
+    }
+
+    if (!isSupabaseConfigured) {
+      setMessages(prev => [...prev, { role: 'ai', text: 'Estoy procesando una explicación más detallada sobre ese punto...' }])
+      return
+    }
+
+    const accessToken = await getAccessToken()
+    const controller = new AbortController()
+    chatAbortRef.current = controller
+    setChatStreaming(true)
+    setMessages(prev => [...prev, { role: 'ai', text: '' }])
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({ courseId, message: userMsg, history: messages.slice(-6) }),
+        signal: controller.signal,
+      })
+      if (!res.ok || !res.body) {
+        throw new Error(`Chat falló: ${res.status}`)
       }
-    }, 1000)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder('utf-8')
+      let buffer = ''
+      let acc = ''
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || ''
+        for (const evt of events) {
+          const line = evt.split('\n').find((l) => l.startsWith('data:'))
+          if (!line) continue
+          const payload = line.replace(/^data:\s*/, '')
+          if (payload === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(payload)
+            if (typeof parsed.text === 'string') {
+              acc += parsed.text
+              setMessages(prev => {
+                const copy = [...prev]
+                copy[copy.length - 1] = { role: 'ai', text: acc }
+                return copy
+              })
+            }
+          } catch {
+            acc += payload
+            setMessages(prev => {
+              const copy = [...prev]
+              copy[copy.length - 1] = { role: 'ai', text: acc }
+              return copy
+            })
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setMessages(prev => {
+          const copy = [...prev]
+          copy[copy.length - 1] = { role: 'ai', text: 'Lo siento, hubo un error al consultar al tutor. Intenta de nuevo.' }
+          return copy
+        })
+      }
+    } finally {
+      setChatStreaming(false)
+      chatAbortRef.current = null
+    }
+  }
+
+  async function handleFinishNode() {
+    try {
+      if (isSupabaseConfigured && dbNode?.id) {
+        await markNodeProgress({
+          enrollmentId: null,
+          nodeId: dbNode.id,
+          state: 'completed',
+          score: 1,
+          completed: true,
+        }).catch(() => { /* sin enrollment es ok */ })
+      }
+    } catch { /* no-op */ }
+    navigate(`/roadmap/${courseId}`)
   }
 
   return (
@@ -187,7 +338,7 @@ export default function Lesson() {
           <div className="progress-bar" style={{flex:1}}><div className="progress-fill" style={{width:`${progress}%`}}/></div>
           <span className="progress-lbl">{Math.round(progress)}% completado</span>
         </div>
-        <button className="btn btn-primary btn-lg" disabled={progress < 75} onClick={() => navigate(`/roadmap/${courseId}`)}>
+        <button className="btn btn-primary btn-lg" disabled={progress < 75} onClick={handleFinishNode}>
           Terminar Nodo
         </button>
       </footer>
@@ -200,13 +351,32 @@ export default function Lesson() {
           </div>
           <div className="chat-messages">
             {messages.map((m, i) => (
-              <div key={i} className={`chat-msg ${m.role}`}>{m.text}</div>
+              <div
+                key={i}
+                className={`chat-msg ${m.role}`}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(m.text || '').replace(/\n/g, '<br/>') }}
+              />
             ))}
+            {chatStreaming && (
+              <div className="chat-msg ai chat-typing">
+                <LoaderCircle size={14} className="animate-spin" /> pensando...
+              </div>
+            )}
             <div ref={chatEndRef} />
           </div>
           <div className="chat-input-area">
-            <input type="text" className="chat-input" placeholder="Pregunta algo..." value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} />
-            <button className="chat-send" onClick={handleSendChat}><Send size={16}/></button>
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Pregunta algo..."
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !chatStreaming && handleSendChat()}
+              disabled={chatStreaming}
+            />
+            <button className="chat-send" onClick={handleSendChat} disabled={chatStreaming}>
+              {chatStreaming ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16}/>}
+            </button>
           </div>
         </div>
       )}
@@ -217,4 +387,24 @@ export default function Lesson() {
       )}
     </PageWrapper>
   )
+}
+
+function formatParagraph(text) {
+  return text
+    .replace(/<key>/g, '<span class="interactive-word">')
+    .replace(/<\/key>/g, '</span>')
+}
+
+function splitContent(rawContent) {
+  if (!rawContent) return []
+  if (Array.isArray(rawContent)) return rawContent
+  // Si viene como markdown o HTML con <p>, dividir en párrafos
+  const stripped = String(rawContent)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+  return stripped
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
 }
