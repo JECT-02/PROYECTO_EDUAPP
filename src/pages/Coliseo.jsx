@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home } from 'lucide-react'
+import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { initAudio, playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
@@ -268,7 +268,7 @@ export default function Coliseo() {
                       else btnClass += 'disabled '
                     }
                     return (
-                      <button 
+                      <button
                         key={i}
                         className={btnClass}
                         onClick={() => handleSelect(opt)}
@@ -286,6 +286,15 @@ export default function Coliseo() {
               </div>
             </div>
           </div>
+
+          {/* FAB de respuesta por voz (estándar RF-25) */}
+          <button
+            className="fab-mic"
+            aria-label="Responder por voz. Mantén presionado para dictar tu respuesta."
+            title="Mantener para responder por voz"
+          >
+            <Mic size={24} aria-hidden="true" />
+          </button>
         </>
       )}
     </PageWrapper>
