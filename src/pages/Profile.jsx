@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Copy, Check, LogOut, Users, GraduationCap, Heart } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import './Profile.css'
@@ -49,8 +49,8 @@ export default function Profile() {
 
   return (
     <PageWrapper className="profile-page">
-      <header className="profile-header">
-        <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
+      <header className="profile-header" role="banner" aria-label="Encabezado de perfil">
+        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Volver"><ArrowLeft size={18} aria-hidden="true"/></button>
         <h1 className="profile-title">Mi Perfil</h1>
       </header>
 
@@ -90,7 +90,7 @@ export default function Profile() {
       )}
 
       {/* Información según el rol */}
-      <div className="profile-info-card">
+      <div className="profile-info-card" role="region" aria-label="Información del usuario">
         {/* Fila común: Email */}
         <InfoRow label="Correo" value={user?.email || '—'} />
         <InfoRow label="Rol" value={meta.label} />

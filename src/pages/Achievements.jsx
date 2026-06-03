@@ -17,14 +17,14 @@ export default function Achievements() {
 
   return (
     <PageWrapper className="achievements-page">
-      <header className="achievements-header">
-        <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
+      <header className="achievements-header" role="banner" aria-label="Encabezado de logros">
+        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Volver"><ArrowLeft size={18} aria-hidden="true"/></button>
         <h1 className="achievements-title">Logros y Medallas</h1>
       </header>
 
-      <div className="achievements-grid">
+      <div className="achievements-grid" role="list" aria-label="Lista de medallas">
         {ACHIEVEMENTS.map(a => (
-          <div key={a.id} className={`achievement-card ${a.unlocked ? '' : 'locked'}`} style={{ 
+          <div key={a.id} className={`achievement-card ${a.unlocked ? '' : 'locked'}`} role="listitem" style={{ 
             borderColor: a.unlocked ? `${a.color}55` : 'var(--border-light)'
           }}>
             <div className="achievement-icon-wrap" style={{ 
