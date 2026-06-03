@@ -2,9 +2,13 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Upload, FileText, BookOpen, Map, Swords, ClipboardList,
-  BrainCircuit, Sparkles, AlertCircle, Check, File as FileIcon,
-  GraduationCap, Type
+  BrainCircuit, Sparkles, AlertCircle, Check, Copy, File as FileIcon,
+  GraduationCap, Type, Hash
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { createCourse, uploadSourceFile } from '../lib/api'
+import { triggerEmbedSource, generateRoadmap } from '../lib/llm'
+import { isSupabaseConfigured } from '../lib/supabase'
 
 const AUTO_GEN_OPTIONS = [
   {
@@ -57,11 +61,24 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+function randomInviteCode() {
+  // 8 chars: 4 letras + 4 dígitos, fácil de leer
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const digits = '0123456789'
+  let s = ''
+  for (let i = 0; i < 4; i++) s += letters[Math.floor(Math.random() * letters.length)]
+  for (let i = 0; i < 4; i++) s += digits[Math.floor(Math.random() * digits.length)]
+  return s
+}
+
 export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
+  const { user } = useAuth()
   const [step, setStep] = useState('form') // form | generating | done
   const [courseName, setCourseName] = useState('')
   const [courseSubject, setCourseSubject] = useState('')
   const [courseDesc, setCourseDesc] = useState('')
+  const [courseLevel, setCourseLevel] = useState('')
+  const [courseRigor, setCourseRigor] = useState(3)
   const [files, setFiles] = useState([])
   const [dragging, setDragging] = useState(false)
   const [autoGen, setAutoGen] = useState({
@@ -73,6 +90,9 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     ejercicios: false,
   })
   const [error, setError] = useState('')
+  const [progressMsg, setProgressMsg] = useState('')
+  const [createdCourse, setCreatedCourse] = useState(null)
+  const [copiedCode, setCopiedCode] = useState(false)
   const fileInputRef = useRef(null)
 
   // Reset on open
@@ -82,9 +102,13 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
       setCourseName('')
       setCourseSubject('')
       setCourseDesc('')
+      setCourseLevel('')
+      setCourseRigor(3)
       setFiles([])
       setAutoGen({ temas: true, contenidos: true, roadmap: true, coliseo: false, examenes: true, ejercicios: false })
       setError('')
+      setProgressMsg('')
+      setCreatedCourse(null)
     }
   }, [isOpen])
 
@@ -93,7 +117,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     setDragging(false)
     const droppedFiles = Array.from(e.dataTransfer?.files || e.target?.files || [])
     if (droppedFiles.length > 0) {
-      setFiles(prev => [...prev, ...droppedFiles].slice(0, 10)) // max 10 files
+      setFiles(prev => [...prev, ...droppedFiles].slice(0, 10))
     }
     if (e.target) e.target.value = ''
   }, [])
@@ -106,36 +130,97 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
     setAutoGen(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const handleCreate = () => {
-    // Validate
+  async function handleCreate() {
     if (!courseName.trim()) {
       setError('El nombre del curso es obligatorio.')
       return
     }
     setError('')
-
-    // Simulate course creation with a short delay
     setStep('generating')
-    setTimeout(() => {
+
+    if (!isSupabaseConfigured || !user?.id) {
+      setError('Supabase no está configurado. No se puede crear el curso.')
+      setStep('form')
+      return
+    }
+
+    try {
+      setProgressMsg('Creando curso...')
+      // Generar un invite_code aleatorio legible (8 chars)
+      const inviteCode = randomInviteCode()
+      const { data: course, error: cErr } = await createCourse({
+        teacher_id: user.id,
+        title: courseName.trim(),
+        description: courseDesc.trim() || null,
+        category: courseSubject.trim() || null,
+        level: courseLevel || null,
+        status: 'draft',
+        rigor: courseRigor,
+        invite_code: inviteCode,
+      })
+      if (cErr) throw cErr
+      setCreatedCourse(course)
+
+      const uploadedSources = []
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i]
+        setProgressMsg(`Subiendo ${i + 1}/${files.length}: ${f.name}`)
+        const { data: source, error: uErr } = await uploadSourceFile({ courseId: course.id, file: f })
+        if (uErr) {
+          console.warn('upload error', uErr)
+          continue
+        }
+        uploadedSources.push(source)
+        triggerEmbedSource(source.id).catch((e) => console.warn('embed-source error', e))
+      }
+
+      if (autoGen.roadmap && uploadedSources.length > 0) {
+        setProgressMsg('Generando roadmap con IA...')
+        try {
+          await generateRoadmap({ courseId: course.id, files: uploadedSources.map((s) => s.filename), rigor: courseRigor })
+        } catch (e) {
+          console.warn('generate-roadmap error', e)
+        }
+      }
+
+      setProgressMsg('Listo')
       setStep('done')
-    }, 2000)
+    } catch (err) {
+      setError(err.message || 'No se pudo crear el curso.')
+      setStep('form')
+    }
   }
 
-  const handleFinish = () => {
-    const newCourse = {
-      id: Date.now(),
-      name: courseName,
-      subject: courseSubject || courseName,
-      description: courseDesc,
-      students: 0,
-      nodes: 0,
-      progress: 0,
-      status: 'Borrador',
-      files: files.length,
-      autoGen: Object.entries(autoGen).filter(([, v]) => v).map(([k]) => k),
-      createdAt: new Date().toISOString(),
+  function handleFinish() {
+    if (createdCourse) {
+      onCreated?.({
+        id: createdCourse.id,
+        name: createdCourse.title,
+        subject: createdCourse.category,
+        description: createdCourse.description,
+        students: 0,
+        nodes: 0,
+        progress: 0,
+        status: 'Borrador',
+        files: files.length,
+        inviteCode: createdCourse.invite_code || '',
+        createdAt: createdCourse.created_at,
+      })
+    } else {
+      onCreated?.({
+        id: Date.now(),
+        name: courseName,
+        subject: courseSubject || courseName,
+        description: courseDesc,
+        students: 0,
+        nodes: 0,
+        progress: 0,
+        status: 'Borrador',
+        files: files.length,
+        autoGen: Object.entries(autoGen).filter(([, v]) => v).map(([k]) => k),
+        createdAt: new Date().toISOString(),
+      })
     }
-    onCreated?.(newCourse)
     onClose()
   }
 
@@ -212,14 +297,31 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                         </div>
                         <div className="input-group">
                           <label>Nivel</label>
-                          <select className="input-field" defaultValue="">
-                            <option value="" disabled>Seleccionar nivel</option>
+                          <select
+                            className="input-field"
+                            value={courseLevel}
+                            onChange={e => setCourseLevel(e.target.value)}
+                          >
+                            <option value="">Seleccionar nivel</option>
                             <option value="7-10">7-10 años</option>
                             <option value="11-14">11-14 años</option>
                             <option value="15-17">15-17 años</option>
                             <option value="18+">18+ años</option>
                           </select>
                         </div>
+                      </div>
+                      <div className="input-group">
+                        <label>Rigor académico (1=informal, 5=estricto)</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="5"
+                          step="1"
+                          value={courseRigor}
+                          onChange={e => setCourseRigor(Number(e.target.value))}
+                          className="input-field"
+                        />
+                        <small style={{ color: 'var(--text-muted)' }}>Nivel actual: {courseRigor}</small>
                       </div>
                       <div className="input-group">
                         <label>Descripcion</label>
@@ -353,7 +455,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>Creando curso con IA</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Analizando archivos y generando {Object.values(autoGen).filter(Boolean).length} componentes...
+                      {progressMsg || `Analizando archivos y generando ${Object.values(autoGen).filter(Boolean).length} componentes...`}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -396,6 +498,62 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                       Se ha generado el curso &quot;{courseName}&quot; con los componentes seleccionados.
                     </div>
                   </div>
+
+                  {/* Código de invitación */}
+                  {createdCourse?.invite_code && (
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(108,99,255,0.12), rgba(34,197,94,0.08))',
+                      border: '1px solid rgba(108,99,255,0.25)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 16,
+                      width: '100%',
+                      maxWidth: 400,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                      alignItems: 'center',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                        <Hash size={12} /> Código de invitación
+                      </div>
+                      <div style={{
+                        fontFamily: 'SF Mono, Fira Code, monospace',
+                        fontSize: '1.6rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.15em',
+                        color: 'var(--primary-light)',
+                      }}>
+                        {createdCourse.invite_code}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(createdCourse.invite_code)
+                          setCopiedCode(true)
+                          setTimeout(() => setCopiedCode(false), 2000)
+                        }}
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border-light)',
+                          color: 'var(--text)',
+                          padding: '8px 14px',
+                          borderRadius: 999,
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                      >
+                        {copiedCode ? <><Check size={14} style={{ color: '#22C55E' }}/> Copiado</> : <><Copy size={14} /> Copiar código</>}
+                      </button>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textAlign: 'center' }}>
+                        Comparte este código para que los estudiantes se unan desde Explorar
+                      </div>
+                    </div>
+                  )}
+
                   <div className="card" style={{ padding: 16, width: '100%', maxWidth: 400, marginTop: 8 }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {Object.entries(autoGen).filter(([, v]) => v).map(([key]) => {
