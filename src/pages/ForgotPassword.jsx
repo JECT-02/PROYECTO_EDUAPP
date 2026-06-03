@@ -2,21 +2,29 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Mail, ArrowLeft, Send, CheckCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { useAuth } from '../context/AuthContext'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
+  const { resetPassword } = useAuth()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!email) return
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
+    setError('')
+    try {
+      await resetPassword(email)
       setSent(true)
-    }, 1500)
+    } catch (err) {
+      setError(err.message || 'No se pudo enviar el correo de recuperación.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -49,6 +57,12 @@ export default function ForgotPassword() {
               <button type="submit" className={`btn btn-primary btn-lg full-w ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading ? <span className="spinner"/> : <><Send size={18}/> Enviar instrucciones</>}
               </button>
+
+              {error && (
+                <div className="form-error" role="alert" style={{ marginTop: 8 }}>
+                  {error}
+                </div>
+              )}
             </form>
           </>
         ) : (
