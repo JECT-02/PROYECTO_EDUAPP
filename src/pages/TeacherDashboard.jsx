@@ -1,82 +1,84 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Plus, Book, Users, TrendingUp, Clock,
   Edit, Check, X,
-  GraduationCap, FileText, Eye, AlertCircle
+  GraduationCap, FileText, Eye, AlertCircle, Sparkles
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
 import CourseCreateModal from '../components/CourseCreateModal'
 import CourseDetailModal from '../components/CourseDetailModal'
+import { useAuth } from '../context/AuthContext'
+import { getTeacherCourses, deleteCourse as apiDeleteCourse, isSupabaseConfigured } from '../lib/api'
 import './TeacherDashboard.css'
 
-const INITIAL_COURSES = [
-  {
-    id: 1,
-    name: 'Biologia Celular',
-    subject: 'Biologia',
-    description: 'Estudio de la estructura y funcion de las celulas, organelos y procesos metabolicos fundamentales.',
-    students: 45,
-    nodes: 12,
-    progress: 72,
-    status: 'Activo',
-    color: '#22C55E',
-    level: '11-14',
-    createdAt: '2025-01-15',
-  },
-  {
-    id: 2,
-    name: 'Anatomia Basica',
-    subject: 'Anatomia',
-    description: 'Introduccion a la anatomia humana: sistemas, organos y sus funciones principales.',
-    students: 32,
-    nodes: 10,
-    progress: 45,
-    status: 'Activo',
-    color: '#6C63FF',
-    level: '7-10',
-    createdAt: '2025-02-20',
-  },
-  {
-    id: 3,
-    name: 'Bioquimica General',
-    subject: 'Quimica',
-    description: 'Principios de bioquimica: moleculas biologicas, enzimas y rutas metabolicas.',
-    students: 18,
-    nodes: 8,
-    progress: 15,
-    status: 'Borrador',
-    color: '#F59E0B',
-    level: '18+',
-    createdAt: '2025-03-10',
-  },
-]
+const STATUS_MAP = {
+  draft: { label: 'Borrador', cls: 'badge-gray' },
+  published: { label: 'Activo', cls: 'badge-green' },
+  archived: { label: 'Archivado', cls: 'badge-purple' },
+}
+
+const COLOR_POOL = ['#22C55E', '#6C63FF', '#F59E0B', '#3B82F6', '#EC4899', '#EF4444', '#8B5CF6']
 
 export default function TeacherDashboard() {
-  const [courses, setCourses] = useState(INITIAL_COURSES)
+  const { user } = useAuth()
+  const [courses, setCourses] = useState([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [toastMsg, setToastMsg] = useState({ title: '', desc: '', type: 'success' })
   const [detailCourse, setDetailCourse] = useState(null)
 
+  async function load() {
+    if (!user?.id) return
+    setLoading(true)
+    const { data } = await getTeacherCourses(user.id)
+    const mapped = (data || []).map((c, i) => ({
+      id: c.id,
+      name: c.title,
+      subject: c.category || '—',
+      description: c.description || '',
+      students: (c.enrollments || []).length,
+      nodes: (c.nodes || []).length,
+      progress: 0,
+      status: STATUS_MAP[c.status]?.label || c.status,
+      color: COLOR_POOL[i % COLOR_POOL.length],
+      level: c.level || 'Todos',
+      createdAt: c.created_at?.slice(0, 10) || '',
+      inviteCode: c.invite_code || c.invite_token || '',
+    }))
+    setCourses(mapped)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [user?.id])
+
   const totalStudents = courses.reduce((sum, c) => sum + c.students, 0)
   const activeCourses = courses.filter(c => c.status === 'Activo').length
-  const avgProgress = Math.round(courses.reduce((sum, c) => sum + c.progress, 0) / courses.length)
+  const avgProgress = courses.length > 0
+    ? Math.round(courses.reduce((sum, c) => sum + c.progress, 0) / courses.length)
+    : 0
 
-  const handleCourseCreated = (newCourse) => {
-    setCourses(prev => [newCourse, ...prev])
+  const handleCourseCreated = async (newCourse) => {
+    await load()
+    // Si el modal devolvió un inviteCode pero el load todavía no lo recogió, lo inyectamos
+    setCourses((prev) => prev.map((c) => c.id === newCourse.id ? { ...c, inviteCode: newCourse.inviteCode || c.inviteCode } : c))
     setToastMsg({
       title: 'Curso creado exitosamente',
-      desc: `"${newCourse.name}" ha sido agregado a tus cursos.`,
+      desc: `"${newCourse.name}" ha sido agregado a tus cursos.${newCourse.inviteCode ? ' Código: ' + newCourse.inviteCode : ''}`,
       type: 'success',
     })
     setShowToast(true)
     setTimeout(() => setShowToast(false), 4000)
   }
 
-  const handleDeleteCourse = (courseId) => {
+  const handleDeleteCourse = async (courseId) => {
     const deleted = courses.find(c => c.id === courseId)
+    if (isSupabaseConfigured) {
+      await apiDeleteCourse(courseId)
+    }
     setCourses(prev => prev.filter(c => c.id !== courseId))
     setDetailCourse(null)
     setToastMsg({
@@ -89,13 +91,8 @@ export default function TeacherDashboard() {
   }
 
   const statusBadge = (status) => {
-    const map = {
-      'Activo': { cls: 'badge-green', label: status },
-      'Borrador': { cls: 'badge-gray', label: status },
-      'Completado': { cls: 'badge-purple', label: status },
-    }
-    const s = map[status] || { cls: 'badge-gray', label: status }
-    return <span className={`badge ${s.cls}`}>{s.label}</span>
+    const entry = Object.values(STATUS_MAP).find((v) => v.label === status) || STATUS_MAP.draft
+    return <span className={`badge ${entry.cls}`}>{entry.label}</span>
   }
 
   return (
@@ -166,13 +163,16 @@ export default function TeacherDashboard() {
         <div>
           <div className="teacher-section-header">
             <h2>Tus cursos ({courses.length})</h2>
+            <Link to="/teacher/review" className="btn btn-ghost btn-sm">
+              <Sparkles size={14} /> Revisar contenido IA
+            </Link>
           </div>
 
           {courses.length === 0 ? (
             <div className="empty-state card">
               <div className="empty-state-icon">📚</div>
-              <h3>No tienes cursos aun</h3>
-              <p>Crea tu primer curso usando el boton "Crear nuevo curso". La IA te ayudara a generar el contenido automaticamente.</p>
+              <h3>No tienes cursos aún</h3>
+              <p>Crea tu primer curso usando el botón "Crear nuevo curso". La IA te ayudará a generar el contenido automáticamente.</p>
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                 <Plus size={16} /> Crear primer curso
               </button>
