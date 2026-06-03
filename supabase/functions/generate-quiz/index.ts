@@ -1,13 +1,21 @@
-// supabase/functions/generate-quiz/index.ts
-import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
 import { embedQuery } from '../_shared/embeddings.ts'
 import { callLlm } from '../_shared/llm.ts'
 import { QUIZ_SYSTEM } from '../_shared/prompts/quiz.ts'
 
 Deno.serve(async (req) => {
-  const cors = handleCors(req)
-  if (cors) return cors
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  // read body FIRST, before any headers/auth operations
+  let reqBody: Record<string, unknown> = {}
+  try {
+    reqBody = JSON.parse(await req.text())
+  } catch {
+    return jsonError(400, 'Invalid JSON body')
+  }
 
   try {
     const token = getAccessToken(req)
@@ -17,11 +25,27 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser(token)
     if (!user) return jsonError(401, 'Invalid session')
 
-    const { courseId, nodeId, count = 4, level = 3, rigor = 3 } = await req.json()
+    const { courseId, nodeId, count = 4, level = 3, rigor = 3 } = reqBody
     if (!courseId || !nodeId) return jsonError(400, 'courseId and nodeId required')
 
     const admin = getAdminClient()
-    const { data: node } = await admin.from('nodes').select('*').eq('id', nodeId).single()
+
+    // Find node by UUID or position
+    const isPos = !String(nodeId).includes('-')
+    let node
+    if (isPos) {
+      const pos = parseInt(nodeId, 10)
+      const { data: nodes } = await admin
+        .from('nodes')
+        .select('*')
+        .eq('course_id', courseId)
+        .eq('position', pos)
+        .limit(1)
+      node = nodes?.[0] || null
+    } else {
+      const { data: n } = await admin.from('nodes').select('*').eq('id', nodeId).single()
+      node = n
+    }
     if (!node) return jsonError(404, 'node not found')
 
     const qvec = await embedQuery(node.title)
@@ -31,7 +55,9 @@ Deno.serve(async (req) => {
       match_count: 6,
     })
     const context = (chunks ?? []).map((c: { content: string }) => c.content).join('\n\n---\n\n')
-    const userMsg = `Material:\n${context || '(sin material, usa ' + node.title + ')'}\n\nGenera ${count} preguntas de opción múltiple sobre el nodo "${node.title}". Nivel de dificultad ${level}/5, rigor ${rigor}/5. Devuelve SOLO el JSON.`
+    const userMsg = context
+      ? `Material:\n${context}\n\nGenera ${count} preguntas de opción múltiple sobre "${node.title}". Nivel ${level}/5, rigor ${rigor}/5. Devuelve SOLO el JSON.`
+      : `Genera ${count} preguntas de opción múltiple sobre "${node.title}". Nivel ${level}/5, rigor ${rigor}/5. Devuelve SOLO el JSON.`
 
     const llmRes = await callLlm({
       system: QUIZ_SYSTEM,
@@ -41,8 +67,9 @@ Deno.serve(async (req) => {
       json: true,
     })
     if (!llmRes.ok) {
-      const err = await llmRes.text()
-      return jsonError(500, `LLM error: ${err}`)
+      const err = await llmRes.text().catch(() => 'unknown')
+      console.error('[generate-quiz] LLM error:', llmRes.status, err.slice(0, 300))
+      return jsonError(500, `LLM error: ${err.slice(0, 200)}`)
     }
     const llmJson = await llmRes.json()
     const text = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
@@ -50,10 +77,18 @@ Deno.serve(async (req) => {
     try { parsed = JSON.parse(text) } catch { parsed = {} }
 
     const questions = Array.isArray(parsed.questions) ? parsed.questions : []
-    await admin.from('nodes').update({ quiz_data: { questions }, status: 'pending_review' }).eq('id', nodeId)
+
+    // Save content as JSON string in the content field (same as generate-course-content)
+    if (questions.length > 0) {
+      await admin.from('nodes').update({
+        content: JSON.stringify({ questions }),
+        status: 'published',
+      }).eq('id', node.id)
+    }
+
     return jsonOk({ questions })
   } catch (e) {
-    console.error(e)
+    console.error('[generate-quiz] error:', e)
     return jsonError(500, e?.message || 'internal error')
   }
 })

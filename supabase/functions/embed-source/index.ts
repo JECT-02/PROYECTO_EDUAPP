@@ -1,6 +1,6 @@
 // supabase/functions/embed-source/index.ts
 // ETL: download file from Storage -> extract text -> chunk -> embed -> insert into documents
-import { corsHeaders, handleCors } from '../_shared/cors.ts'
+import { corsHeaders } from '../_shared/cors.ts'
 import { getAdminClient, getUserClient, getAccessToken } from '../_shared/supabase-admin.ts'
 import { embedTexts } from '../_shared/embeddings.ts'
 import { chunkText } from '../_shared/chunker.ts'
@@ -10,8 +10,17 @@ import { extractTxtText } from '../_shared/extractors/txt.ts'
 import { extractYoutubeText } from '../_shared/extractors/youtube.ts'
 
 Deno.serve(async (req) => {
-  const cors = handleCors(req)
-  if (cors) return cors
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  // read body FIRST
+  let body: Record<string, unknown> = {}
+  try {
+    body = JSON.parse(await req.text())
+  } catch {
+    return jsonError(400, 'Invalid JSON body')
+  }
 
   try {
     const token = getAccessToken(req)
@@ -21,8 +30,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: uErr } = await userClient.auth.getUser(token)
     if (uErr || !user) return jsonError(401, 'Invalid session')
 
-    const body = await req.json()
-    const { sourceFileId } = body
+    const sourceFileId = (body.sourceFileId || body.sourceId || '') as string
     if (!sourceFileId) return jsonError(400, 'sourceFileId required')
 
     const admin = getAdminClient()

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Plus, Book, Users, TrendingUp, Clock,
-  Edit, Check, X,
+  Edit, Check, X, Map,
   GraduationCap, FileText, Eye, AlertCircle, Sparkles
 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -24,6 +24,7 @@ const COLOR_POOL = ['#22C55E', '#6C63FF', '#F59E0B', '#3B82F6', '#EC4899', '#EF4
 
 export default function TeacherDashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -229,15 +230,24 @@ export default function TeacherDashboard() {
                     </div>
                   </div>
 
-                  {/* Ver detalles button */}
-                  <button
-                    className="btn btn-primary btn-sm"
-                    style={{ width: '100%', marginTop: 12, justifyContent: 'center' }}
-                    onClick={(e) => { e.stopPropagation(); setDetailCourse(course) }}
-                  >
-                    <Eye size={14} />
-                    Ver detalles
-                  </button>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      style={{ flex: 1, justifyContent: 'center' }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/roadmap/${course.id}`) }}
+                    >
+                      <Map size={14} />
+                      Roadmap
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ flex: 1, justifyContent: 'center' }}
+                      onClick={(e) => { e.stopPropagation(); setDetailCourse(course) }}
+                    >
+                      <Eye size={14} />
+                      Detalles
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>

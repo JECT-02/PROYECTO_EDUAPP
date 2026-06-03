@@ -1,13 +1,22 @@
 // supabase/functions/generate-test/index.ts
 // Generate a full test (multiple nodes)
-import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
+import { corsHeaders } from '../_shared/cors.ts'
+import { getAccessToken, getUserClient, getAdminClient } from '../_shared/supabase-admin.ts'
 import { callLlm } from '../_shared/llm.ts'
 import { QUIZ_SYSTEM } from '../_shared/prompts/quiz.ts'
 
 Deno.serve(async (req) => {
-  const cors = handleCors(req)
-  if (cors) return cors
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  // read body FIRST, before any headers/auth operations
+  let reqBody: Record<string, unknown> = {}
+  try {
+    reqBody = JSON.parse(await req.text())
+  } catch {
+    return jsonError(400, 'Invalid JSON body')
+  }
 
   try {
     const token = getAccessToken(req)
@@ -17,7 +26,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser(token)
     if (!user) return jsonError(401, 'Invalid session')
 
-    const { courseId, count = 20, level = 4 } = await req.json()
+    const { courseId, count = 20, level = 4 } = reqBody
     if (!courseId) return jsonError(400, 'courseId required')
 
     const admin = getAdminClient()

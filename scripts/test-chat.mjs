@@ -86,7 +86,7 @@ while (true) {
     if (payload === '[DONE]') continue
     try {
       const json = JSON.parse(payload)
-      if (json.delta) answer += json.delta
+      if (json.text) answer += json.text
     } catch { /* ignore */ }
   }
 }

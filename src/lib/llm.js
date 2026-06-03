@@ -35,6 +35,11 @@ export async function generateRoadmap({ courseId, files = [], rigor = 3 }) {
   return callFunction({ name: 'generate-roadmap', body: { courseId, files, rigor }, accessToken })
 }
 
+export async function generateCourseContent({ courseId, nodeIds }) {
+  const accessToken = await getAccessToken()
+  return callFunction({ name: 'generate-course-content', body: { courseId, nodeIds }, accessToken })
+}
+
 export async function analyzeError({ question, userAnswer, correctAnswer, courseId, concept }) {
   const accessToken = await getAccessToken()
   return callFunction({
@@ -62,6 +67,11 @@ export async function generateMedalSVG({ name, rarity, studentName }) {
 export async function triggerEmbedSource(sourceId) {
   const accessToken = await getAccessToken()
   return callFunction({ name: 'embed-source', body: { sourceId }, accessToken })
+}
+
+export async function chatRoadmap({ courseId, message, nodes, history = [] }) {
+  const accessToken = await getAccessToken()
+  return callFunction({ name: 'chat-roadmap', body: { courseId, message, nodes, history }, accessToken })
 }
 
 export async function registerUserSimulated(payload) {

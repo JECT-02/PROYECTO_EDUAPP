@@ -332,28 +332,84 @@ export async function recordWeakness({ studentId, courseId, concept, isError = t
 }
 
 export async function getStoragePath(courseId, filename) {
-  return `${courseId}/${Date.now()}_${filename}`
+  const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return `${courseId}/${Date.now()}_${safe}`
+}
+
+export async function getCourseNodesAllStatus(courseId) {
+  if (!isSupabaseConfigured) return FALLBACK([])
+  const { data, error } = await supabase
+    .from('nodes')
+    .select('id, course_id, position, type, title, description, content, status')
+    .eq('course_id', courseId)
+    .order('position', { ascending: true })
+  return { data: data || [], error }
+}
+
+export async function batchUpdateNodes(updates) {
+  if (!isSupabaseConfigured || !updates.length) return FALLBACK([])
+  const results = []
+  for (const { id, ...changes } of updates) {
+    const { data, error } = await supabase.from('nodes').update(changes).eq('id', id).select().single()
+    if (error) console.warn('batchUpdateNodes error for', id, error)
+    if (data) results.push(data)
+  }
+  return { data: results, error: null }
+}
+
+export async function deleteCourseNode(nodeId) {
+  if (!isSupabaseConfigured) return FALLBACK(null)
+  const { data, error } = await supabase.from('nodes').delete().eq('id', nodeId)
+  return { data, error }
+}
+
+export async function approveAllNodes(courseId, updatedNodes = []) {
+  if (!isSupabaseConfigured) return FALLBACK(null)
+  // Delete all existing nodes and re-insert with final state
+  await supabase.from('nodes').delete().eq('course_id', courseId)
+  const rows = updatedNodes.map((n, i) => ({
+    course_id: courseId,
+    title: String(n.title || 'Nodo').slice(0, 120),
+    type: ['theory','practice','quiz','boss','reward'].includes(n.type) ? n.type : 'theory',
+    description: String(n.description || '').slice(0, 300),
+    content: n.content || '',
+    position: i + 1,
+    status: 'published',
+  }))
+  const { error: insErr } = await supabase.from('nodes').insert(rows)
+  if (insErr) return { data: null, error: insErr }
+  await supabase.from('courses').update({ status: 'published' }).eq('id', courseId)
+  return { data: rows, error: null }
 }
 
 export async function uploadSourceFile({ courseId, file }) {
   if (!isSupabaseConfigured) return FALLBACK(null)
   await requireSession()
-  const path = await getStoragePath(courseId, file.name)
-  const { error } = await supabase.storage.from('course-source').upload(path, file, { upsert: false })
-  if (error) return { data: null, error }
-  const { data: sourceRow, error: sErr } = await supabase
-    .from('source_files')
-    .insert({
-      course_id: courseId,
-      uploaded_by: (await supabase.auth.getUser()).data.user?.id,
-      filename: file.name,
-      storage_path: path,
-      file_type: detectFileType(file.name),
-      status: 'pending',
-    })
-    .select()
-    .single()
-  return { data: sourceRow, error: sErr || error }
+  // Convert file to base64
+  const buf = await file.arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  const content = btoa(binary)
+
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-source`
+  const { data: { session } } = await supabase.auth.getSession()
+  const accessToken = session?.access_token
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ courseId, filename: file.name, content }),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    return { data: null, error: new Error(text || 'Upload failed') }
+  }
+  const data = await res.json()
+  return { data, error: null }
 }
 
 export async function pollSourceFileStatus(sourceId, { timeoutMs = 120000, intervalMs = 2000 } = {}) {

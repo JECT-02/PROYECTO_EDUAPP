@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { getCourseNodes, markNodeProgress, isSupabaseConfigured } from '../lib/api'
+import { getCourseNodes, getCourseNodesAllStatus, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
 import { getAccessToken } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import './Lesson.css'
 
 const COURSE_CONTENT = {
@@ -73,12 +74,14 @@ const COURSE_CONTENT = {
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
+  const { role } = useAuth()
+  const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
   const [dbLoading, setDbLoading] = useState(true)
 
   const fallbackData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
 
-  // Carga nodo desde la DB; si no hay contenido generado, lo solicita a la IA
+  // Carga nodo desde la DB
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -88,7 +91,8 @@ export default function Lesson() {
         setDbLoading(false)
         return
       }
-      const { data: nodes } = await getCourseNodes(courseId)
+      const nodesFn = isTeacher ? getCourseNodesAllStatus : getCourseNodes
+      const { data: nodes } = await nodesFn(courseId)
       if (cancelled) return
       const found = (nodes || []).find((n) => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
       if (found?.content) {
@@ -96,7 +100,7 @@ export default function Lesson() {
         setDbLoading(false)
         return
       }
-      // Sin contenido -> pedir a generate-lesson
+      // Sin contenido -> pedir a generate-lesson via SSE
       try {
         const accessToken = await getAccessToken()
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lesson`, {
@@ -104,14 +108,43 @@ export default function Lesson() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({ courseId, nodeId }),
         })
-        if (res.ok) {
-          const json = await res.json()
-          if (!cancelled && json?.content) {
-            setDbNode({ ...found, content: json.content, title: json.title || found?.title })
+        if (!res.ok || !res.body) {
+          console.warn('generate-lesson HTTP error:', res.status)
+          return
+        }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        let fullContent = ''
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const events = buffer.split('\n\n')
+          buffer = events.pop() || ''
+          for (const evt of events) {
+            const line = evt.split('\n').find((l) => l.startsWith('data:'))
+            if (!line) continue
+            const payload = line.replace(/^data:\s*/, '')
+            if (payload === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(payload)
+              if (typeof parsed.text === 'string') {
+                fullContent += parsed.text
+              }
+            } catch { /* skip malformed */ }
           }
         }
+        if (!cancelled && fullContent.trim()) {
+          const paragraphs = fullContent.split('\n').filter(p => p.trim()).map(p => p.trim())
+          setDbNode({
+            ...(found || { title: 'Lección' }),
+            content: paragraphs.length > 1 ? paragraphs : [fullContent],
+            title: found?.title || 'Lección',
+          })
+        }
       } catch (e) {
-        console.warn('generate-lesson fallback', e)
+        console.warn('generate-lesson fallback error:', e)
       } finally {
         if (!cancelled) setDbLoading(false)
       }
@@ -141,8 +174,10 @@ export default function Lesson() {
   ])
   const [inputText, setInputText] = useState('')
   const [chatStreaming, setChatStreaming] = useState(false)
+  const [isAiEnhanced, setIsAiEnhanced] = useState(false)
   const chatEndRef = useRef(null)
   const chatAbortRef = useRef(null)
+  const lastAiResponseRef = useRef('')
 
   useEffect(() => {
     setReadIndex(0)
@@ -150,6 +185,10 @@ export default function Lesson() {
     setSkip(false)
     setContent(lessonData.content)
     setProgress(0)
+    setIsAiEnhanced(false)
+    setMessages([
+      { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
+    ])
   }, [courseId, nodeId, dbNode])
 
   useEffect(() => {
@@ -221,6 +260,7 @@ export default function Lesson() {
     }
 
     const accessToken = await getAccessToken()
+    console.log('[chat] enviando mensaje:', userMsg.slice(0, 60))
     const controller = new AbortController()
     chatAbortRef.current = controller
     setChatStreaming(true)
@@ -238,12 +278,16 @@ export default function Lesson() {
         signal: controller.signal,
       })
       if (!res.ok || !res.body) {
-        throw new Error(`Chat falló: ${res.status}`)
+        const errText = await res.text().catch(() => '')
+        console.error('[chat] error HTTP:', res.status, errText)
+        throw new Error(`Error ${res.status}: ${errText.slice(0, 200)}`)
       }
+      console.log('[chat] conexion establecida, leyendo stream...')
       const reader = res.body.getReader()
       const decoder = new TextDecoder('utf-8')
       let buffer = ''
       let acc = ''
+      let chunkCount = 0
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
@@ -254,16 +298,22 @@ export default function Lesson() {
           const line = evt.split('\n').find((l) => l.startsWith('data:'))
           if (!line) continue
           const payload = line.replace(/^data:\s*/, '')
-          if (payload === '[DONE]') continue
+          if (payload === '[DONE]') {
+            console.log('[chat] stream finalizado')
+            continue
+          }
           try {
             const parsed = JSON.parse(payload)
             if (typeof parsed.text === 'string') {
+              chunkCount++
               acc += parsed.text
               setMessages(prev => {
                 const copy = [...prev]
                 copy[copy.length - 1] = { role: 'ai', text: acc }
                 return copy
               })
+            } else {
+              console.warn('[chat] chunk sin text:', parsed)
             }
           } catch {
             acc += payload
@@ -275,11 +325,24 @@ export default function Lesson() {
           }
         }
       }
+      console.log(`[chat] stream completo: ${chunkCount} chunks, total ${acc.length} chars`)
+      if (acc.trim().length > 20) {
+        lastAiResponseRef.current = acc
+        const paragraphs = acc.split('\n').filter(p => p.trim()).map(p => p.trim())
+        setContent(paragraphs.length > 1 ? paragraphs : [acc])
+        setReadIndex(0)
+        setDisplayedText(paragraphs.length > 1 ? paragraphs.map(() => '') : [''])
+        setSkip(false)
+        setProgress(0)
+        setIsAiEnhanced(true)
+      }
     } catch (err) {
       if (err.name !== 'AbortError') {
+        console.error('[chat] error:', err)
+        const detail = err.message ? `. ${err.message.split('. ')[0]}` : ''
         setMessages(prev => {
           const copy = [...prev]
-          copy[copy.length - 1] = { role: 'ai', text: 'Lo siento, hubo un error al consultar al tutor. Intenta de nuevo.' }
+          copy[copy.length - 1] = { role: 'ai', text: `Lo siento, hubo un error al consultar al tutor${detail}. Intenta de nuevo.` }
           return copy
         })
       }
@@ -320,6 +383,26 @@ export default function Lesson() {
           {content === lessonData.simplified && (
             <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={14}/> Contenido simplificado por la IA
+            </div>
+          )}
+          {isAiEnhanced && content !== lessonData.simplified && (
+            <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+              <span><Sparkles size={14}/> Contenido mejorado por el Tutor IA</span>
+              <button
+                className="icon-btn sm"
+                onClick={() => {
+                  setIsAiEnhanced(false)
+                  setContent(lessonData.content)
+                  setReadIndex(0)
+                  setDisplayedText(lessonData.content.map(() => ''))
+                  setSkip(false)
+                  setProgress(0)
+                }}
+                title="Restaurar contenido original"
+                style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+              >
+                <RefreshCw size={12}/> Original
+              </button>
             </div>
           )}
           {displayedText.map((html, i) => (

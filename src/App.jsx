@@ -17,6 +17,7 @@ import QuizResult from './pages/QuizResult'
 import Coliseo from './pages/Coliseo'
 import Achievements from './pages/Achievements'
 import TeacherDashboard from './pages/TeacherDashboard'
+import RoadmapDesigner from './pages/RoadmapDesigner'
 import Review from './pages/Review'
 import ContentReview from './pages/ContentReview'
 import ParentDashboard from './pages/ParentDashboard'
@@ -121,6 +122,7 @@ export default function App() {
           <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher']}><TeacherDashboard /></ProtectedRoute>} />
           <Route path="/teacher/courses/:courseId/review" element={<ProtectedRoute allowedRoles={['teacher']}><ContentReview /></ProtectedRoute>} />
           <Route path="/teacher/review" element={<ProtectedRoute allowedRoles={['teacher']}><ContentReview /></ProtectedRoute>} />
+          <Route path="/teacher/design/:courseId" element={<ProtectedRoute allowedRoles={['teacher']}><RoadmapDesigner /></ProtectedRoute>} />
 
           {/* Parent routes */}
           <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
@@ -128,11 +130,11 @@ export default function App() {
           {/* Student routes */}
           <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['student']}><Dashboard /></ProtectedRoute>} />
           <Route path="/explore" element={<ProtectedRoute allowedRoles={['student']}><Explore /></ProtectedRoute>} />
-          <Route path="/roadmap/:courseId" element={<ProtectedRoute allowedRoles={['student']}><Roadmap /></ProtectedRoute>} />
-          <Route path="/lesson/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Lesson /></ProtectedRoute>} />
-          <Route path="/quiz/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Quiz /></ProtectedRoute>} />
-          <Route path="/quiz/result" element={<ProtectedRoute allowedRoles={['student']}><QuizResult /></ProtectedRoute>} />
-          <Route path="/coliseo" element={<ProtectedRoute allowedRoles={['student']}><Coliseo /></ProtectedRoute>} />
+          <Route path="/roadmap/:courseId" element={<ProtectedRoute allowedRoles={['student','teacher']}><Roadmap /></ProtectedRoute>} />
+          <Route path="/lesson/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student','teacher']}><Lesson /></ProtectedRoute>} />
+          <Route path="/quiz/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student','teacher']}><Quiz /></ProtectedRoute>} />
+          <Route path="/quiz/result" element={<ProtectedRoute allowedRoles={['student','teacher']}><QuizResult /></ProtectedRoute>} />
+          <Route path="/coliseo" element={<ProtectedRoute allowedRoles={['student','teacher']}><Coliseo /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute allowedRoles={['student']}><Achievements /></ProtectedRoute>} />
           <Route path="/review/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
           <Route path="/review" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
