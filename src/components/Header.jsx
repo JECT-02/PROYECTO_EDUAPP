@@ -31,6 +31,7 @@ export default function Header({ onToggleSidebar }) {
   const [showNotifs, setShowNotifs] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const mobileNavRef = useRef(null)
+  const notifFirstFocusableRef = useRef(null)
 
   // Close mobile nav on click outside
   useEffect(() => {
@@ -43,6 +44,16 @@ export default function Header({ onToggleSidebar }) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileNavOpen])
+
+  // Focus notification dialog when it opens — makes NVDA read its content
+  useEffect(() => {
+    if (showNotifs && notifFirstFocusableRef.current) {
+      // Small delay for animation to start
+      requestAnimationFrame(() => {
+        notifFirstFocusableRef.current?.focus()
+      })
+    }
+  }, [showNotifs])
 
   const notifications = NOTIFICATIONS_BY_ROLE[user?.role || 'student'] || NOTIFICATIONS_BY_ROLE.student
 
@@ -67,23 +78,24 @@ export default function Header({ onToggleSidebar }) {
   }
 
   return (
-    <header className="app-header">
+    <header className="app-header" role="banner" aria-label="Encabezado de navegación">
       <div className="header-inner">
         {/* Logo + mobile nav toggle */}
-        <div className="header-logo" onClick={() => navigate(homeRoute[userData.role] || '/dashboard')}>
-          <div className="logo-icon">✦</div>
+        <div className="header-logo" onClick={() => navigate(homeRoute[userData.role] || '/dashboard')} aria-label="Ir al inicio">
+          <div className="logo-icon" aria-hidden="true">✦</div>
           <span className="logo-text">EduApp</span>
           {userData.role === 'student' && (
             <div className="mobile-nav-wrapper hide-desktop" ref={mobileNavRef}>
               <button
                 className={`mobile-nav-arrow-btn ${mobileNavOpen ? 'open' : ''}`}
                 onClick={(e) => { e.stopPropagation(); setMobileNavOpen(!mobileNavOpen); setShowNotifs(false); setDropdown(false) }}
-                aria-label="Menú de navegación"
+                aria-label="Menú de navegación móvil"
+                aria-expanded={mobileNavOpen}
               >
-                <ChevronDown size={16} />
+                <ChevronDown size={16} aria-hidden="true" />
               </button>
               {mobileNavOpen && (
-                <div className="mobile-nav-dropdown animate-fadeInUp">
+                <div className="mobile-nav-dropdown animate-fadeInUp" role="menu" aria-label="Navegación rápida">
                   <MobileNavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
                   <MobileNavLink to="/achievements" icon={<Trophy size={16}/>} label="Logros" current={location.pathname} onClose={() => setMobileNavOpen(false)} />
                 </div>
@@ -93,7 +105,7 @@ export default function Header({ onToggleSidebar }) {
         </div>
 
         {/* Nav (desktop) - role specific */}
-        <nav className="header-nav hide-mobile">
+        <nav className="header-nav hide-mobile" aria-label="Navegación principal">
           {userData.role === 'student' && (
             <>
               <NavLink to="/dashboard" icon={<Home size={16}/>} label="Inicio" current={location.pathname} />
@@ -116,22 +128,26 @@ export default function Header({ onToggleSidebar }) {
           <div className="notif-wrapper">
             <button 
               className={`icon-btn notif-btn ${showNotifs ? 'active' : ''}`} 
-              aria-label="Notificaciones"
+              aria-label={`Notificaciones: ${notifications.length} sin leer`}
+              aria-expanded={showNotifs}
               onClick={() => { setShowNotifs(!showNotifs); setDropdown(false) }}
             >
-              <Bell size={18} />
-              <span className="notif-badge">{notifications.length}</span>
+              <Bell size={18} aria-hidden="true" />
+              <span className="notif-badge" aria-hidden="true">{notifications.length}</span>
             </button>
             {showNotifs && (
-              <div className="notif-dropdown animate-fadeInUp">
+              <div
+                className="notif-dropdown animate-fadeInUp"
+                role="region"
+                aria-label="Panel de notificaciones"
+              >
                 <div className="notif-header">
-                  <h3>Notificaciones</h3>
-                  <button className="btn btn-ghost btn-sm">Marcar todo como leído</button>
+                  <h3 id="notif-heading">Notificaciones</h3>
                 </div>
-                <div className="notif-list">
+                <div className="notif-list" role="list" aria-label="Lista de notificaciones" tabIndex="-1" ref={notifFirstFocusableRef}>
                   {notifications.map(n => (
                     <div key={n.id} className="notif-item">
-                      <div className="notif-icon" style={{ background: `${n.color}18`, color: n.color }}>
+                      <div className="notif-icon" style={{ background: `${n.color}18`, color: n.color }} aria-hidden="true">
                         {n.icon}
                       </div>
                       <div className="notif-content">
@@ -142,18 +158,21 @@ export default function Header({ onToggleSidebar }) {
                     </div>
                   ))}
                 </div>
+                <div className="notif-footer">
+                  <button className="btn btn-ghost btn-sm" aria-label="Marcar todas como leídas">Marcar todo como leído</button>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="avatar-dropdown" onClick={() => { setDropdown(!dropdown); setShowNotifs(false) }}>
-            <div className="user-avatar">{userData.avatar}</div>
+          <div className="avatar-dropdown" onClick={() => { setDropdown(!dropdown); setShowNotifs(false) }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDropdown(!dropdown); setShowNotifs(false); } }} aria-label="Menú de usuario" aria-expanded={dropdown}>
+            <div className="user-avatar" aria-hidden="true">{userData.avatar}</div>
             <span className="user-name hide-mobile">{userData.name.split(' ')[0]}</span>
-            <ChevronDown size={14} className={`chevron ${dropdown ? 'open' : ''}`} />
+            <ChevronDown size={14} className={`chevron ${dropdown ? 'open' : ''}`} aria-hidden="true" />
             {dropdown && (
-              <div className="dropdown-menu" onClick={e => e.stopPropagation()}>
-                <div className="dropdown-header">
-                  <div className="user-avatar lg">{userData.avatar}</div>
+              <div className="dropdown-menu" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} role="menu" aria-label="Opciones de usuario">
+                <div className="dropdown-header" role="presentation">
+                  <div className="user-avatar lg" aria-hidden="true">{userData.avatar}</div>
                   <div>
                     <div className="dropdown-name">{userData.name}</div>
                     <div className="dropdown-role">
@@ -163,15 +182,15 @@ export default function Header({ onToggleSidebar }) {
                   </div>
                 </div>
                 <div className="dropdown-divider" />
-                <button className="dropdown-item" onClick={() => { navigate('/profile'); setDropdown(false) }}>
-                  <User size={15}/> Mi Perfil
+                <button className="dropdown-item" role="menuitem" onClick={() => { navigate('/profile'); setDropdown(false) }}>
+                  <User size={15} aria-hidden="true"/> Mi Perfil
                 </button>
-                <button className="dropdown-item" onClick={() => { navigate('/settings'); setDropdown(false) }}>
-                  <Settings size={15}/> Configuración
+                <button className="dropdown-item" role="menuitem" onClick={() => { navigate('/settings'); setDropdown(false) }}>
+                  <Settings size={15} aria-hidden="true"/> Configuración
                 </button>
-                <div className="dropdown-divider" />
-                <button className="dropdown-item danger" onClick={() => { logout(); navigate('/login'); setDropdown(false) }}>
-                  <LogOut size={15}/> Cerrar sesión
+                <div className="dropdown-divider" role="separator" />
+                <button className="dropdown-item danger" role="menuitem" onClick={() => { logout(); navigate('/login'); setDropdown(false) }}>
+                  <LogOut size={15} aria-hidden="true"/> Cerrar sesión
                 </button>
               </div>
             )}
