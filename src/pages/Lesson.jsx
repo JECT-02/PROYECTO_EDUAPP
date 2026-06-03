@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles } from 'lucide-react'
+import { ArrowLeft, Send, Bot, X, Sparkles } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import './Lesson.css'
 
@@ -73,10 +73,6 @@ export default function Lesson() {
   const lessonData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
   
   const [content, setContent] = useState(lessonData.content)
-  const [progress, setProgress] = useState(0)
-  const [readIndex, setReadIndex] = useState(0)
-  const [displayedText, setDisplayedText] = useState(['', '', '', ''])
-  const [skip, setSkip] = useState(false)
   const [isTooltipOpen, setTooltip] = useState(null)
   
   const [showChat, setShowChat] = useState(false)
@@ -85,52 +81,43 @@ export default function Lesson() {
   ])
   const [inputText, setInputText] = useState('')
   const chatEndRef = useRef(null)
+  const [activeParagraph, setActiveParagraph] = useState(0)
+  const paragraphRefs = useRef([])
+  const chatInputRef = useRef(null)
+  const chatMessagesRef = useRef(null)
 
   useEffect(() => {
-    setReadIndex(0)
-    setDisplayedText(['','','',''])
-    setSkip(false)
     setContent(lessonData.content)
-    setProgress(0)
+    setActiveParagraph(0)
   }, [courseId, nodeId, lessonData])
 
-  useEffect(() => {
-    if (skip) {
-      setDisplayedText(content.map(t => t.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')))
-      setProgress(100)
-      return
-    }
-
-    if (readIndex < content.length) {
-      const fullText = content[readIndex]
-      let currentLength = 0
-      
-      const interval = setInterval(() => {
-        currentLength += 2
-        let textToShow = fullText.slice(0, currentLength)
-        textToShow = textToShow.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')
-        
-        setDisplayedText(prev => {
-          const next = [...prev]
-          next[readIndex] = textToShow
-          return next
-        })
-
-        if (currentLength >= fullText.length) {
-          clearInterval(interval)
-          setTimeout(() => {
-            setReadIndex(r => r + 1)
-            setProgress(((readIndex + 1) / content.length) * 100)
-          }, 800)
-        }
-      }, 20)
-      return () => clearInterval(interval)
-    }
-  }, [readIndex, skip, content])
+  const displayedText = content.map(t =>
+    t.replace(/<key>/g, '<span class="interactive-word">').replace(/<\/key>/g, '</span>')
+  )
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (showChat) {
+      chatMessagesRef.current?.focus()
+    }
+  }, [showChat])
+
+  function handleContentKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = activeParagraph === displayedText.length - 1 ? 0 : activeParagraph + 1
+      setActiveParagraph(next)
+      paragraphRefs.current[next]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prev = activeParagraph === 0 ? displayedText.length - 1 : activeParagraph - 1
+      setActiveParagraph(prev)
+      paragraphRefs.current[prev]?.focus()
+    }
+  }
 
   function handleSendChat() {
     if (!inputText.trim()) return
@@ -142,9 +129,6 @@ export default function Lesson() {
       if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
         setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
         setTimeout(() => {
-          setReadIndex(0)
-          setDisplayedText(['','','',''])
-          setSkip(false)
           setContent(lessonData.simplified)
         }, 1000)
       } else {
@@ -155,66 +139,56 @@ export default function Lesson() {
 
   return (
     <PageWrapper className="lesson-page">
-      <header className="lesson-header">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><ArrowLeft size={18}/></button>
-        <div className="lesson-title-wrap">
-          <span className="lesson-subtitle">Curso {courseId} • Lección</span>
-          <h1 className="lesson-title">{lessonData.title}</h1>
+      <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true"/></button>
+        <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseId}, Lección: ${lessonData.title}`}>
+          <span className="lesson-subtitle" aria-hidden="true">Curso {courseId} • Lección</span>
+          <h1 className="lesson-title" aria-hidden="true">{lessonData.title}</h1>
         </div>
-        <button className="icon-btn" title="Narración de voz"><Volume2 size={18}/></button>
       </header>
 
-      <main className="lesson-content">
-        <div className="lesson-text-container">
+      <div className="lesson-content">
+        <div className="lesson-text-container" role="application" aria-label="Contenido de la lección" tabIndex={0} onKeyDown={handleContentKeyDown} onFocus={(e) => { if (e.target === e.currentTarget) { setActiveParagraph(0); paragraphRefs.current[0]?.focus() } }}>
           {content === lessonData.simplified && (
             <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={14}/> Contenido simplificado por la IA
             </div>
           )}
           {displayedText.map((html, i) => (
-            <p key={i} className="lesson-paragraph" dangerouslySetInnerHTML={{ __html: html }} />
+            <p key={i} ref={el => paragraphRefs.current[i] = el} tabIndex={-1} className="lesson-paragraph" dangerouslySetInnerHTML={{ __html: html }} />
           ))}
-          {!skip && readIndex < content.length && (
-            <button className="btn btn-ghost skip-btn" onClick={() => setSkip(true)}>
-              <FastForward size={16}/> Saltar animación
-            </button>
-          )}
         </div>
-      </main>
-
-      <footer className="lesson-footer">
-        <div className="lesson-progress-row">
-          <div className="progress-bar" style={{flex:1}}><div className="progress-fill" style={{width:`${progress}%`}}/></div>
-          <span className="progress-lbl">{Math.round(progress)}% completado</span>
-        </div>
-        <button className="btn btn-primary btn-lg" disabled={progress < 75} onClick={() => navigate(`/roadmap/${courseId}`)}>
-          Terminar Nodo
-        </button>
-      </footer>
+      </div>
 
       {showChat && (
-        <div className="ai-chat-window">
-          <div className="chat-header">
-            <h3><Bot size={18}/> Tutor IA</h3>
-            <button className="icon-btn sm" onClick={() => setShowChat(false)}><X size={14}/></button>
-          </div>
-          <div className="chat-messages">
+        <div className="ai-chat-window" role="dialog" aria-label="Chat con asistente">
+          <div ref={chatMessagesRef} className="chat-messages" tabIndex={0} aria-live="polite" aria-label="Mensajes del asistente">
             {messages.map((m, i) => (
               <div key={i} className={`chat-msg ${m.role}`}>{m.text}</div>
             ))}
             <div ref={chatEndRef} />
           </div>
           <div className="chat-input-area">
-            <input type="text" className="chat-input" placeholder="Pregunta algo..." value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} />
-            <button className="chat-send" onClick={handleSendChat}><Send size={16}/></button>
+            <input ref={chatInputRef} type="text" className="chat-input" placeholder="Pregunta algo..." value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendChat()} />
+            <button className="chat-send" onClick={handleSendChat} aria-label="Enviar mensaje"><Send size={16}/></button>
+          </div>
+          <div className="chat-header">
+            <h3><Bot size={18}/> Tutor IA</h3>
+            <button className="icon-btn sm" onClick={() => setShowChat(false)} aria-label="Cerrar asistente"><X size={14}/></button>
           </div>
         </div>
       )}
       {!showChat && (
-        <button className="ai-chat-trigger" onClick={() => setShowChat(true)}>
+        <button className="ai-chat-trigger" onClick={() => setShowChat(true)} aria-label="Abrir asistente de IA">
           <Bot size={28} />
         </button>
       )}
+
+      <footer className="lesson-footer">
+        <button className="btn btn-primary btn-lg" onClick={() => navigate(`/roadmap/${courseId}`)}>
+          Terminar Nodo
+        </button>
+      </footer>
     </PageWrapper>
   )
 }
