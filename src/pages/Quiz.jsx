@@ -5,6 +5,9 @@ import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
+import { analyzeError } from '../lib/llm'
+import { recordWeakness, isSupabaseConfigured } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import './Quiz.css'
 
 const QUESTIONS = [
@@ -27,10 +30,12 @@ const QUESTIONS = [
 export default function Quiz() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
+  const { studentId } = useAuth()
   const [qIndex, setQIndex] = useState(0)
   const [timeLeft, setTimeLeft] = useState(30)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle') // idle, correct, incorrect
+  const [errorHint, setErrorHint] = useState('')
 
   // Track all answers for the result page
   const answersRef = useRef([])
@@ -68,9 +73,32 @@ export default function Quiz() {
   function handleTimeOut() {
     playTimeout()
     vibrateTimeout()
-    recordAnswer(-1) // no seleccionó nada
+    recordAnswer(-1)
     setStatus('incorrect')
+    triggerAnalysis(null).catch(() => { /* noop */ })
     setTimeout(nextQuestion, 2000)
+  }
+
+  async function triggerAnalysis(selectedIndex) {
+    if (!isSupabaseConfigured) return
+    try {
+      const { explanation } = await analyzeError({
+        question: q.text,
+        userAnswer: selectedIndex == null ? 'Sin respuesta' : q.options[selectedIndex],
+        correctAnswer: q.options[q.correct],
+        courseId,
+        concept: q.text.split(' ').slice(0, 3).join(' '),
+      })
+      if (explanation) setErrorHint(explanation)
+      if (studentId) {
+        await recordWeakness({
+          studentId,
+          courseId,
+          concept: q.text.split(' ').slice(0, 3).join(' '),
+          isError: true,
+        })
+      }
+    } catch { /* silent */ }
   }
 
   function handleSelect(index) {
@@ -85,6 +113,7 @@ export default function Quiz() {
       playIncorrect()
       vibrateIncorrect()
       setStatus('incorrect')
+      triggerAnalysis(index).catch(() => { /* noop */ })
     }
     setTimeout(nextQuestion, 1500)
   }
@@ -167,7 +196,7 @@ export default function Quiz() {
           <Mascot type="robot" size="sm" mood="sad" />
           <div className="toast-text">
             <strong>¡Cuidado!</strong> La respuesta correcta era la {String.fromCharCode(65 + q.correct)}.
-            Vamos a revisarlo luego.
+            {errorHint ? ` ${errorHint}` : ' Vamos a revisarlo luego.'}
           </div>
         </div>
       )}
