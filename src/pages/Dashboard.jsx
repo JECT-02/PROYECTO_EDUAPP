@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code, X } from 'lucide-react'
@@ -43,58 +43,90 @@ export default function Dashboard() {
   const userName = user?.name?.split(' ')[0] || 'Sofía'
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const drawerRef = useRef(null)
 
-  // Lock body scroll when mobile drawer is open
+  // Lock body scroll + focus trap when mobile drawer is open
+  const handleDrawerKeyDown = useCallback((e) => {
+    if (e.key !== 'Tab') return
+    const drawer = drawerRef.current
+    if (!drawer) return
+    const focusable = drawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    if (!focusable.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }, [])
+
   useEffect(() => {
     if (sidebarOpen) {
       document.body.style.overflow = 'hidden'
+      // Focus the close button so Tab starts inside the drawer
+      requestAnimationFrame(() => {
+        const closeBtn = drawerRef.current?.querySelector('.drawer-close-btn')
+        closeBtn?.focus()
+      })
+      document.addEventListener('keydown', handleDrawerKeyDown)
     } else {
       document.body.style.overflow = ''
+      document.removeEventListener('keydown', handleDrawerKeyDown)
     }
-    return () => { document.body.style.overflow = '' }
-  }, [sidebarOpen])
+    return () => {
+      document.body.style.overflow = ''
+      document.removeEventListener('keydown', handleDrawerKeyDown)
+    }
+  }, [sidebarOpen, handleDrawerKeyDown])
 
   const sidebarContent = (
     <>
       {/* Mascot panel */}
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">Tu compañero</h3>
-        <div className="mascot-panel">
-          <Mascot type="dragon" size="lg" mood="normal" />
-          <div className="mascot-info">
-            <div className="mascot-nm">Ember</div>
-            <div className="mascot-lvl">Nivel 2 – Juvenil</div>
+      <div className="sidebar-card" tabIndex={0} role="region" aria-label="Tu compañero: Ember, nivel 2 juvenil, 820 de 1500 puntos de experiencia, 55 por ciento, 680 XP para nivel 3">
+        <div aria-hidden="true">
+          <h3 className="sidebar-title">Tu compañero</h3>
+          <div className="mascot-panel">
+            <Mascot type="dragon" size="lg" mood="normal" />
+            <div className="mascot-info">
+              <div className="mascot-nm">Ember</div>
+              <div className="mascot-lvl">Nivel 2 – Juvenil</div>
+            </div>
           </div>
-        </div>
-        <div className="xp-bar-wrap">
-          <div className="xp-labels">
-            <span>820 XP</span><span>1500 XP</span>
+          <div className="xp-bar-wrap">
+            <div className="xp-labels">
+              <span>820 XP</span><span>1500 XP</span>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
+            </div>
+            <p className="xp-hint">680 XP para nivel 3</p>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
-          </div>
-          <p className="xp-hint">680 XP para nivel 3</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="sidebar-card">
-        <h3 className="sidebar-title">Tu semana</h3>
-        <div className="stats-list">
-          {[
-            { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
-            { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
-            { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
-            { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
-          ].map(s => (
-            <div key={s.label} className="stat-item">
-              <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
-              <div className="stat-info">
-                <div className="stat-val">{s.val}</div>
-                <div className="stat-label">{s.label}</div>
+      <div className="sidebar-card" tabIndex={0} role="region" aria-label="Tu semana: 4 horas 20 minutos de estudio, 8 nodos completados, 72 por ciento de entendimiento, 5 medallas obtenidas">
+        <div aria-hidden="true">
+          <h3 className="sidebar-title">Tu semana</h3>
+          <div className="stats-list">
+            {[
+              { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
+              { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
+              { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
+              { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
+            ].map(s => (
+              <div key={s.label} className="stat-item">
+                <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
+                <div className="stat-info">
+                  <div className="stat-val">{s.val}</div>
+                  <div className="stat-label">{s.label}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -105,7 +137,7 @@ export default function Dashboard() {
           <div className="medal-name">Explorador Curioso</div>
           <div className="medal-sub">Última medalla obtenida</div>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')}>Ver todas</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')} aria-label="Última medalla: Explorador Curioso. Ir a la página de logros">Ver todas</button>
       </div>
     </>
   )
@@ -115,9 +147,10 @@ export default function Dashboard() {
       <Header onToggleSidebar={() => setSidebarOpen(true)} />
       <div className="dashboard-layout">
         {/* Main content */}
-        <main className="dashboard-main">
+        <div className="dashboard-main">
           {/* Greeting */}
-          <div className="greeting-row">
+          <section aria-label="Bienvenida y progreso">
+          <div className="greeting-row" aria-label={`${getGreeting()}, ${userName}. Tienes 2 retos pendientes hoy.`}>
             <div>
               <h1 className="greeting-text">{getGreeting()}, {userName}!</h1>
               <p className="greeting-sub">Tienes 2 retos pendientes hoy</p>
@@ -129,6 +162,10 @@ export default function Dashboard() {
             className="continue-card"
             onClick={() => navigate('/roadmap/1')}
             style={{ cursor:'pointer', '--course-color': '#22C55E' }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/roadmap/1'); } }}
+            aria-label="Continuar curso: Biología Celular, Nodo 9, La Mitocondria y sus funciones, 65 por ciento completado"
           >
             <div className="continue-content">
               <div className="continue-badge badge badge-green">Continuar</div>
@@ -144,15 +181,18 @@ export default function Dashboard() {
                 className="btn btn-success" 
                 style={{width:'fit-content', marginTop:16}}
                 onClick={(e) => { e.stopPropagation(); navigate('/roadmap/1'); }}
+                aria-label="Ir al roadmap de Biología Celular"
               >
                 ▶ Continuar sesión
               </button>
             </div>
-            <div className="continue-art"><Beaker size={80}/></div>
+            <div className="continue-art" aria-hidden="true"><Beaker size={80}/></div>
           </motion.div>
 
+          </section>
+
           {/* Challenges */}
-          <section>
+          <section aria-label="Retos del día">
             <h2 className="section-title">Retos del día</h2>
             <div className="challenges-row">
               {CHALLENGES.map((c, i) => (
@@ -164,6 +204,10 @@ export default function Dashboard() {
                     else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1')
                   }}
                   style={{ cursor:'pointer', '--course-color': c.color }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (i === 1) navigate('/coliseo'); else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1'); } }}
+                  aria-label={`${c.title}: ${c.course}`}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
                   <div className="ch-info">
@@ -178,7 +222,7 @@ export default function Dashboard() {
           </section>
 
           {/* My courses */}
-          <section>
+          <section aria-label="Mis cursos">
             <div className="section-header">
               <h2 className="section-title">Mis Cursos</h2>
             </div>
@@ -187,10 +231,14 @@ export default function Dashboard() {
                 <motion.div
                   key={c.id}
                   className="course-card"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/roadmap/${c.id}`); } }}
                   initial={{ opacity:0, y:20 }}
                   animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
                   onClick={() => navigate(`/roadmap/${c.id}`)}
                   style={{ cursor:'pointer', '--course-color': c.color }}
+                  aria-label={`${c.title}, ${c.teacher}: ${c.status}, ${c.progress} por ciento completado, ${c.completedNodes} de ${c.nodes} nodos`}
                 >
                   <div className="course-cover" style={{ background:`linear-gradient(135deg,${c.color}44,${c.color}11)` }}>
                     <div style={{ color: c.color }}>{c.icon}</div>
@@ -213,10 +261,10 @@ export default function Dashboard() {
               ))}
             </div>
           </section>
-        </main>
+        </div>
 
         {/* Sidebar — desktop */}
-        <aside className="dashboard-sidebar hide-tablet">
+        <aside className="dashboard-sidebar hide-tablet" aria-label="Panel de información">
           {sidebarContent}
         </aside>
 
@@ -231,6 +279,7 @@ export default function Dashboard() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
               onClick={() => setSidebarOpen(false)}
+              aria-hidden="true"
             />
           )}
         </AnimatePresence>
@@ -238,7 +287,10 @@ export default function Dashboard() {
           {sidebarOpen && (
             <motion.aside
               key="sidebar-drawer"
+              ref={drawerRef}
+              tabIndex={-1}
               className="dashboard-sidebar mobile-drawer"
+              aria-label="Panel de información"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
