@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { X, Mic, Volume2 } from 'lucide-react'
+import { X, Mic } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
-import Mascot from '../components/Mascot'
 import './Quiz.css'
 
 const QUESTIONS = [
@@ -31,10 +30,44 @@ export default function Quiz() {
   const [timeLeft, setTimeLeft] = useState(30)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle') // idle, correct, incorrect
+  const [quizAnnouncement, setQuizAnnouncement] = useState('')
+  const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
+  const [timeAnnouncement, setTimeAnnouncement] = useState('')
 
   // Track all answers for the result page
   const answersRef = useRef([])
+  const optionsRef = useRef(null)
   const q = QUESTIONS[qIndex]
+
+  // Announce question when a new question loads (options are on the buttons)
+  useEffect(() => {
+    setQuizAnnouncement(`Pregunta ${qIndex + 1}. 30s. ${q.text}`)
+    setFeedbackAnnouncement('')
+    setTimeAnnouncement('')
+
+    // Focus first option immediately
+    requestAnimationFrame(() => {
+      const firstBtn = optionsRef.current?.querySelector('.quiz-opt-btn')
+      firstBtn?.focus()
+    })
+  }, [qIndex])
+
+  // Announce result (correct/incorrect) immediately
+  useEffect(() => {
+    if (status === 'correct') {
+      setFeedbackAnnouncement('¡Correcto!')
+    } else if (status === 'incorrect') {
+      setFeedbackAnnouncement(`Incorrecto. La respuesta correcta era ${String.fromCharCode(65 + q.correct)}.`)
+    }
+  }, [status])
+
+  // Announce time warnings at key thresholds
+  useEffect(() => {
+    if (timeLeft === 15) setTimeAnnouncement('Quedan 15 segundos')
+    else if (timeLeft === 10) setTimeAnnouncement('Quedan 10 segundos')
+    else if (timeLeft === 5) setTimeAnnouncement('Quedan 5 segundos')
+    else if (timeLeft <= 3 && timeLeft > 0) setTimeAnnouncement(`${timeLeft} segundos`)
+  }, [timeLeft])
 
   useEffect(() => {
     if (status !== 'idle') return
@@ -70,7 +103,7 @@ export default function Quiz() {
     vibrateTimeout()
     recordAnswer(-1) // no seleccionó nada
     setStatus('incorrect')
-    setTimeout(nextQuestion, 2000)
+    setTimeout(nextQuestion, 3500)
   }
 
   function handleSelect(index) {
@@ -84,9 +117,8 @@ export default function Quiz() {
     } else {
       playIncorrect()
       vibrateIncorrect()
-      setStatus('incorrect')
-    }
-    setTimeout(nextQuestion, 1500)
+      setStatus('incorrect')      }
+    setTimeout(nextQuestion, 3500)
   }
 
   function nextQuestion() {
@@ -111,8 +143,8 @@ export default function Quiz() {
 
   return (
     <PageWrapper className="quiz-page">
-      <header className="quiz-header">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><X size={18}/></button>
+      <header className="quiz-header" role="banner" aria-label="Encabezado del cuestionario">
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Cerrar cuestionario"><X size={18} aria-hidden="true"/></button>
         <div className="quiz-progress-wrap">
           <div className="progress-bar">
             <div className="progress-fill" style={{width: `${((qIndex)/QUESTIONS.length)*100}%`}} />
@@ -123,12 +155,11 @@ export default function Quiz() {
         </div>
       </header>
 
-      <main className="quiz-main">
+      <div className="quiz-main">
         <div className="quiz-content">
-          <button className="icon-btn tts-btn"><Volume2 size={16}/></button>
           <h2 className="quiz-question">{q.text}</h2>
 
-          <div className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`}>
+          <div ref={optionsRef} className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`}>
             {q.options.map((opt, i) => {
               let btnClass = 'quiz-opt-btn card '
               if (status !== 'idle') {
@@ -145,40 +176,30 @@ export default function Quiz() {
                   className={btnClass}
                   onClick={() => handleSelect(i)}
                   disabled={status !== 'idle'}
+                  aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}
                 >
-                  <span className="opt-letter">{String.fromCharCode(65 + i)}</span>
+                  <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
                   <span className="opt-text">{opt}</span>
-                  {status !== 'idle' && i === q.correct && <span className="opt-icon">✓</span>}
-                  {status !== 'idle' && i === selected && i !== q.correct && <span className="opt-icon">✗</span>}
+                  {status !== 'idle' && i === q.correct && <span className="opt-icon" aria-hidden="true">✓</span>}
+                  {status !== 'idle' && i === selected && i !== q.correct && <span className="opt-icon" aria-hidden="true">✗</span>}
                 </button>
               )
             })}
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Screen reader announcements */}
+      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{quizAnnouncement}</div>
+      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {/* Voice Control FAB */}
       <button className="fab-mic" title="Mantener para responder por voz">
         <Mic size={24} />
       </button>
 
-      {status === 'incorrect' && (
-        <div className="quiz-feedback-toast error">
-          <Mascot type="robot" size="sm" mood="sad" />
-          <div className="toast-text">
-            <strong>¡Cuidado!</strong> La respuesta correcta era la {String.fromCharCode(65 + q.correct)}.
-            Vamos a revisarlo luego.
-          </div>
-        </div>
-      )}
-      {status === 'correct' && (
-        <div className="quiz-feedback-toast success">
-          <Mascot type="robot" size="sm" mood="happy" />
-          <div className="toast-text">
-            <strong>¡Excelente!</strong> Muy bien hecho.
-          </div>
-        </div>
-      )}
+
     </PageWrapper>
   )
 }
