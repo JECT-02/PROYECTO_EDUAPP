@@ -107,7 +107,7 @@ export default function Roadmap() {
     <PageWrapper className="roadmap-page-wrap">
       <div className="rm-header">
         <div className="rm-h-left">
-          <button className="icon-btn" onClick={() => navigate('/dashboard')}><ArrowLeft size={18}/></button>
+          <button className="icon-btn" onClick={() => navigate('/dashboard')} aria-label="Volver al inicio"><ArrowLeft size={18} aria-hidden="true"/></button>
           <div>
             <h2 className="rm-course-title">{course.title}</h2>
             <div className="rm-progress-bar">
@@ -119,11 +119,24 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
+          <nav aria-label="Mapa de aprendizaje">
+          {/* Semantic ordered list for screen readers */}
+          <ol className="visually-hidden" aria-label="Lista de nodos del curso">
+            {nodes.map((n, i) => {
+              const statusMap = { completed: 'completado', in_progress: 'en progreso', available: 'disponible', locked: 'bloqueado' }
+              const typesMap = { theory: 'teoría', quiz: 'cuestionario', boss: 'examen final' }
+              return (
+                <li key={n.id}>
+                  Nodo {i + 1}: {n.title}. Tipo: {typesMap[n.type] || n.type}. Estado: {statusMap[n.status] || n.status}
+                </li>
+              )
+            })}
+          </ol>
           {/* Centrado forzado del contenido */}
           <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200 }}>
             
             {/* SVG Lines - Capa de fondo */}
-            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+            <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} role="img" aria-label={`Mapa de ${course.title} con ${nodes.length} nodos`}>
               <path
                 d={generateSVGPath(nodes.length)}
                 fill="none"
@@ -161,6 +174,24 @@ export default function Roadmap() {
                   <div 
                     className={`rm-node-v2 ${node.type} ${node.status} ${isMobile ? 'mobile' : ''}`}
                     style={{ width: nodeSize, height: nodeSize }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Nodo ${i + 1}: ${{
+                      theory: 'Lección de teoría',
+                      quiz: 'Cuestionario',
+                      boss: 'Examen final'
+                    }[node.type] || node.type}: ${node.title}. ${{ completed: 'Completado', in_progress: 'En progreso', available: 'Disponible', locked: 'Bloqueado' }[node.status] || node.status}`}
+                    aria-disabled={node.status === 'locked'}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        if (node.status !== 'locked') {
+                          const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
+                          navigate(`${path}/${courseId}/${node.id}`)
+                        }
+                      }
+                    }}
                     onClick={() => {
                       if (node.status !== 'locked') {
                         const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
@@ -195,6 +226,7 @@ export default function Roadmap() {
               )
             })}
           </div>
+          </nav>
         </div>
       </div>
 

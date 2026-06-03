@@ -94,44 +94,48 @@ export default function Review() {
       <main className="review-content">
         <div className="review-container">
           {/* Question context */}
-          <div className="review-q-card">
-            <h3 className="rq-title">Pregunta original</h3>
-            <p className="rq-text">{currentAnswer.question}</p>
-            <div className="rq-answer incorrect">
-              <span className="lbl">Tu respuesta:</span>
-              <span className="val">
-                {currentAnswer.selected >= 0
-                  ? currentAnswer.options[currentAnswer.selected]
-                  : '(No respondiste)'}
-              </span>
-            </div>
-            {currentAnswer.options && (
-              <div style={{ marginTop: 12, fontSize: '0.85rem', color: 'var(--success)' }}>
-                Respuesta correcta: <strong>{currentAnswer.options[currentAnswer.correct]}</strong>
+          <div className="review-q-card" tabIndex={0} role="region" aria-label={`Pregunta: ${currentAnswer.question}. Tu respuesta: ${currentAnswer.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : 'No respondiste'}. Respuesta correcta: ${currentAnswer.options[currentAnswer.correct]}`}>
+            <div aria-hidden="true">
+              <h3 className="rq-title">Pregunta original</h3>
+              <p className="rq-text">{currentAnswer.question}</p>
+              <div className="rq-answer incorrect">
+                <span className="lbl">Tu respuesta:</span>
+                <span className="val">
+                  {currentAnswer.selected >= 0
+                    ? currentAnswer.options[currentAnswer.selected]
+                    : '(No respondiste)'}
+                </span>
               </div>
-            )}
+              {currentAnswer.options && (
+                <div style={{ marginTop: 12, fontSize: '0.85rem', color: 'var(--success)' }}>
+                  Respuesta correcta: <strong>{currentAnswer.options[currentAnswer.correct]}</strong>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* AI Analysis */}
-          <div className="ai-analysis-card">
-            <div className="ai-header">
-              <Mascot type="owl" size="sm" mood="normal" />
-              <div>
-                <h3 className="ai-title">Análisis</h3>
-                {currentAnswer.explanation && (
-                  <span className="ai-concept">
-                    {currentAnswer.selected >= 0
-                      ? `Confundiste "${currentAnswer.options[currentAnswer.selected]}" con "${currentAnswer.options[currentAnswer.correct]}"`
-                      : 'No respondiste a tiempo'}
-                  </span>
-                )}
+          <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentAnswer.explanation || 'Revisa el material de clase'}`}>
+            <div aria-hidden="true">
+              <div className="ai-header">
+                <Mascot type="owl" size="sm" mood="normal" />
+                <div>
+                  <h3 className="ai-title">Análisis</h3>
+                  {currentAnswer.explanation && (
+                    <span className="ai-concept">
+                      {currentAnswer.selected >= 0
+                        ? `Confundiste "${currentAnswer.options[currentAnswer.selected]}" con "${currentAnswer.options[currentAnswer.correct]}"`
+                        : 'No respondiste a tiempo'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="ai-body">
-              <p>{currentAnswer.explanation || 'Revisa el material de clase para entender mejor este concepto.'}</p>
-            </div>
-            <div className="ai-source">
-              <BookOpen size={14} /> Fuente: Material de clase del curso
+              <div className="ai-body">
+                <p>{currentAnswer.explanation || 'Revisa el material de clase para entender mejor este concepto.'}</p>
+              </div>
+              <div className="ai-source">
+                <BookOpen size={14} /> Fuente: Material de clase del curso
+              </div>
             </div>
           </div>
 
@@ -155,6 +159,7 @@ export default function Review() {
                   className="input-field"
                   value={analogyType}
                   onChange={(e) => setAnalogyType(e.target.value)}
+                  aria-label="Analogía. Tipo de analogía"
                   style={{marginBottom: 12}}
                 >
                   <option>Explicación estándar</option>
@@ -162,7 +167,7 @@ export default function Review() {
                   <option>Con videojuegos</option>
                   <option>Con cocina</option>
                 </select>
-                <div className="analogy-box">
+                <div className="analogy-box" aria-live="polite" aria-atomic="true">
                   {analogyType === 'Como si tuviera 5 años'
                     ? "Imagina que la célula es una ciudad. La mitocondria es la planta de energía que da electricidad a todas las casas. El núcleo es la oficina del alcalde, donde se guardan las reglas de la ciudad."
                     : analogyType === 'Con videojuegos'
@@ -175,7 +180,7 @@ export default function Review() {
 
               <div className="hub-section">
                 <h4 className="hub-sub"><Play size={16}/> 2. Video Recomendado</h4>
-                <div className="video-card">
+                <div className="video-card" tabIndex={0} role="link" aria-label={`Video recomendado. Mitocondrias: Central Energética. Clip: 02:15 a 04:30. Presiona Enter para abrir`} onClick={() => window.open('https://youtube.com', '_blank')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open('https://youtube.com', '_blank') } }}>
                   <div className="video-thumb">▶</div>
                   <div className="video-info">
                     <div className="v-title">Mitocondrias: Central Energética</div>
