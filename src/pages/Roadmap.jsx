@@ -4,9 +4,11 @@ import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateLocked } from '../utils/vibration'
+import { getCourseNodes, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import './Roadmap.css'
 
-const COURSE_DATA = {
+const FALLBACK_DATA = {
   '1': {
     title: 'Biología Celular',
     nodes: [
@@ -20,45 +22,72 @@ const COURSE_DATA = {
       { id:8, type:'boss', title:'Certificación de Unidad', status:'locked' },
     ]
   },
-  '2': {
-    title: 'Matemáticas Avanzadas',
-    nodes: [
-      { id:1, type:'theory', title:'Límites y Continuidad', status:'in_progress' },
-      { id:2, type:'theory', title:'Derivadas Básicas', status:'locked' },
-      { id:3, type:'quiz', title:'Quiz de Cálculo', status:'locked' },
-      { id:4, type:'theory', title:'Integrales Definidas', status:'locked' },
-      { id:5, type:'boss', title:'Examen Final de Cálculo', status:'locked' },
-    ]
-  },
-  '3': {
-    title: 'Historia del Mundo',
-    nodes: [
-      { id:1, type:'theory', title:'La Revolución Industrial', status:'completed' },
-      { id:2, type:'theory', title:'Guerras Mundiales', status:'in_progress' },
-      { id:3, type:'quiz', title:'Examen de Historia', status:'locked' },
-      { id:4, type:'theory', title:'Guerra Fría', status:'locked' },
-      { id:5, type:'boss', title:'Certificación Histórica', status:'locked' },
-    ]
-  },
-  '4': {
-    title: 'Programación Python',
-    nodes: [
-      { id:1, type:'theory', title:'Sintaxis Básica', status:'available' },
-      { id:2, type:'theory', title:'Estructuras de Control', status:'locked' },
-      { id:3, type:'quiz', title:'Primeros Pasos en Python', status:'locked' },
-      { id:4, type:'theory', title:'Funciones y Listas', status:'locked' },
-      { id:5, type:'boss', title:'Master de Python', status:'locked' },
-    ]
+}
+
+function statusFromProgress(position, progressRows, totalNodes) {
+  const idx = position - 1
+  const isCompleted = progressRows.some((p) => p.nodeId && progressRows.find((x) => x.nodeId === p.nodeId)?.state === 'completed')
+  if (idx === 0) return isCompleted ? 'completed' : 'in_progress'
+  if (idx > 0) {
+    const prevCompleted = progressRows.some((p) => p.state === 'completed')
+    if (prevCompleted) return 'available'
   }
+  return 'locked'
 }
 
 export default function Roadmap() {
   const navigate = useNavigate()
   const { courseId } = useParams()
-  const course = COURSE_DATA[courseId] || COURSE_DATA['1']
-  const nodes = course.nodes
-
+  const { studentId } = useAuth()
+  const [course, setCourse] = useState(() => FALLBACK_DATA[courseId] || FALLBACK_DATA['1'])
+  const [nodes, setNodes] = useState(course.nodes)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!isSupabaseConfigured) return
+      const { data } = await getCourseNodes(courseId)
+      if (cancelled || !data || data.length === 0) return
+      const mapped = data.map((n) => ({
+        id: n.id,
+        position: n.position,
+        type: n.type,
+        title: n.title,
+        status: 'available',
+      }))
+      // load progress for current enrollment
+      const { data: enr } = await getStudentEnrollments(studentId)
+      const enrollment = (enr || []).find((e) => e.course_id === courseId || String(e.course_id) === String(courseId))
+      let progressRows = []
+      if (enrollment) {
+        const { data: prog } = await getProgressForEnrollment(enrollment.id)
+        progressRows = prog || []
+      }
+      const completedPositions = new Set()
+      for (const n of mapped) {
+        const row = progressRows.find((p) => p.node_id === n.id)
+        if (row?.state === 'completed') completedPositions.add(n.position)
+      }
+      let firstUnlocked = true
+      for (const n of mapped) {
+        const isCompleted = completedPositions.has(n.position)
+        const prevCompleted = completedPositions.has(n.position - 1)
+        if (isCompleted) {
+          n.status = 'completed'
+        } else if (n.position === 1 || prevCompleted) {
+          n.status = firstUnlocked ? 'in_progress' : 'available'
+          firstUnlocked = false
+        } else {
+          n.status = 'locked'
+        }
+      }
+      setCourse({ title: mapped[0]?.title?.length > 30 ? 'Curso' : 'Curso', nodes: mapped })
+      setNodes(mapped)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [courseId, studentId])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -121,7 +150,7 @@ export default function Roadmap() {
         <div className="rm-scroll-area">
           {/* Centrado forzado del contenido */}
           <div className="rm-path-container" style={{ width: containerWidth, height: nodes.length * nodeSpacing + 200 }}>
-            
+
             {/* SVG Lines - Capa de fondo */}
             <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
               <path
@@ -147,24 +176,24 @@ export default function Roadmap() {
             {nodes.map((node, i) => {
               const pos = getNodePos(i);
               return (
-                <div 
-                  key={node.id} 
+                <div
+                  key={node.id}
                   className={`rm-node-anchor ${node.status}`}
-                  style={{ 
+                  style={{
                     position: 'absolute',
-                    left: pos.x, 
+                    left: pos.x,
                     top: pos.y,
                     transform: 'translate(-50%, -50%)',
                     zIndex: 20
                   }}
                 >
-                  <div 
+                  <div
                     className={`rm-node-v2 ${node.type} ${node.status} ${isMobile ? 'mobile' : ''}`}
                     style={{ width: nodeSize, height: nodeSize }}
                     onClick={() => {
                       if (node.status !== 'locked') {
                         const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
-                        navigate(`${path}/${courseId}/${node.id}`)
+                        navigate(`${path}/${courseId}/${node.position || node.id}`)
                       } else {
                         vibrateLocked()
                       }
@@ -172,10 +201,10 @@ export default function Roadmap() {
                   >
                     <div className="node-glow" />
                     <div className="node-main">
-                      {node.type === 'theory' ? <Book size={iconSize} /> : 
-                       node.type === 'practice' ? <Puzzle size={iconSize} /> : 
+                      {node.type === 'theory' ? <Book size={iconSize} /> :
+                       node.type === 'practice' ? <Puzzle size={iconSize} /> :
                        node.type === 'quiz' ? <Zap size={iconSize} /> : <Trophy size={bossIconSize} />}
-                    </div>
+      </div>
                     
                     <div className="node-info-bubble">
                       <div className="node-type-tag">{node.type.toUpperCase()}</div>
