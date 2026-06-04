@@ -134,6 +134,74 @@ export default function Dashboard() {
     </>
   )
 
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [sidebarOpen])
+
+  const sidebarContent = (
+    <>
+      {/* Mascot panel */}
+      <div className="sidebar-card">
+        <h3 className="sidebar-title">Tu compañero</h3>
+        <div className="mascot-panel">
+          <Mascot type="dragon" size="lg" mood="normal" />
+          <div className="mascot-info">
+            <div className="mascot-nm">Ember</div>
+            <div className="mascot-lvl">Nivel 2 – Juvenil</div>
+          </div>
+        </div>
+        <div className="xp-bar-wrap">
+          <div className="xp-labels">
+            <span>820 XP</span><span>1500 XP</span>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
+          </div>
+          <p className="xp-hint">680 XP para nivel 3</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="sidebar-card">
+        <h3 className="sidebar-title">Tu semana</h3>
+        <div className="stats-list">
+          {[
+            { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
+            { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
+            { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
+            { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
+          ].map(s => (
+            <div key={s.label} className="stat-item">
+              <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
+              <div className="stat-info">
+                <div className="stat-val">{s.val}</div>
+                <div className="stat-label">{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Last medal */}
+      <div className="sidebar-card medal-card">
+        <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
+        <div className="medal-info">
+          <div className="medal-name">Explorador Curioso</div>
+          <div className="medal-sub">Última medalla obtenida</div>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')}>Ver todas</button>
+      </div>
+    </>
+  )
+
   return (
     <PageWrapper>
       <Header onToggleSidebar={() => setSidebarOpen(true)} />

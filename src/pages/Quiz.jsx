@@ -95,6 +95,21 @@ export default function Quiz() {
     ]
   }
 
+  function recordAnswer(selectedIndex) {
+    answersRef.current = [
+      ...answersRef.current,
+      {
+        questionId: q.id,
+        question: q.text,
+        options: q.options,
+        correct: q.correct,
+        selected: selectedIndex,
+        isCorrect: selectedIndex === q.correct,
+        explanation: q.explanation
+      }
+    ]
+  }
+
   function handleTimeOut() {
     playTimeout()
     vibrateTimeout()

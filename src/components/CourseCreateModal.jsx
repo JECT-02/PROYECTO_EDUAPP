@@ -346,6 +346,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                             onChange={e => setCourseLevel(e.target.value)}
                           >
                             <option value="">Seleccionar nivel</option>
+
                             <option value="7-10">7-10 años</option>
                             <option value="11-14">11-14 años</option>
                             <option value="15-17">15-17 años</option>

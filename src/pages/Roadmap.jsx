@@ -264,6 +264,16 @@ export default function Roadmap() {
           <span className="sync-float-pct" style={{color:'var(--primary-light)'}}>72%</span>
         </div>
       </div>
+
+      {/* Sync-bar flotante en la parte inferior */}
+      <div className="sync-float">        <div className="sync-float-inner">
+          <span className="sync-float-label">Nivel de entendimiento</span>
+          <div className="sync-float-bar">
+            <div className="sync-float-fill" style={{width:'72%', background:'var(--primary)'}} />
+          </div>
+          <span className="sync-float-pct" style={{color:'var(--primary-light)'}}>72%</span>
+        </div>
+      </div>
     </PageWrapper>
   )
 }
