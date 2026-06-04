@@ -14,7 +14,7 @@ const PETS = [
 
 export default function OnboardingAvatar() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, updateProfile } = useAuth()
   const role = user?.role || 'student'
   const isStudent = role === 'student'
 
@@ -100,7 +100,7 @@ export default function OnboardingAvatar() {
             <button
               className={`btn btn-primary btn-lg ${loading?'loading':''}`}
               disabled={loading}
-              onClick={() => {
+              onClick={async () => {
                 setLoading(true)
                 const prefs = JSON.parse(localStorage.getItem('eduapp_prefs')||'{}')
                 prefs.avatar = avatar
@@ -110,8 +110,18 @@ export default function OnboardingAvatar() {
                 }
                 prefs[`onboardingCompleted_${role}`] = true
                 localStorage.setItem('eduapp_prefs', JSON.stringify(prefs))
+                // Persist to Supabase profile (no-op if not signed in)
+                try {
+                  const avatarIndex = ['🦊','🐺','🦁','🐯','🦅','🐬','🦋','🌟'].indexOf(avatar)
+                  const update = { avatar_id: avatarIndex >= 0 ? avatarIndex : null }
+                  if (isStudent) {
+                    update.pet_type = pet
+                    update.pet_name = petName || null
+                  }
+                  await updateProfile(update)
+                } catch { /* ignore */ }
                 const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
-                setTimeout(() => navigate(redirectMap[role] || '/dashboard'), 1500)
+                navigate(redirectMap[role] || '/dashboard')
               }}
             >
               {loading ? <span className="spinner"/> : '¡Comenzar mi viaje!'}
