@@ -21,7 +21,11 @@ export default function Quiz() {
   const [status, setStatus] = useState('idle')
   const [errorHint, setErrorHint] = useState('')
   const [loading, setLoading] = useState(true)
+  const [quizAnnouncement, setQuizAnnouncement] = useState('')
+  const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
+  const [timeAnnouncement, setTimeAnnouncement] = useState('')
   const answersRef = useRef([])
+  const optionsRef = useRef(null)
 
   // Load questions from DB or generate via AI
   useEffect(() => {
@@ -36,7 +40,6 @@ export default function Quiz() {
           (n) => String(n.position) === String(nodeId) || String(n.id) === String(nodeId)
         )
         if (found?.content) {
-          // content is JSON string like {"questions": [...]}
           try {
             const parsed = typeof found.content === 'string' ? JSON.parse(found.content) : found.content
             if (parsed?.questions?.length > 0) {
@@ -46,7 +49,6 @@ export default function Quiz() {
             }
           } catch { /* not JSON, fall through */ }
         }
-        // Generate quiz via AI
         const json = await generateQuiz({ courseId, nodeId, count: 4 })
         if (!cancelled && json?.questions?.length > 0) {
           setQuestions(json.questions)
@@ -64,6 +66,32 @@ export default function Quiz() {
   }, [courseId, nodeId])
 
   const q = questions?.[qIndex]
+
+  useEffect(() => {
+    if (!q) return
+    setQuizAnnouncement(`Pregunta ${qIndex + 1}. 30s. ${q.text}`)
+    setFeedbackAnnouncement('')
+    setTimeAnnouncement('')
+    requestAnimationFrame(() => {
+      const firstBtn = optionsRef.current?.querySelector('.quiz-opt-btn')
+      firstBtn?.focus()
+    })
+  }, [qIndex, q])
+
+  useEffect(() => {
+    if (status === 'correct') {
+      setFeedbackAnnouncement('¡Correcto!')
+    } else if (status === 'incorrect') {
+      setFeedbackAnnouncement(`Incorrecto. La respuesta correcta era ${String.fromCharCode(65 + q.correct)}.`)
+    }
+  }, [status, q])
+
+  useEffect(() => {
+    if (timeLeft === 15) setTimeAnnouncement('Quedan 15 segundos')
+    else if (timeLeft === 10) setTimeAnnouncement('Quedan 10 segundos')
+    else if (timeLeft === 5) setTimeAnnouncement('Quedan 5 segundos')
+    else if (timeLeft <= 3 && timeLeft > 0) setTimeAnnouncement(`${timeLeft} segundos`)
+  }, [timeLeft])
 
   useEffect(() => {
     if (!q || status !== 'idle') return
@@ -90,22 +118,7 @@ export default function Quiz() {
         correct: q.correct,
         selected: selectedIndex,
         isCorrect: selectedIndex === q.correct,
-        explanation: q.explanation || ''
-      }
-    ]
-  }
-
-  function recordAnswer(selectedIndex) {
-    answersRef.current = [
-      ...answersRef.current,
-      {
-        questionId: q.id,
-        question: q.text,
-        options: q.options,
-        correct: q.correct,
-        selected: selectedIndex,
-        isCorrect: selectedIndex === q.correct,
-        explanation: q.explanation
+        explanation: q.explanation || '',
       }
     ]
   }
@@ -150,13 +163,14 @@ export default function Quiz() {
       playCorrect()
       vibrateCorrect()
       setStatus('correct')
+      setTimeout(nextQuestion, 1500)
     } else {
       playIncorrect()
       vibrateIncorrect()
       setStatus('incorrect')
       triggerAnalysis(index).catch(() => {})
+      setTimeout(nextQuestion, 2000)
     }
-    setTimeout(nextQuestion, 1500)
   }
 
   function nextQuestion() {
@@ -165,6 +179,7 @@ export default function Quiz() {
       setTimeLeft(30)
       setSelected(null)
       setStatus('idle')
+      setErrorHint('')
     } else {
       const finalScore = answersRef.current.filter(a => a.isCorrect).length
       navigate('/quiz/result', {
@@ -179,16 +194,15 @@ export default function Quiz() {
     }
   }
 
-  // Loading state
   if (loading) {
     return (
       <PageWrapper className="quiz-page">
         <header className="quiz-header">
-          <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><X size={18}/></button>
+          <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Cerrar cuestionario"><X size={18} aria-hidden="true"/></button>
         </header>
         <main className="quiz-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-            <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} />
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)' }} role="status" aria-live="polite">
+            <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} aria-hidden="true" />
             <p>Generando preguntas con IA...</p>
           </div>
         </main>
@@ -200,10 +214,10 @@ export default function Quiz() {
     return (
       <PageWrapper className="quiz-page">
         <header className="quiz-header">
-          <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><X size={18}/></button>
+          <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Cerrar cuestionario"><X size={18} aria-hidden="true"/></button>
         </header>
         <main className="quiz-main" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <p style={{ color: 'var(--text-muted)' }}>No hay preguntas disponibles para este nodo.</p>
+          <p style={{ color: 'var(--text-muted)' }} role="status">No hay preguntas disponibles para este nodo.</p>
         </main>
       </PageWrapper>
     )
@@ -211,24 +225,23 @@ export default function Quiz() {
 
   return (
     <PageWrapper className="quiz-page">
-      <header className="quiz-header">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><X size={18}/></button>
+      <header className="quiz-header" role="banner" aria-label="Encabezado del cuestionario">
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Cerrar cuestionario"><X size={18} aria-hidden="true"/></button>
         <div className="quiz-progress-wrap">
           <div className="progress-bar">
             <div className="progress-fill" style={{width: `${(qIndex / questions.length) * 100}%`}} />
           </div>
         </div>
-        <div className="quiz-timer" style={{ color: timeLeft < 10 ? 'var(--error)' : 'var(--text)' }}>
+        <div className="quiz-timer" style={{ color: timeLeft < 10 ? 'var(--error)' : 'var(--text)' }} aria-live="polite" aria-label={`Tiempo restante: ${timeLeft} segundos`}>
           00:{timeLeft.toString().padStart(2, '0')}
         </div>
       </header>
 
-      <main className="quiz-main">
+      <div className="quiz-main">
         <div className="quiz-content">
-          <button className="icon-btn tts-btn"><Volume2 size={16}/></button>
           <h2 className="quiz-question">{q.text}</h2>
 
-          <div className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`}>
+          <div ref={optionsRef} className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`} role="radiogroup" aria-label="Opciones de respuesta">
             {q.options.map((opt, i) => {
               let btnClass = 'quiz-opt-btn card '
               if (status !== 'idle') {
@@ -245,24 +258,28 @@ export default function Quiz() {
                   className={btnClass}
                   onClick={() => handleSelect(i)}
                   disabled={status !== 'idle'}
+                  role="radio"
+                  aria-checked={i === selected}
+                  aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}
                 >
-                  <span className="opt-letter">{String.fromCharCode(65 + i)}</span>
+                  <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
                   <span className="opt-text">{opt}</span>
-                  {status !== 'idle' && i === q.correct && <span className="opt-icon">✓</span>}
-                  {status !== 'idle' && i === selected && i !== q.correct && <span className="opt-icon">✗</span>}
+                  {status !== 'idle' && i === q.correct && <span className="opt-icon" aria-hidden="true">✓</span>}
+                  {status !== 'idle' && i === selected && i !== q.correct && <span className="opt-icon" aria-hidden="true">✗</span>}
                 </button>
               )
             })}
           </div>
         </div>
-      </main>
+      </div>
 
-      <button className="fab-mic" title="Mantener para responder por voz">
-        <Mic size={24} />
-      </button>
+      {/* Screen reader announcements */}
+      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{quizAnnouncement}</div>
+      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {status === 'incorrect' && q && (
-        <div className="quiz-feedback-toast error">
+        <div className="quiz-feedback-toast error" role="alert">
           <Mascot type="robot" size="sm" mood="sad" />
           <div className="toast-text">
             <strong>¡Cuidado!</strong> La respuesta correcta era la {String.fromCharCode(65 + q.correct)}.
@@ -271,13 +288,21 @@ export default function Quiz() {
         </div>
       )}
       {status === 'correct' && (
-        <div className="quiz-feedback-toast success">
+        <div className="quiz-feedback-toast success" role="status">
           <Mascot type="robot" size="sm" mood="happy" />
           <div className="toast-text">
             <strong>¡Excelente!</strong> Muy bien hecho.
           </div>
         </div>
       )}
+
+      <button
+        className="fab-mic"
+        aria-label="Responder por voz. Mantén presionado para dictar tu respuesta."
+        title="Mantener para responder por voz"
+      >
+        <Mic size={24} aria-hidden="true" />
+      </button>
     </PageWrapper>
   )
 }

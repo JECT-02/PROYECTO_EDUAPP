@@ -56,6 +56,26 @@ function ProtectedRoute({ children, allowedRoles }) {
   return children
 }
 
+/**
+ * Focus management: after each route change, move focus to #main-content
+ * so keyboard/screen-reader users start from the content.
+ */
+function FocusManager() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const el = document.getElementById('main-content')
+    if (el) {
+      el.setAttribute('tabindex', '-1')
+      el.focus({ preventScroll: true })
+      // Remove tabindex after focus so it doesn't appear in tab order
+      setTimeout(() => el.removeAttribute('tabindex'), 100)
+    }
+  }, [location.pathname])
+
+  return null
+}
+
 function PublicRoute({ children }) {
   const { isAuthenticated, role, loading } = useAuth()
 
@@ -106,7 +126,27 @@ export default function App() {
 
   return (
     <HashRouter>
+      {/* Skip link: first focusable element on every page */}
+      {/* Using onClick + preventDefault to avoid HashRouter intercepting the hash */}
+      <a
+        href="#main-content"
+        className="skip-link"
+        onClick={(e) => {
+          e.preventDefault()
+          const el = document.getElementById('main-content')
+          if (el) {
+            el.setAttribute('tabindex', '-1')
+            el.focus()
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            setTimeout(() => el.removeAttribute('tabindex'), 100)
+          }
+        }}
+      >
+        Saltar al contenido principal
+      </a>
+
       <StarsBackground />
+      <FocusManager />
       <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <AnimatePresence mode="wait">
         <Routes>

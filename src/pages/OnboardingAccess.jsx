@@ -1,13 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, Volume2, Move, Mic, Type, Glasses, Sparkles, Check } from 'lucide-react'
+import { Eye, Move, Mic, Type, Glasses, Sparkles, Check } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import './Onboarding.css'
 
 const OPTIONS = [
   { key:'contrast', label:'Modo de alto contraste', desc:'Máximo contraste en colores', icon:<Eye size={24}/> },
-  { key:'narration', label:'Narración por voz', desc:'El sistema lee el contenido en voz alta', icon:<Volume2 size={24}/> },
   { key:'reduced', label:'Reducir animaciones', desc:'Fades simples en lugar de efectos complejos', icon:<Move size={24}/> },
   { key:'voice', label:'Navegación por voz', desc:'Controla la app con comandos de voz', icon:<Mic size={24}/> },
   { key:'largeText', label:'Texto grande', desc:'Aumenta el tamaño de letra base', icon:<Type size={24}/> },
@@ -44,11 +43,6 @@ export default function OnboardingAccess() {
       document.body.classList.toggle('large-text', nextVal)
       document.documentElement.style.fontSize = nextVal ? '18px' : ''
     }
-    if (key === 'narration' && nextVal && 'speechSynthesis' in window) {
-      const u = new SpeechSynthesisUtterance('Narración activada. ¡Hola! Estoy aquí para ayudarte.')
-      u.lang = 'es-ES'; u.rate = 0.9
-      window.speechSynthesis.speak(u)
-    }
   }
 
   function handleContinue() {
@@ -82,7 +76,7 @@ export default function OnboardingAccess() {
       <div className="onboarding-page">
         <div className="onboarding-wrap">
           {/* Header */}
-          <div className="onboarding-header">
+          <div className="onboarding-header" role="banner">
             <div className="onb-logo">✦ EduApp</div>
             <div className="onb-step-badge">Paso 1 de 2</div>
           </div>
@@ -92,24 +86,32 @@ export default function OnboardingAccess() {
             <p>Activa las opciones que mejor se adapten a ti. Puedes cambiarlas cuando quieras.</p>
           </div>
 
-          <div className="access-grid">
-            {OPTIONS.map(o => (
-              <div
-                key={o.key}
-                className={`access-card ${prefs[o.key] ? 'enabled' : ''}`}
-                onClick={() => toggle(o.key)}
-              >
-                <div className="access-icon">{o.icon}</div>
-                <div className="access-info">
-                  <div className="access-label">{o.label}</div>
-                  <div className="access-desc">{o.desc}</div>
+          <div className="access-grid" role="group" aria-label="Opciones de accesibilidad">
+            {OPTIONS.map(o => {
+              const id = `onb-access-${o.key}`
+              return (
+                <div
+                  key={o.key}
+                  className={`access-card ${prefs[o.key] ? 'enabled' : ''}`}
+                  onClick={() => toggle(o.key)}
+                  role="checkbox"
+                  aria-checked={!!prefs[o.key]}
+                  aria-labelledby={id}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(o.key); } }}
+                >
+                  <div className="access-icon" aria-hidden="true">{o.icon}</div>
+                  <div className="access-info">
+                    <div className="access-label" id={id}>{o.label}</div>
+                    <div className="access-desc">{o.desc}</div>
+                  </div>
+                  <label className="toggle-switch" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={!!prefs[o.key]} onChange={() => toggle(o.key)} aria-labelledby={id} />
+                    <span className="toggle-slider" aria-hidden="true" />
+                  </label>
                 </div>
-                <label className="toggle-switch" onClick={e => e.stopPropagation()}>
-                  <input type="checkbox" checked={!!prefs[o.key]} onChange={() => toggle(o.key)}/>
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <div className="onb-actions">

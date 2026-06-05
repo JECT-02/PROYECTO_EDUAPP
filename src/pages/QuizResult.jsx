@@ -29,9 +29,9 @@ export default function QuizResult() {
 
   return (
     <PageWrapper className="center-all">
-      <div className="quiz-result-card">
+      <div className="quiz-result-card" aria-live="polite" aria-atomic="true">
         {/* Icon */}
-        <div className="result-icon">
+        <div className="result-icon" aria-hidden="true">
           {passed ? (
             <CheckCircle2 size={64} color="var(--success)" />
           ) : (

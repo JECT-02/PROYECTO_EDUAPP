@@ -19,6 +19,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  margin-bottom: 20px;
 }
 .greeting-text {
   font-size: clamp(1.4rem, 3vw, 2rem);

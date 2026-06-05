@@ -138,7 +138,7 @@ export default function Roadmap() {
     <PageWrapper className="roadmap-page-wrap">
       <div className="rm-header">
         <div className="rm-h-left">
-          <button className="icon-btn" onClick={() => navigate(isTeacher ? '/teacher' : '/dashboard')}><ArrowLeft size={18}/></button>
+          <button className="icon-btn" onClick={() => navigate(isTeacher ? '/teacher' : '/dashboard')} aria-label="Volver al inicio"><ArrowLeft size={18} aria-hidden="true"/></button>
           <div>
             <h2 className="rm-course-title">{courseTitle}</h2>
             <div className="rm-progress-bar">
@@ -160,22 +160,35 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
+          <nav aria-label="Mapa de aprendizaje">
+          {/* Lista semántica para lectores de pantalla */}
+          <ol className="visually-hidden" aria-label="Lista de nodos del curso">
+            {nodes.map((n, i) => {
+              const statusMap = { completed: 'completado', in_progress: 'en progreso', available: 'disponible', locked: 'bloqueado' }
+              const typesMap = { theory: 'teoría', quiz: 'cuestionario', boss: 'examen final', practice: 'práctica' }
+              return (
+                <li key={n.id}>
+                  Nodo {i + 1}: {n.title}. Tipo: {typesMap[n.type] || n.type}. Estado: {statusMap[n.status] || n.status}
+                </li>
+              )
+            })}
+          </ol>
           <div className="rm-path-container" style={{ width: containerWidth, height: Math.max(nodes.length, 1) * nodeSpacing + 200 }}>
 
             {errorMsg && (
-              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'var(--text-muted)' }} role="status">
                 <p>{errorMsg}</p>
               </div>
             )}
 
             {loading && (
-              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
-                <LoaderCircle size={20} className="animate-spin" /> Cargando roadmap...
+              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }} role="status" aria-live="polite">
+                <LoaderCircle size={20} className="animate-spin" aria-hidden="true" /> Cargando roadmap...
               </div>
             )}
 
             {!loading && !errorMsg && nodes.length === 0 && (
-              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: 'var(--text-muted)' }} role="status">
                 <p>Este curso aún no tiene nodos en el roadmap.</p>
                 {isTeacher && (
                   <button className="btn btn-primary btn-sm" onClick={() => navigate(`/teacher/design/${courseId}`)} style={{ marginTop: 12 }}>
@@ -187,7 +200,7 @@ export default function Roadmap() {
 
             {nodes.length > 0 && (
               <>
-                <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+                <svg className="rm-svg-path" width={containerWidth} height={nodes.length * nodeSpacing + 200} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }} role="img" aria-label={`Mapa del curso con ${nodes.length} nodos`}>
                   <path
                     d={generateSVGPath(nodes.length)}
                     fill="none"
@@ -209,6 +222,11 @@ export default function Roadmap() {
 
                 {nodes.map((node, i) => {
                   const pos = getNodePos(i)
+                  const nodeLabel = `Nodo ${i + 1}: ${
+                    { theory: 'Lección de teoría', quiz: 'Cuestionario', boss: 'Examen final', practice: 'Práctica' }[node.type] || node.type
+                  }: ${node.title}. ${
+                    { completed: 'Completado', in_progress: 'En progreso', available: 'Disponible', locked: 'Bloqueado' }[node.status] || node.status
+                  }`
                   return (
                     <div
                       key={node.id}
@@ -218,6 +236,20 @@ export default function Roadmap() {
                       <div
                         className={`rm-node-v2 ${node.type} ${node.status} ${isMobile ? 'mobile' : ''}`}
                         style={{ width: nodeSize, height: nodeSize }}
+                        role="button"
+                        tabIndex={node.status === 'locked' ? -1 : 0}
+                        aria-label={nodeLabel}
+                        aria-disabled={node.status === 'locked'}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            if (node.status !== 'locked') {
+                              const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
+                              navigate(`${path}/${courseId}/${node.position || node.id}`)
+                            }
+                          }
+                        }}
                         onClick={() => {
                           if (node.status !== 'locked') {
                             const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
@@ -227,8 +259,8 @@ export default function Roadmap() {
                           }
                         }}
                       >
-                        <div className="node-glow" />
-                        <div className="node-main">
+                        <div className="node-glow" aria-hidden="true" />
+                        <div className="node-main" aria-hidden="true">
                           {node.type === 'theory' ? <Book size={iconSize} /> :
                            node.type === 'practice' ? <Puzzle size={iconSize} /> :
                            node.type === 'quiz' ? <Zap size={iconSize} /> : <Trophy size={bossIconSize} />}
@@ -242,7 +274,7 @@ export default function Roadmap() {
                         </div>
                       </div>
                       {activeNode && node.id === activeNode.id && (
-                        <div className="rm-mascot-guide" style={{ position: 'absolute', top: mascotOffset, left: isMobile ? 30 : 40 }}>
+                        <div className="rm-mascot-guide" style={{ position: 'absolute', top: mascotOffset, left: isMobile ? 30 : 40 }} aria-hidden="true">
                           <Mascot type="dragon" size="sm" mood="normal" />
                         </div>
                       )}
@@ -252,21 +284,12 @@ export default function Roadmap() {
               </>
             )}
           </div>
+          </nav>
         </div>
       </div>
 
       <div className="sync-float">
         <div className="sync-float-inner">
-          <span className="sync-float-label">Nivel de entendimiento</span>
-          <div className="sync-float-bar">
-            <div className="sync-float-fill" style={{width:'72%', background:'var(--primary)'}} />
-          </div>
-          <span className="sync-float-pct" style={{color:'var(--primary-light)'}}>72%</span>
-        </div>
-      </div>
-
-      {/* Sync-bar flotante en la parte inferior */}
-      <div className="sync-float">        <div className="sync-float-inner">
           <span className="sync-float-label">Nivel de entendimiento</span>
           <div className="sync-float-bar">
             <div className="sync-float-fill" style={{width:'72%', background:'var(--primary)'}} />

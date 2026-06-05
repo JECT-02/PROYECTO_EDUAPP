@@ -40,8 +40,8 @@ export default function Profile() {
 
   return (
     <PageWrapper className="profile-page">
-      <header className="profile-header">
-        <button className="icon-btn" onClick={() => navigate(-1)}><ArrowLeft size={18}/></button>
+      <header className="profile-header" role="banner" aria-label="Encabezado de perfil">
+        <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Volver"><ArrowLeft size={18} aria-hidden="true"/></button>
         <h1 className="profile-title">Mi Perfil</h1>
       </header>
 

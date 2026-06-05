@@ -81,7 +81,6 @@ export default function Lesson() {
 
   const fallbackData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
 
-  // Carga nodo desde la DB
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -100,7 +99,6 @@ export default function Lesson() {
         setDbLoading(false)
         return
       }
-      // Sin contenido -> pedir a generate-lesson via SSE
       try {
         const accessToken = await getAccessToken()
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-lesson`, {
@@ -162,10 +160,11 @@ export default function Lesson() {
     : fallbackData
 
   const [content, setContent] = useState(lessonData.content)
-  const [progress, setProgress] = useState(0)
+  const [displayedText, setDisplayedText] = useState(content.map(() => ''))
   const [readIndex, setReadIndex] = useState(0)
-  const [displayedText, setDisplayedText] = useState(['', '', '', ''])
   const [skip, setSkip] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [isAiEnhanced, setIsAiEnhanced] = useState(false)
   const [isTooltipOpen, setTooltip] = useState(null)
 
   const [showChat, setShowChat] = useState(false)
@@ -174,18 +173,22 @@ export default function Lesson() {
   ])
   const [inputText, setInputText] = useState('')
   const [chatStreaming, setChatStreaming] = useState(false)
-  const [isAiEnhanced, setIsAiEnhanced] = useState(false)
   const chatEndRef = useRef(null)
   const chatAbortRef = useRef(null)
   const lastAiResponseRef = useRef('')
+  const paragraphRefs = useRef([])
+  const chatInputRef = useRef(null)
+  const chatMessagesRef = useRef(null)
+  const [activeParagraph, setActiveParagraph] = useState(0)
 
   useEffect(() => {
-    setReadIndex(0)
-    setDisplayedText(['','','',''])
-    setSkip(false)
     setContent(lessonData.content)
+    setDisplayedText(lessonData.content.map(() => ''))
+    setReadIndex(0)
     setProgress(0)
+    setSkip(false)
     setIsAiEnhanced(false)
+    setActiveParagraph(0)
     setMessages([
       { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
     ])
@@ -229,6 +232,26 @@ export default function Lesson() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  useEffect(() => {
+    if (showChat) {
+      chatMessagesRef.current?.focus()
+    }
+  }, [showChat])
+
+  function handleContentKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = activeParagraph === displayedText.length - 1 ? 0 : activeParagraph + 1
+      setActiveParagraph(next)
+      paragraphRefs.current[next]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prev = activeParagraph === 0 ? displayedText.length - 1 : activeParagraph - 1
+      setActiveParagraph(prev)
+      paragraphRefs.current[prev]?.focus()
+    }
+  }
+
   const abortChat = useCallback(() => {
     if (chatAbortRef.current) {
       chatAbortRef.current.abort()
@@ -246,10 +269,11 @@ export default function Lesson() {
     if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
       setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
       setTimeout(() => {
-        setReadIndex(0)
-        setDisplayedText(['','','',''])
-        setSkip(false)
         setContent(lessonData.simplified)
+        setDisplayedText(lessonData.simplified.map(() => ''))
+        setReadIndex(0)
+        setSkip(false)
+        setProgress(0)
       }, 1000)
       return
     }
@@ -369,17 +393,23 @@ export default function Lesson() {
 
   return (
     <PageWrapper className="lesson-page">
-      <header className="lesson-header">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)}><ArrowLeft size={18}/></button>
-        <div className="lesson-title-wrap">
-          <span className="lesson-subtitle">Curso {courseId} • Lección</span>
-          <h1 className="lesson-title">{lessonData.title}</h1>
+      <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true"/></button>
+        <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseId}, Lección: ${lessonData.title}`}>
+          <span className="lesson-subtitle" aria-hidden="true">Curso {courseId} • Lección</span>
+          <h1 className="lesson-title" aria-hidden="true">{lessonData.title}</h1>
         </div>
-        <button className="icon-btn" title="Narración de voz"><Volume2 size={18}/></button>
       </header>
 
-      <main className="lesson-content">
-        <div className="lesson-text-container">
+      <div className="lesson-content">
+        <div
+          className="lesson-text-container"
+          role="application"
+          aria-label="Contenido de la lección"
+          tabIndex={0}
+          onKeyDown={handleContentKeyDown}
+          onFocus={(e) => { if (e.target === e.currentTarget) { setActiveParagraph(0); paragraphRefs.current[0]?.focus() } }}
+        >
           {content === lessonData.simplified && (
             <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={14}/> Contenido simplificado por la IA
@@ -393,46 +423,65 @@ export default function Lesson() {
                 onClick={() => {
                   setIsAiEnhanced(false)
                   setContent(lessonData.content)
-                  setReadIndex(0)
                   setDisplayedText(lessonData.content.map(() => ''))
+                  setReadIndex(0)
                   setSkip(false)
                   setProgress(0)
                 }}
                 title="Restaurar contenido original"
                 style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+                aria-label="Restaurar contenido original"
               >
                 <RefreshCw size={12}/> Original
               </button>
             </div>
           )}
           {displayedText.map((html, i) => (
-            <p key={i} className="lesson-paragraph" dangerouslySetInnerHTML={{ __html: html }} />
+            <p
+              key={i}
+              ref={el => paragraphRefs.current[i] = el}
+              tabIndex={-1}
+              className="lesson-paragraph"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
           ))}
-          {!skip && readIndex < content.length && (
-            <button className="btn btn-ghost skip-btn" onClick={() => setSkip(true)}>
-              <FastForward size={16}/> Saltar animación
-            </button>
-          )}
         </div>
-      </main>
+      </div>
 
       <footer className="lesson-footer">
         <div className="lesson-progress-row">
-          <div className="progress-bar" style={{flex:1}}><div className="progress-fill" style={{width:`${progress}%`}}/></div>
-          <span className="progress-lbl">{Math.round(progress)}% completado</span>
+          <div className="progress-bar" style={{flex:1}}>
+            <div className="progress-fill" style={{width:`${progress}%`}}/>
+          </div>
+          <span className="progress-lbl" aria-live="polite">{Math.round(progress)}% completado</span>
         </div>
-        <button className="btn btn-primary btn-lg" disabled={progress < 75} onClick={handleFinishNode}>
-          Terminar Nodo
-        </button>
+        <div className="lesson-footer-actions">
+          <button
+            className="btn btn-ghost"
+            onClick={() => setSkip(true)}
+            disabled={skip || progress >= 100}
+            aria-label="Saltar animación de escritura y mostrar todo el contenido"
+          >
+            <FastForward size={16}/> Saltar
+          </button>
+          <button
+            className="btn btn-primary btn-lg"
+            onClick={handleFinishNode}
+            disabled={progress < 75}
+            aria-label="Terminar nodo y volver al mapa"
+          >
+            Terminar Nodo
+          </button>
+        </div>
       </footer>
 
       {showChat && (
-        <div className="ai-chat-window">
+        <div className="ai-chat-window" role="dialog" aria-label="Chat con asistente">
           <div className="chat-header">
             <h3><Bot size={18}/> Tutor IA</h3>
-            <button className="icon-btn sm" onClick={() => setShowChat(false)}><X size={14}/></button>
+            <button className="icon-btn sm" onClick={() => setShowChat(false)} aria-label="Cerrar asistente"><X size={14}/></button>
           </div>
-          <div className="chat-messages">
+          <div ref={chatMessagesRef} className="chat-messages" tabIndex={0} aria-live="polite" aria-label="Mensajes del asistente">
             {messages.map((m, i) => (
               <div
                 key={i}
@@ -442,13 +491,14 @@ export default function Lesson() {
             ))}
             {chatStreaming && (
               <div className="chat-msg ai chat-typing">
-                <LoaderCircle size={14} className="animate-spin" /> pensando...
+                <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> pensando...
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
           <div className="chat-input-area">
             <input
+              ref={chatInputRef}
               type="text"
               className="chat-input"
               placeholder="Pregunta algo..."
@@ -456,15 +506,31 @@ export default function Lesson() {
               onChange={e => setInputText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !chatStreaming && handleSendChat()}
               disabled={chatStreaming}
+              aria-label="Escribe tu pregunta al tutor IA"
             />
-            <button className="chat-send" onClick={handleSendChat} disabled={chatStreaming}>
-              {chatStreaming ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16}/>}
+            <button
+              className="chat-send"
+              onClick={handleSendChat}
+              disabled={chatStreaming}
+              aria-label="Enviar mensaje"
+            >
+              {chatStreaming ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Send size={16}/>}
             </button>
+            {chatStreaming && (
+              <button
+                className="chat-cancel"
+                onClick={abortChat}
+                aria-label="Detener respuesta del tutor"
+                title="Detener"
+              >
+                <X size={14}/>
+              </button>
+            )}
           </div>
         </div>
       )}
       {!showChat && (
-        <button className="ai-chat-trigger" onClick={() => setShowChat(true)}>
+        <button className="ai-chat-trigger" onClick={() => setShowChat(true)} aria-label="Abrir asistente de IA">
           <Bot size={28} />
         </button>
       )}
@@ -481,7 +547,6 @@ function formatParagraph(text) {
 function splitContent(rawContent) {
   if (!rawContent) return []
   if (Array.isArray(rawContent)) return rawContent
-  // Si viene como markdown o HTML con <p>, dividir en párrafos
   const stripped = String(rawContent)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
