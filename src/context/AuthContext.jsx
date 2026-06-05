@@ -1,157 +1,240 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import {
+  getProfile,
+  listLinkedStudentsForParent,
+  requestParentLink,
+  unlinkStudent as apiUnlinkStudent,
+} from '../lib/api'
+import { registerUserSimulated } from '../lib/llm'
 
 const AuthContext = createContext(null)
 
 const ROLE_ROUTES = {
-  teacher: { allowed: ['/teacher','/profile','/settings'], redirect: '/teacher', label: 'Docente' },
-  student: { allowed: ['/dashboard','/explore','/roadmap','/lesson','/quiz','/coliseo','/achievements','/review','/profile','/settings'], redirect: '/dashboard', label: 'Estudiante' },
-  parent: { allowed: ['/parent','/profile','/settings'], redirect: '/parent', label: 'Padre' },
+  teacher: { allowed: ['/teacher', '/profile', '/settings'], redirect: '/teacher', label: 'Docente' },
+  student: {
+    allowed: ['/dashboard', '/explore', '/roadmap', '/lesson', '/quiz', '/coliseo', '/achievements', '/review', '/profile', '/settings'],
+    redirect: '/dashboard',
+    label: 'Estudiante',
+  },
+  parent: { allowed: ['/parent', '/profile', '/settings'], redirect: '/parent', label: 'Padre' },
 }
 
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/onboarding/accessibility', '/onboarding/avatar']
 
-function getStudentRegistry() {
-  try {
-    const data = localStorage.getItem('eduapp_students')
-    return data ? JSON.parse(data) : {}
-  } catch { return {} }
+const DEFAULT_AVATAR = { teacher: '👩‍🏫', student: '🦊', parent: '👨‍👩‍👧' }
+
+function getInitialName(email, role) {
+  const prefix = role === 'teacher' ? 'Prof. ' : role === 'parent' ? 'Fam. ' : ''
+  const local = (email || '').split('@')[0] || 'Usuario'
+  return prefix + local.charAt(0).toUpperCase() + local.slice(1)
 }
 
-function saveStudentRegistry(registry) {
-  localStorage.setItem('eduapp_students', JSON.stringify(registry))
-}
-
-function getParentLinks() {
-  try {
-    const data = localStorage.getItem('eduapp_parent_links')
-    return data ? JSON.parse(data) : {}
-  } catch { return {} }
-}
-
-function saveParentLinks(links) {
-  localStorage.setItem('eduapp_parent_links', JSON.stringify(links))
+function profileToUser(profile, email) {
+  if (!profile) return null
+  return {
+    id: profile.id,
+    email: profile.email || email,
+    role: profile.role,
+    name: profile.full_name || getInitialName(email, profile.role),
+    avatar: DEFAULT_AVATAR[profile.role] || '🦊',
+    isAuthenticated: true,
+    fullProfile: profile,
+  }
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('eduapp_auth')
-    if (saved) {
-      try { return JSON.parse(saved) } catch { return null }
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [linkedStudents, setLinkedStudents] = useState([])
+
+  const refreshLinked = useCallback(async (parentId) => {
+    if (!parentId) {
+      setLinkedStudents([])
+      return
     }
-    return null
-  })
+    const { data } = await listLinkedStudentsForParent(parentId)
+    const mapped = (data || []).map((row) => ({
+      id: row.student_id,
+      linkId: row.id,
+      name: row.student?.full_name || 'Estudiante',
+    }))
+    setLinkedStudents(mapped)
+  }, [])
+
+  const hydrateFromSession = useCallback(async (session) => {
+    if (!session?.user) {
+      setUser(null)
+      setLinkedStudents([])
+      setLoading(false)
+      return
+    }
+    const { data: profile, error } = await getProfile(session.user.id)
+    if (error) {
+      console.warn('[auth] No se pudo cargar el perfil:', error.message)
+    }
+    const u = profileToUser(profile, session.user.email)
+    setUser(u)
+    if (u?.role === 'parent') {
+      await refreshLinked(u.id)
+    } else {
+      setLinkedStudents([])
+    }
+    setLoading(false)
+  }, [refreshLinked])
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('eduapp_auth', JSON.stringify(user))
-    } else {
-      localStorage.removeItem('eduapp_auth')
+    let unsub
+    if (!isSupabaseConfigured || !supabase) {
+      setLoading(false)
+      return
     }
-  }, [user])
-
-  function login(email, role, name, dni) {
-    let studentId = null
-    if (role === 'student') {
-      const registry = getStudentRegistry()
-      if (dni) {
-        // Registration: use DNI as student ID
-        studentId = dni
-        if (!registry[studentId]) {
-          registry[studentId] = {
-            id: studentId,
-            name: name || getDefaultName(email, role),
-            email,
-            registeredAt: new Date().toISOString(),
-          }
-          saveStudentRegistry(registry)
-        }
-      } else {
-        // Login: find existing student by email to load their DNI
-        const found = Object.entries(registry).find(([, s]) => s.email === email)
-        if (found) studentId = found[0]
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      hydrateFromSession(session)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      hydrateFromSession(session)
+    })
+    unsub = sub?.subscription
+    return () => {
+      try {
+        unsub?.unsubscribe()
+      } catch {
+        // ignore
       }
     }
+  }, [hydrateFromSession])
 
-    const newUser = {
-      email,
-      role,
-      name: name || getDefaultName(email, role),
-      avatar: getDefaultAvatar(role),
-      isAuthenticated: true,
-      ...(role === 'student' && { studentId }),
-      ...(role === 'parent' && { linkedStudents: getParentLinks()[email] || [] }),
+  async function login({ email, password, magicLink = false }) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase no está configurado. Completa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env.')
     }
-    setUser(newUser)
-    return newUser
+    if (magicLink) {
+      const { error } = await supabase.auth.signInWithOtp({ email })
+      if (error) throw error
+      return { magicSent: true }
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    await hydrateFromSession(data.session)
+    return { user: profileToUser(null, data.user?.email) }
   }
 
-  const linkStudent = useCallback((studentId) => {
-    if (!user || user.role !== 'parent') return { success: false, error: 'Solo los padres pueden vincular estudiantes.' }
-
-    const registry = getStudentRegistry()
-    const student = registry[studentId]
-    if (!student) return { success: false, error: 'No se encontró un estudiante con ese DNI. Verifica e intenta de nuevo.' }
-
-    const links = getParentLinks()
-    const parentLinks = links[user.email] || []
-
-    if (parentLinks.some(s => s.id === studentId)) {
-      return { success: false, error: `El estudiante "${student.name}" ya está vinculado a tu cuenta.` }
+  async function register({ email, password, fullName, role, ageBand, institution, subject, relation, dni, accessibility, avatar_id, pet_type, pet_name }) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase no está configurado.')
     }
+    // 1) Simular verificación: crear el usuario via Edge Function (email_confirm=true).
+    //    Esto bypasea la verificación real por correo y agrega el usuario a la DB.
+    let result
+    try {
+      result = await registerUserSimulated({
+        email, password, fullName, role, ageBand, institution, subject, relation, dni,
+        accessibility, avatar_id, pet_type, pet_name,
+      })
+    } catch (e) {
+      throw new Error(e?.message || 'No se pudo crear la cuenta.')
+    }
+    if (result?.error) throw new Error(result.error)
+    // 2) Iniciar sesión automáticamente con las mismas credenciales.
+    const { data: loginData, error: lErr } = await supabase.auth.signInWithPassword({ email, password })
+    if (lErr) throw lErr
+    if (loginData?.session) {
+      await hydrateFromSession(loginData.session)
+    }
+    return { user: loginData?.user, needsConfirmation: false, simulated: true }
+  }
 
-    const updatedLinks = [...parentLinks, { id: studentId, name: student.name, linkedAt: new Date().toISOString() }]
-    links[user.email] = updatedLinks
-    saveParentLinks(links)
+  async function resetPassword(email) {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase no está configurado.')
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/login',
+    })
+    if (error) throw error
+  }
 
-    // Update current user state
-    setUser(prev => ({ ...prev, linkedStudents: updatedLinks }))
-
-    return { success: true, student }
-  }, [user])
-
-  const unlinkStudent = useCallback((studentId) => {
-    if (!user || user.role !== 'parent') return
-
-    const links = getParentLinks()
-    const parentLinks = links[user.email] || []
-    links[user.email] = parentLinks.filter(s => s.id !== studentId)
-    saveParentLinks(links)
-
-    setUser(prev => ({
-      ...prev,
-      linkedStudents: links[user.email],
-    }))
-  }, [user])
-
-  function logout() {
+  async function logout() {
+    if (supabase) {
+      await supabase.auth.signOut()
+    }
     setUser(null)
+    setLinkedStudents([])
     document.body.classList.remove('high-contrast', 'reduce-motion', 'colorblind', 'large-text')
     document.documentElement.style.fontSize = ''
   }
 
+  const linkStudentByEmail = useCallback(
+    async (studentEmail) => {
+      if (!user || user.role !== 'parent') {
+        return { success: false, error: 'Solo los padres pueden vincular estudiantes.' }
+      }
+      const { data, error } = await requestParentLink({ parentId: user.id, studentEmail })
+      if (error) return { success: false, error: error.message }
+      await refreshLinked(user.id)
+      return { success: true, student: { id: data.student_id, name: studentEmail } }
+    },
+    [user, refreshLinked]
+  )
+
+  const unlinkStudent = useCallback(
+    async (linkIdOrStudentId) => {
+      if (!user || user.role !== 'parent') return
+      const target = linkedStudents.find((s) => s.id === linkIdOrStudentId || s.linkId === linkIdOrStudentId)
+      if (target?.linkId) {
+        await apiUnlinkStudent(target.linkId)
+        await refreshLinked(user.id)
+      }
+    },
+    [user, linkedStudents, refreshLinked]
+  )
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return
+    const { data } = await getProfile(user.id)
+    if (data) {
+      setUser((prev) => (prev ? { ...prev, fullProfile: data, name: data.full_name || prev.name, avatar: DEFAULT_AVATAR[data.role] || prev.avatar } : prev))
+    }
+  }, [user])
+
+  const updateProfileData = useCallback(async (updates) => {
+    if (!user?.id) return { error: new Error('No hay sesión') }
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single()
+    if (!error && data) {
+      setUser((prev) => (prev ? { ...prev, fullProfile: data, name: data.full_name || prev.name, avatar: DEFAULT_AVATAR[data.role] || prev.avatar } : prev))
+    }
+    return { data, error }
+  }, [user])
+
   const isAuthenticated = !!user
   const role = user?.role || null
+  const studentId = user?.fullProfile?.id || user?.id || null
 
-  return (
-    <AuthContext.Provider value={{ user, role, isAuthenticated, login, logout, linkStudent, unlinkStudent, ROLE_ROUTES, PUBLIC_ROUTES }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  const value = {
+    user,
+    role,
+    isAuthenticated,
+    loading,
+    studentId,
+    linkedStudents,
+    login,
+    register,
+    resetPassword,
+    logout,
+    linkStudent: linkStudentByEmail,
+    unlinkStudent,
+    refreshProfile,
+    updateProfile: updateProfileData,
+    ROLE_ROUTES,
+    PUBLIC_ROUTES,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-}
-
-function getDefaultName(email, role) {
-  const prefix = role === 'teacher' ? 'Prof. ' : role === 'parent' ? 'Fam. ' : ''
-  const localPart = email?.split('@')[0] || 'Usuario'
-  return prefix + localPart.charAt(0).toUpperCase() + localPart.slice(1)
-}
-
-function getDefaultAvatar(role) {
-  const avatars = { teacher: '👩‍🏫', student: '🦊', parent: '👨‍👩‍👧' }
-  return avatars[role] || '🦊'
 }

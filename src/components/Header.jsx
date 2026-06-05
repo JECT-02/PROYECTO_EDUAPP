@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users, PanelRightOpen } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { listNotifications } from '../lib/api'
 import './Header.css'
 
 const NOTIFICATIONS_BY_ROLE = {
@@ -30,6 +31,7 @@ export default function Header({ onToggleSidebar }) {
   const [dropdown, setDropdown] = useState(false)
   const [showNotifs, setShowNotifs] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [dbNotifs, setDbNotifs] = useState([])
   const mobileNavRef = useRef(null)
   const notifFirstFocusableRef = useRef(null)
 
@@ -45,6 +47,19 @@ export default function Header({ onToggleSidebar }) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileNavOpen])
 
+  // Load notifications from DB when user changes
+  useEffect(() => {
+    if (!user?.id) {
+      setDbNotifs([])
+      return
+    }
+    let cancelled = false
+    listNotifications(user.id).then(({ data }) => {
+      if (!cancelled) setDbNotifs(data || [])
+    })
+    return () => { cancelled = true }
+  }, [user?.id])
+
   // Focus notification dialog when it opens — makes NVDA read its content
   useEffect(() => {
     if (showNotifs && notifFirstFocusableRef.current) {
@@ -55,7 +70,17 @@ export default function Header({ onToggleSidebar }) {
     }
   }, [showNotifs])
 
-  const notifications = NOTIFICATIONS_BY_ROLE[user?.role || 'student'] || NOTIFICATIONS_BY_ROLE.student
+  const notifications =
+    dbNotifs.length > 0
+      ? dbNotifs.map((n) => ({
+          id: n.id,
+          title: n.payload?.title || n.type,
+          desc: n.payload?.desc || (n.payload?.student_name ? `Estudiante: ${n.payload.student_name}` : ''),
+          time: new Date(n.created_at).toLocaleString('es-ES'),
+          icon: <Bell size={16} />,
+          color: '#6C63FF',
+        }))
+      : NOTIFICATIONS_BY_ROLE[user?.role || 'student'] || NOTIFICATIONS_BY_ROLE.student
 
   const userData = user || { name: 'Usuario', avatar: '🦊', role: 'student' }
 
@@ -189,7 +214,7 @@ export default function Header({ onToggleSidebar }) {
                   <Settings size={15} aria-hidden="true"/> Configuración
                 </button>
                 <div className="dropdown-divider" role="separator" />
-                <button className="dropdown-item danger" role="menuitem" onClick={() => { logout(); navigate('/login'); setDropdown(false) }}>
+                <button className="dropdown-item danger" role="menuitem" onClick={async () => { try { await logout() } catch { /* ignore */ } navigate('/login'); setDropdown(false) }}>
                   <LogOut size={15} aria-hidden="true"/> Cerrar sesión
                 </button>
               </div>

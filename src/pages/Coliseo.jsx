@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic } from 'lucide-react'
+import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic, AlertCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { initAudio, playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
+import { useAuth } from '../context/AuthContext'
+import { isSupabaseConfigured } from '../lib/api'
+import { analyzeError } from '../lib/llm'
+import { recordWeakness } from '../lib/api'
 import './Coliseo.css'
 
 const QUESTIONS = [
@@ -17,6 +21,7 @@ const QUESTIONS = [
 
 export default function Coliseo() {
   const navigate = useNavigate()
+  const { studentId } = useAuth()
   const [started, setStarted] = useState(false)
   const [lives, setLives] = useState(3)
   const [qIndex, setQIndex] = useState(0)
@@ -25,6 +30,7 @@ export default function Coliseo() {
   const [victory, setVictory] = useState(false)
   const [defeat, setDefeat] = useState(false)
   const [timeLeft, setTimeLeft] = useState(1800) // 30 min in seconds
+  const [errorHint, setErrorHint] = useState('')
   const timerRef = useRef(null)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
@@ -126,6 +132,28 @@ export default function Coliseo() {
 
   const timerColor = timeLeft <= 60 ? '#EF4444' : timeLeft <= 300 ? '#F59E0B' : '#A7A9BE'
 
+  async function triggerAnalysis(questionObj, userAnswer) {
+    if (!isSupabaseConfigured) return
+    setErrorHint('')
+    try {
+      const concept = questionObj.q.split(' ').slice(0, 4).join(' ')
+      const { explanation } = await analyzeError({
+        question: questionObj.q,
+        userAnswer,
+        correctAnswer: questionObj.a,
+        concept,
+      })
+      if (explanation) setErrorHint(explanation)
+      if (studentId) {
+        await recordWeakness({
+          studentId,
+          concept,
+          isError: true,
+        })
+      }
+    } catch { /* silent */ }
+  }
+
   function handleSelect(option) {
     if (status !== 'idle') return
     setSelected(option)
@@ -134,10 +162,11 @@ export default function Coliseo() {
       vibrateCorrect()
       setStatus('correct')
       setTimeout(() => {
-        if (qIndex + 1 < QUESTIONS.length) { 
+        if (qIndex + 1 < QUESTIONS.length) {
           setQIndex(qIndex + 1)
           setSelected(null)
-          setStatus('idle') 
+          setStatus('idle')
+          setErrorHint('')
         } else {
           playVictory()
           vibrateVictory()
@@ -150,6 +179,7 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
+      triggerAnalysis(currentQ, option).catch(() => { /* noop */ })
       setTimeout(() => {
         if (newLives <= 0) {
           setDefeat(true)
@@ -283,6 +313,11 @@ export default function Coliseo() {
                     )
                   })}
                 </div>
+                {status === 'incorrect' && errorHint && (
+                  <div className="coliseo-error-hint">
+                    <AlertCircle size={14} /> {errorHint}
+                  </div>
+                )}
               </div>
             </div>
           </div>

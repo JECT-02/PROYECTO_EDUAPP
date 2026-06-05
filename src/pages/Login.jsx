@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, GraduationCap, User, Heart } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, GraduationCap, User, Heart, AlertCircle, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import PageWrapper from '../components/PageWrapper'
 import './Login.css'
 
@@ -14,19 +15,103 @@ export default function Login() {
   const [role, setRole] = useState('student')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [errorKind, setErrorKind] = useState(null)
   const [magicMode, setMagicMode] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
+  const [connOk, setConnOk] = useState(null) // null = unknown, true/false
+  const [connChecking, setConnChecking] = useState(false)
 
-  function handleLogin(e) {
+  useEffect(() => {
+    checkConnection()
+  }, [])
+
+  async function checkConnection() {
+    if (!isSupabaseConfigured || !supabase) {
+      setConnOk(false)
+      return
+    }
+    setConnChecking(true)
+    try {
+      // /auth/v1/settings devuelve 200 con la apikey anon correcta.
+      // Si la URL es incorrecta, devuelve 404/Network error; si el proyecto
+      // esta pausado, devuelve 401/403.
+      const url = import.meta.env.VITE_SUPABASE_URL
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+      const res = await fetch(`${url}/auth/v1/settings`, {
+        method: 'GET',
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      })
+      setConnOk(res.ok)
+    } catch {
+      setConnOk(false)
+    } finally {
+      setConnChecking(false)
+    }
+  }
+
+  function friendlyError(err) {
+    const msg = (err?.message || '').toLowerCase()
+    if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+      return {
+        kind: 'creds',
+        text: 'Correo o contraseña incorrectos. Si acabas de sembrar la base de datos, espera unos segundos y vuelve a intentar.',
+      }
+    }
+    if (msg.includes('email not confirmed')) {
+      return {
+        kind: 'unconfirmed',
+        text: 'Tu correo aún no está verificado. En esta demo todas las cuentas se crean ya verificadas; si la tuya no lo está, ejecuta el seed de nuevo.',
+      }
+    }
+    if (msg.includes('user not found') || msg.includes('no existe')) {
+      return {
+        kind: 'notfound',
+        text: 'No existe una cuenta con ese correo. Crea una cuenta nueva o usa el correo correcto.',
+      }
+    }
+    if (msg.includes('rate limit') || msg.includes('too many')) {
+      return {
+        kind: 'ratelimit',
+        text: 'Demasiados intentos. Espera un minuto antes de reintentar.',
+      }
+    }
+    if (msg.includes('network') || msg.includes('fetch')) {
+      return {
+        kind: 'network',
+        text: 'No se pudo conectar al servidor. Revisa tu conexión a internet y que la URL de Supabase sea correcta.',
+      }
+    }
+    if (msg.includes('supabase no está configurado')) {
+      return {
+        kind: 'config',
+        text: 'La aplicación no está configurada. Completa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en .env y reinicia el servidor de desarrollo.',
+      }
+    }
+    return { kind: 'unknown', text: err?.message || 'No se pudo iniciar sesión. Verifica tus credenciales e inténtalo de nuevo.' }
+  }
+
+  async function handleLogin(e) {
     e.preventDefault()
-    if (!email || (!magicMode && !password)) { setError('Completa todos los campos'); return }
-    setLoading(true); setError('')
-    setTimeout(() => {
+    if (!email || (!magicMode && !password)) {
+      setError('Completa todos los campos')
+      setErrorKind('validation')
+      return
+    }
+    setLoading(true); setError(''); setErrorKind(null)
+    try {
+      const res = await login({ email, password, role, magicLink: magicMode })
+      if (res?.magicSent) {
+        setMagicSent(true)
+        setLoading(false)
+        return
+      }
       setLoading(false)
-      if (magicMode) { setMagicSent(true); return }
-      login(email, role)
-      // PublicRoute maneja la redirección al dashboard u onboarding
-    }, 1400)
+    } catch (err) {
+      const fe = friendlyError(err)
+      setError(fe.text)
+      setErrorKind(fe.kind)
+      setLoading(false)
+    }
   }
 
   return (
@@ -63,6 +148,37 @@ export default function Login() {
               <h2>Bienvenido de vuelta</h2>
               <p>Inicia sesion para continuar tu camino de aprendizaje</p>
             </div>
+
+            {/* Indicador de conexion a Supabase */}
+            {connOk === false && (
+              <div style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.2)',
+                borderRadius: 'var(--radius)',
+                padding: '10px 12px',
+                fontSize: '0.78rem',
+                color: '#FCA5A5',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                <span>No se pudo conectar a Supabase. Verifica VITE_SUPABASE_URL en .env.</span>
+                <button
+                  type="button"
+                  onClick={checkConnection}
+                  style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}
+                  title="Reintentar"
+                >
+                  <RefreshCw size={12} />
+                </button>
+              </div>
+            )}
+            {connChecking && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <RefreshCw size={12} className="animate-spin" /> Verificando conexion con Supabase...
+              </div>
+            )}
 
             {/* Role selector */}
             <div className="role-selector">
@@ -143,7 +259,24 @@ export default function Login() {
                   </div>
                 )}
 
-                {error && <div className="form-error" role="alert">{error}</div>}
+                {error && (
+                  <div className="form-error" role="alert" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <span>{error}</span>
+                    </div>
+                    {errorKind === 'creds' && (
+                      <button
+                        type="button"
+                        className="link-btn"
+                        style={{ fontSize: '0.78rem', color: 'var(--primary-light)', textAlign: 'left', padding: 0 }}
+                        onClick={() => navigate('/forgot-password')}
+                      >
+                        ¿Olvidaste la contraseña? Restablécela aquí.
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <button
                   type="submit"

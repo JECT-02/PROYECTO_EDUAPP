@@ -1,24 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code, X } from 'lucide-react'
+import { BookOpen, Zap, Trophy, Clock, TrendingUp, Beaker, Layout, Globe, Code, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
+import { getStudentEnrollments, listStudentMedals, isSupabaseConfigured } from '../lib/api'
 import './Dashboard.css'
 
-const COURSES = [
-  { id:1, title:'Biología Celular', teacher:'Prof. Ramírez', progress:65, color:'#22C55E', icon:<Beaker size={32}/>, status:'En progreso', nodes:12, completedNodes:8 },
-  { id:2, title:'Matemáticas Avanzadas', teacher:'Prof. Torres', progress:30, color:'#6C63FF', icon:<Layout size={32}/>, status:'En progreso', nodes:10, completedNodes:3 },
-  { id:3, title:'Historia del Mundo', teacher:'Prof. Vega', progress:90, color:'#F59E0B', icon:<Globe size={32}/>, status:'Completado', nodes:8, completedNodes:7 },
-  { id:4, title:'Programación Python', teacher:'Prof. Cruz', progress:0, color:'#3B82F6', icon:<Code size={32}/>, status:'Nuevo', nodes:15, completedNodes:0 },
+const ICON_POOL = [
+  { icon: <Beaker size={32} />, color: '#22C55E' },
+  { icon: <Layout size={32} />, color: '#6C63FF' },
+  { icon: <Globe size={32} />, color: '#F59E0B' },
+  { icon: <Code size={32} />, color: '#3B82F6' },
+  { icon: <Sparkles size={32} />, color: '#EC4899' },
+  { icon: <BookOpen size={32} />, color: '#8B5CF6' },
 ]
-
-// Mapa de cursos: courseId -> primer quiz disponible
-const COURSE_QUIZ_MAP = {
-  '1': '/quiz/1/3', // Biología Celular -> Test de Conceptos Básicos
-}
 
 const CHALLENGES = [
   { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
@@ -39,10 +37,38 @@ function statusColor(s) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const userName = user?.name?.split(' ')[0] || 'Sofía'
+  const { user, studentId } = useAuth()
+  const userName = user?.name?.split(' ')[0] || 'Estudiante'
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [enrollments, setEnrollments] = useState([])
+  const [medals, setMedals] = useState([])
+  const [loadingData, setLoadingData] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!isSupabaseConfigured || !studentId) {
+        setLoadingData(false)
+        return
+      }
+      const [{ data: enr }, { data: meds }] = await Promise.all([
+        getStudentEnrollments(studentId),
+        listStudentMedals(studentId),
+      ])
+      if (cancelled) return
+      setEnrollments((enr || []).map((e) => ({
+        enrollmentId: e.id,
+        course: e.courses,
+      })).filter((e) => e.course))
+      setMedals(meds || [])
+      setLoadingData(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [studentId])
+
+  // Lock body scroll when mobile drawer is open
   const drawerRef = useRef(null)
 
   // Lock body scroll + focus trap when mobile drawer is open
@@ -158,36 +184,69 @@ export default function Dashboard() {
           </div>
 
           {/* Continue card */}
-          <motion.div
-            className="continue-card"
-            onClick={() => navigate('/roadmap/1')}
-            style={{ cursor:'pointer', '--course-color': '#22C55E' }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/roadmap/1'); } }}
-            aria-label="Continuar curso: Biología Celular, Nodo 9, La Mitocondria y sus funciones, 65 por ciento completado"
-          >
-            <div className="continue-content">
-              <div className="continue-badge badge badge-green">Continuar</div>
-              <h2 className="continue-title">Biología Celular</h2>
-              <p className="continue-node">Nodo 9: La Mitocondria y sus funciones</p>
-              <div className="continue-progress">
-                <div className="progress-bar" style={{flex:1}}>
-                  <div className="progress-fill" style={{width:'65%', background:'linear-gradient(90deg,#22C55E,#4ADE80)'}}/>
-                </div>
-                <span className="continue-pct">65%</span>
-              </div>
-              <button 
-                className="btn btn-success" 
-                style={{width:'fit-content', marginTop:16}}
-                onClick={(e) => { e.stopPropagation(); navigate('/roadmap/1'); }}
-                aria-label="Ir al roadmap de Biología Celular"
+          {(() => {
+            const continueCourse = enrollments[0]?.course
+            if (!continueCourse) {
+              return (
+                <motion.div
+                  className="continue-card"
+                  onClick={() => navigate('/explore')}
+                  style={{ cursor:'pointer', '--course-color': '#6C63FF' }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/explore'); } }}
+                  aria-label="No tienes cursos aún. Explora el catálogo para inscribirte"
+                >
+                  <div className="continue-content">
+                    <div className="continue-badge badge badge-purple">Explorar</div>
+                    <h2 className="continue-title">No tienes cursos aún</h2>
+                    <p className="continue-node">Explora el catálogo e inscríbete en un curso con un código de invitación.</p>
+                    <button
+                      className="btn btn-primary"
+                      style={{width:'fit-content', marginTop:16}}
+                      onClick={(e) => { e.stopPropagation(); navigate('/explore') }}
+                      aria-label="Ir al catálogo de cursos"
+                    >
+                      Ver catálogo
+                    </button>
+                  </div>
+                  <div className="continue-art" aria-hidden="true"><BookOpen size={80}/></div>
+                </motion.div>
+              )
+            }
+            return (
+              <motion.div
+                className="continue-card"
+                onClick={() => navigate(`/roadmap/${continueCourse.id}`)}
+                style={{ cursor:'pointer', '--course-color': ICON_POOL[0].color }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/roadmap/${continueCourse.id}`); } }}
+                aria-label={`Continuar curso: ${continueCourse.title}, ${continueCourse.profiles?.full_name ? `Prof. ${continueCourse.profiles.full_name}` : 'Continúa donde quedaste'}`}
               >
-                ▶ Continuar sesión
-              </button>
-            </div>
-            <div className="continue-art" aria-hidden="true"><Beaker size={80}/></div>
-          </motion.div>
+                <div className="continue-content">
+                  <div className="continue-badge badge badge-green">Continuar</div>
+                  <h2 className="continue-title">{continueCourse.title}</h2>
+                  <p className="continue-node">{continueCourse.profiles?.full_name ? `Prof. ${continueCourse.profiles.full_name}` : 'Continúa donde quedaste'}</p>
+                  <div className="continue-progress">
+                    <div className="progress-bar" style={{flex:1}}>
+                      <div className="progress-fill" style={{width:'35%', background:'linear-gradient(90deg,#22C55E,#4ADE80)'}}/>
+                    </div>
+                    <span className="continue-pct">—</span>
+                  </div>
+                  <button
+                    className="btn btn-success"
+                    style={{width:'fit-content', marginTop:16}}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/roadmap/${continueCourse.id}`) }}
+                    aria-label={`Continuar sesión de ${continueCourse.title}`}
+                  >
+                    ▶ Continuar sesión
+                  </button>
+                </div>
+                <div className="continue-art" aria-hidden="true"><Beaker size={80}/></div>
+              </motion.div>
+            )
+          })()}
 
           </section>
 
@@ -226,40 +285,49 @@ export default function Dashboard() {
             <div className="section-header">
               <h2 className="section-title">Mis Cursos</h2>
             </div>
-            <div className="courses-grid">
-              {COURSES.map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  className="course-card"
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/roadmap/${c.id}`); } }}
-                  initial={{ opacity:0, y:20 }}
-                  animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
-                  onClick={() => navigate(`/roadmap/${c.id}`)}
-                  style={{ cursor:'pointer', '--course-color': c.color }}
-                  aria-label={`${c.title}, ${c.teacher}: ${c.status}, ${c.progress} por ciento completado, ${c.completedNodes} de ${c.nodes} nodos`}
-                >
-                  <div className="course-cover" style={{ background:`linear-gradient(135deg,${c.color}44,${c.color}11)` }}>
-                    <div style={{ color: c.color }}>{c.icon}</div>
-                  </div>
-                  <div className="course-body">
-                    <div className="course-header-row">
-                      <span className={`badge ${statusColor(c.status)}`}>{c.status}</span>
-                      <span className="course-nodes">{c.completedNodes}/{c.nodes} nodos</span>
-                    </div>
-                    <h3 className="course-title">{c.title}</h3>
-                    <p className="course-teacher">{c.teacher}</p>
-                    <div className="course-progress-row">
-                      <div className="progress-bar" style={{flex:1}}>
-                        <div className="progress-fill" style={{width:`${c.progress}%`, background:`linear-gradient(90deg,${c.color},${c.color}aa)`}}/>
+            {enrollments.length === 0 ? (
+              <div className="empty-state card" style={{ padding: 32, textAlign: 'center' }} role="status" aria-label="No estás inscrito en ningún curso">
+                <p style={{ color: 'var(--text-muted)' }}>Aún no estás inscrito en ningún curso. Visita <a href="#/explore" onClick={(e) => { e.preventDefault(); navigate('/explore') }}>Explorar</a> para inscribirte con un código.</p>
+              </div>
+            ) : (
+              <div className="courses-grid">
+                {enrollments.map((e, i) => {
+                  const c = e.course
+                  const visual = ICON_POOL[i % ICON_POOL.length]
+                  return (
+                    <motion.div
+                      key={e.enrollmentId}
+                      className="course-card"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); navigate(`/roadmap/${c.id}`); } }}
+                      initial={{ opacity:0, y:20 }}
+                      animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
+                      onClick={() => navigate(`/roadmap/${c.id}`)}
+                      style={{ cursor:'pointer', '--course-color': visual.color }}
+                      aria-label={`${c.title}, ${c.profiles?.full_name || 'Docente'}: En progreso, 0 por ciento completado`}
+                    >
+                      <div className="course-cover" aria-hidden="true" style={{ background:`linear-gradient(135deg,${visual.color}44,${visual.color}11)` }}>
+                        <div style={{ color: visual.color }}>{visual.icon}</div>
                       </div>
-                      <span className="course-pct" style={{color:c.color}}>{c.progress}%</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      <div className="course-body">
+                        <div className="course-header-row">
+                          <span className="badge badge-blue">En progreso</span>
+                        </div>
+                        <h3 className="course-title">{c.title}</h3>
+                        <p className="course-teacher">{c.profiles?.full_name || 'Docente'}</p>
+                        <div className="course-progress-row">
+                          <div className="progress-bar" style={{flex:1}}>
+                            <div className="progress-fill" style={{width:'0%', background:`linear-gradient(90deg,${visual.color},${visual.color}aa)`}}/>
+                          </div>
+                          <span className="course-pct" style={{color:visual.color}}>0%</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
           </section>
         </div>
 

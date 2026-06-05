@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, Search } from 'lucide-react'
+import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, Search, Mail } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
@@ -59,34 +59,36 @@ function ChartTooltip({ active, payload }) {
 }
 
 export default function ParentDashboard() {
-  const { user, linkStudent, unlinkStudent } = useAuth()
+  const { user, linkStudent, unlinkStudent, linkedStudents: contextLinked } = useAuth()
   const [showModal, setShowModal] = useState(false)
-  const [studentId, setStudentId] = useState('')
+  const [studentEmail, setStudentEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
 
-  const linkedStudents = user?.linkedStudents || []
+  const linkedStudents = contextLinked || []
 
-  function handleLink(e) {
+  async function handleLink(e) {
     e.preventDefault()
-    if (!studentId.trim()) return
+    if (!studentEmail.trim()) return
     setLoading(true)
     setResult(null)
-
-    setTimeout(() => {
-      const res = linkStudent(studentId.trim().toUpperCase())
+    try {
+      const res = await linkStudent(studentEmail.trim().toLowerCase())
       setResult(res)
+    } catch (err) {
+      setResult({ success: false, error: err.message || 'Error inesperado' })
+    } finally {
       setLoading(false)
-    }, 600)
+    }
   }
 
-  function handleUnlink(studentId) {
-    unlinkStudent(studentId)
+  function handleUnlink(studentOrLinkId) {
+    unlinkStudent(studentOrLinkId)
   }
 
   function handleCloseModal() {
     setShowModal(false)
-    setStudentId('')
+    setStudentEmail('')
     setResult(null)
   }
 
@@ -132,12 +134,12 @@ export default function ParentDashboard() {
                         <div className="parent-student-avatar">🦊</div>
                         <div>
                           <div className="parent-student-name">{s.name}</div>
-                          <div className="parent-student-id">DNI: {s.id}</div>
+                          <div className="parent-student-id">ID: {s.id?.slice(0, 8) || '—'}</div>
                         </div>
                       </div>
                       <button
                         className="btn-unlink"
-                        onClick={() => handleUnlink(s.id)}
+                        onClick={() => handleUnlink(s.linkId || s.id)}
                       >
                         <Unlink size={14} />
                         Desvincular
@@ -246,19 +248,19 @@ export default function ParentDashboard() {
                     {!result ? (
                       <form onSubmit={handleLink}>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
-                          Ingresa el DNI del estudiante para vincularlo a tu cuenta. El estudiante puede encontrar su DNI en su perfil.
+                          Ingresa el correo del estudiante. Él recibirá una solicitud de vínculo que deberá aceptar.
                         </p>
                         <div className="input-group">
-                          <label htmlFor="student-id">DNI del estudiante</label>
+                          <label htmlFor="student-email">Correo del estudiante</label>
                           <div className="input-icon-wrap">
-                            <Search size={16} className="input-icon" />
+                            <Mail size={16} className="input-icon" />
                             <input
-                              id="student-id"
-                              type="text"
+                              id="student-email"
+                              type="email"
                               className="input-field with-icon"
-                              placeholder="Ej: 12345678"
-                              value={studentId}
-                              onChange={e => setStudentId(e.target.value.replace(/\D/g,''))}
+                              placeholder="estudiante@email.com"
+                              value={studentEmail}
+                              onChange={e => setStudentEmail(e.target.value)}
                               autoFocus
                             />
                           </div>
@@ -266,10 +268,10 @@ export default function ParentDashboard() {
                         <button
                           type="submit"
                           className="btn btn-primary full-w"
-                          disabled={!studentId.trim() || loading}
+                          disabled={!studentEmail.trim() || loading}
                           style={{ marginTop: 8 }}
                         >
-                          {loading ? <span className="spinner" /> : <><Link2 size={16} /> Vincular</>}
+                          {loading ? <span className="spinner" /> : <><Link2 size={16} /> Enviar solicitud</>}
                         </button>
                       </form>
                     ) : result.success ? (
@@ -277,12 +279,12 @@ export default function ParentDashboard() {
                         <div className="parent-link-icon">
                           <CheckCircle size={40} />
                         </div>
-                        <h3>¡Estudiante vinculado!</h3>
+                        <h3>¡Solicitud enviada!</h3>
                         <p>
-                          <strong>{result.student.name}</strong> ha sido vinculado a tu cuenta.
+                          Se envió la solicitud a <strong>{result.student?.name || studentEmail}</strong>. Cuando la acepte, aparecerá en tu panel.
                         </p>
                         <button className="btn btn-primary" onClick={handleCloseModal}>
-                          Ver en el panel
+                          Entendido
                         </button>
                       </div>
                     ) : (
@@ -292,7 +294,7 @@ export default function ParentDashboard() {
                         </div>
                         <h3>No se pudo vincular</h3>
                         <p>{result.error}</p>
-                        <button className="btn btn-ghost" onClick={() => { setResult(null); setStudentId('') }}>
+                        <button className="btn btn-ghost" onClick={() => { setResult(null); setStudentEmail('') }}>
                           Intentar de nuevo
                         </button>
                       </div>

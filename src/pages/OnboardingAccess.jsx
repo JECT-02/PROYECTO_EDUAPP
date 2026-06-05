@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, Move, Mic, Type, Glasses, Sparkles, Check } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { useAuth } from '../context/AuthContext'
 import './Onboarding.css'
 
 const OPTIONS = [
@@ -14,6 +15,7 @@ const OPTIONS = [
 
 export default function OnboardingAccess() {
   const navigate = useNavigate()
+  const { updateProfile } = useAuth()
   const [prefs, setPrefs] = useState(() => {
     try {
       const saved = localStorage.getItem('eduapp_prefs')
@@ -54,6 +56,17 @@ export default function OnboardingAccess() {
         document.body.classList.add('large-text')
         document.documentElement.style.fontSize = '18px'
       }
+      // Persist accessibility_settings to Supabase profile
+      updateProfile({
+        accessibility_settings: {
+          contrast: !!saved.contrast,
+          narration: !!saved.narration,
+          reduced: !!saved.reduced,
+          voice: !!saved.voice,
+          large_text: !!saved.largeText,
+          colorblind: !!saved.colorblind,
+        },
+      }).catch(() => { /* offline / sin auth -> no-op */ })
     } catch { /* ignore */ }
     navigate('/onboarding/avatar')
   }
