@@ -1,81 +1,102 @@
 ---
 name: roadmap-regulation
-description: Reglas pedagógicas que debe respetar el Edge Function `generate-roadmap` al crear el árbol de nodos de un curso (niveles, proporción de quizzes, etc.).
+description: Reglas pedagógicas que debe respetar el Edge Function `generate-roadmap` al crear el árbol de nodos de un curso. Solo 3 tipos: theory, quiz, boss.
 ---
 
 # Reglas del roadmap generado por IA
 
-## 1. Tamaño del roadmap
+## 1. Tipos de nodo permitidos
 
-- Mínimo **8 nodos**, máximo **15 nodos**.
-- Si el temario del curso parece muy corto (< 5 temas), divide cada tema en 2-3 nodos.
-- Si es muy largo, agrupa temas relacionados en un solo nodo "practice".
+**SOLO existen 3 tipos de nodo:**
 
-## 2. Proporción de tipos de nodo
+| Tipo | Descripción | Contenido |
+|------|-------------|-----------|
+| `theory` | Lección teórica | HTML de 300-600 palabras |
+| `quiz` | Evaluación parcial | JSON con 4 preguntas y explicaciones |
+| `boss` | Examen final | JSON con 5-8 preguntas integrales |
 
-El roadmap debe seguir esta distribución por cada 3-4 nodos:
+**NO existen**: practice, reward, ni otros tipos.
 
-| Tipo      | Proporción aprox. | Descripción |
-|-----------|-------------------|-------------|
-| `theory`  | 60%               | Conceptos y explicaciones |
-| `practice`| 25%               | Ejercicios guiados, casos prácticos |
-| `quiz`    | **máx. 1 cada 3 nodos** | Repaso / evaluación parcial |
-| `boss`    | 1 al final        | Examen final del curso (siempre) |
-| `reward`  | 0-1 entre quiz y boss | Medalla / descanso |
+## 2. Tamaño del roadmap
 
-### Regla clave — Quizzes
+- Mínimo **6 nodos**, máximo **12 nodos**.
+- Si el temario parece muy corto, divide cada tema en 2-3 nodos theory.
+- Si es muy largo, agrupa temas relacionados en un solo nodo theory.
 
-> **Como máximo 1 nodo `quiz` cada 3 nodos no-quiz.**
+## 3. Secuencia obligatoria
 
-Algoritmo (seudocódigo):
 ```
-lastQuizPos = -10
-for i, nodo in nodos:
-  if nodo.type == "quiz":
-    if i - lastQuizPos < 3:  # muy cerca del anterior quiz
-      convertir nodo a "theory" o "practice"
-    lastQuizPos = i
+theory → theory → theory → quiz → theory → theory → quiz → boss
 ```
 
-Si la IA genera un quiz, el siguiente nodo debe ser `theory` o `practice` antes de permitir otro `quiz`.
+- **Primer nodo**: SIEMPRE `theory` (introducción)
+- **Después de cada 2-3 nodos theory**: SIEMPRE un `quiz`
+- **Último nodo**: SIEMPRE `boss` (examen final)
+- **Mínimo 1 quiz** antes del boss (si hay más de 4 nodos theory)
 
-## 3. Orden pedagógico (recomendado)
+## 4. Reglas para quizzes
 
-1. `theory` × 2-3 (introducción, conceptos base)
-2. `practice` (aplicación inmediata)
-3. `quiz` (repaso de los anteriores)
-4. `theory` × 1-2 (profundización)
-5. `practice` (refuerzo)
-6. `quiz` (repaso)
-7. ...
-8. `boss` (examen final integrador)
-9. `reward` opcional (medalla)
+### Frecuencia
+- Después de **2 o 3 nodos theory consecutivos** → **quiz obligatorio**
+- No más de 1 quiz consecutivo (siempre debe haber al menos 1 theory entre quizzes)
 
-## 4. Reglas de rigor / nivel
+### Contenido
+- **4 preguntas** de opción múltiple exactamente
+- **4 opciones** por pregunta (A, B, C, D)
+- Preguntas **ESPECÍFICAS** sobre el contenido de los nodos theory ANTERIORES
+- **NO genéricas** como "¿Cuál es el concepto principal?"
+- Cada pregunta tiene **explanation** que explique POR QUÉ es correcta
+- El campo `correct` es el índice 0-based
 
-- `level` 1-2 (introductorio): más nodos `theory`, menos `practice`. Quizzes solo de opción múltiple simples.
-- `level` 3 (intermedio): distribución balanceada 60/25/15.
-- `level` 4-5 (avanzado): más nodos `practice` y un `quiz` extra antes del `boss`.
+### Ejemplo de quiz válido:
+```json
+{
+  "questions": [
+    {
+      "id": 1,
+      "text": "¿Cuál es la función principal de la mitocondria según la clase?",
+      "options": [
+        "A) Síntesis de proteínas",
+        "B) Producción de energía (ATP)",
+        "C) Almacenamiento de ADN",
+        "D) Transporte de moléculas"
+      ],
+      "correct": 1,
+      "explanation": "La mitocondria produce ATP mediante respiración celular, como se explicó en la clase sobre orgánulos celulares."
+    }
+  ]
+}
+```
 
-## 5. Posición y unicidad
+## 5. Reglas para nodos theory
 
-- El campo `position` debe ser estrictamente ascendente (1, 2, 3, ...).
-- No puede haber dos nodos con el mismo `position`.
-- El `boss` siempre en la última posición.
-- El primer nodo siempre es `theory` (bienvenida / introducción).
+- HTML con `<h2>`, `<p>`, `<strong>`, `<ul>/<li>`
+- **300-600 palabras** de contenido real y específico
+- Basado en el material de referencia
+- Ejemplos prácticos y explicaciones claras
+- NO placeholder text
 
-## 6. Validación post-generación
+## 6. Reglas para el boss
 
-Antes de guardar, el Edge Function debe:
+- **5-8 preguntas** integrales del curso completo
+- Mezcla de comprensión, aplicación y análisis
+- Mismo formato que quiz
 
-1. Contar `quiz` y verificar que no haya más de `floor(nodosNoQuiz / 3) + 1` quizzes.
-2. Si hay exceso, convertir el quiz más cercano al `boss` en `practice`.
-3. Si no hay ningún `boss`, agregar uno al final con título "Examen final: <curso>".
-4. Si el primer nodo no es `theory`, cambiarlo a `theory` con título "Bienvenida".
+## 7. Validación post-generación (enforceRegulation)
 
-## 7. Idioma y tono
+Antes de guardar, el sistema debe:
 
-- Todos los `title` y `description` en español latino neutro.
-- Títulos < 60 caracteres.
-- Descripciones < 200 caracteres.
-- Sin jerga innecesaria para el nivel del curso.
+1. Contar `quiz` y verificar frecuencia correcta (cada 2-3 theory)
+2. Si faltan quizzes, insertarlos automáticamente
+3. Si hay exceso de quizzes, convertir el más cercano al boss en `theory`
+4. Si no hay `boss`, agregar uno al final
+5. Si el primer nodo no es `theory`, cambiarlo a `theory`
+6. Rellenar contenido faltante con defaults apropiados
+7. Validar que quizzes tengan preguntas reales (no vacías ni genéricas)
+
+## 8. Idioma y tono
+
+- Todos los `title` y `description` en español latino neutro
+- Títulos < 60 caracteres, específicos (no genéricos)
+- Descripciones < 200 caracteres
+- Sin jerga innecesaria para el nivel del curso
