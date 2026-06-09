@@ -1,11 +1,12 @@
 // supabase/functions/_shared/llm.ts
-// Gemini 2.5 Flash wrapper with optional streaming SSE
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? ''
-const LLM_MODEL = 'gemini-2.5-flash'
-const LLM_URL = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:streamGenerateContent`
-const LLM_URL_NOSTREAM = `https://generativelanguage.googleapis.com/v1beta/models/${LLM_MODEL}:generateContent`
+// NVIDIA AI (kimi-k2.6) wrapper — OpenAI-compatible chat completions API
+// Docs: https://build.nvidia.com/docs
 
-export type LlmMessage = { role: 'user' | 'model'; parts: { text: string }[] }
+const NVIDIA_API_KEY = Deno.env.get('NVIDIA_API_KEY') ?? ''
+const LLM_MODEL = 'moonshotai/kimi-k2.6'
+const LLM_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
+
+export type LlmMessage = { role: 'user' | 'model' | 'system' | 'assistant'; parts: { text: string }[] }
 
 export interface LlmOptions {
   system?: string
@@ -16,47 +17,80 @@ export interface LlmOptions {
   stream?: boolean
 }
 
+/**
+ * Convert internal message format to OpenAI-format messages array.
+ */
+function toOpenAiMessages(opts: LlmOptions): { role: string; content: string }[] {
+  const msgs: { role: string; content: string }[] = []
+  if (opts.system) {
+    msgs.push({ role: 'system', content: opts.system })
+  }
+  for (const m of opts.messages) {
+    const role = m.role === 'model' ? 'assistant' : m.role === 'user' ? 'user' : 'user'
+    const text = m.parts?.map(p => p.text).join('\n') || ''
+    msgs.push({ role, content: text })
+  }
+  return msgs
+}
+
 export async function callLlm(opts: LlmOptions): Promise<Response> {
-  if (!GEMINI_API_KEY) {
-    console.error('[llm] GEMINI_API_KEY no esta configurada (vacia)')
-    return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not set' }), {
+  if (!NVIDIA_API_KEY) {
+    console.error('[llm] NVIDIA_API_KEY no está configurada')
+    return new Response(JSON.stringify({ error: 'NVIDIA_API_KEY is not set' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
   }
   const isStreaming = opts.stream ?? false
-  const url = isStreaming ? `${LLM_URL}?key=${GEMINI_API_KEY}&alt=sse` : `${LLM_URL_NOSTREAM}?key=${GEMINI_API_KEY}`
+  const messages = toOpenAiMessages(opts)
   const body: Record<string, unknown> = {
-    contents: opts.messages,
-    generationConfig: {
-      temperature: opts.temperature ?? 0.7,
-      maxOutputTokens: opts.maxOutputTokens ?? 2048,
-    },
+    model: LLM_MODEL,
+    messages,
+    temperature: opts.temperature ?? 0.7,
+    max_tokens: opts.maxOutputTokens ?? 2048,
   }
-  if (opts.system) body.systemInstruction = { parts: [{ text: opts.system }] }
+  if (isStreaming) body.stream = true
   if (opts.json) {
-    (body.generationConfig as Record<string, unknown>).responseMimeType = 'application/json'
+    body.response_format = { type: 'json_object' }
   }
-  console.log(`[llm] llamando a Gemini stream=${isStreaming} url=${LLM_MODEL} tokens_max=${opts.maxOutputTokens ?? 2048}`)
+  console.log(`[llm] llamando a NVIDIA ${LLM_MODEL} stream=${isStreaming} tokens_max=${opts.maxOutputTokens ?? 2048}`)
   const start = Date.now()
-  const res = await fetch(url, {
+  const res = await fetch(LLM_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${NVIDIA_API_KEY}`,
+    },
     body: JSON.stringify(body),
   })
   const elapsed = Date.now() - start
-  console.log(`[llm] respuesta Gemini: status=${res.status} elapsed=${elapsed}ms`)
-  // NOTE: do NOT consume the body here; let callers read it on error.
+  console.log(`[llm] respuesta NVIDIA: status=${res.status} elapsed=${elapsed}ms`)
   if (!res.ok) {
-    console.error(`[llm] error Gemini: ${res.status}`)
+    console.error(`[llm] error NVIDIA: ${res.status}`)
   }
   return res
 }
 
 /**
- * SSE parser for Gemini streamGenerateContent. Yields text deltas.
+ * Extract text content from an LLM response JSON (works with OpenAI / NVIDIA format).
  */
-export async function* streamGemini(res: Response): AsyncGenerator<string, void, void> {
+export function extractLlmText(llmJson: Record<string, unknown>): string {
+  try {
+    // OpenAI / NVIDIA format: choices[0].message.content
+    const choices = llmJson?.choices as Array<{ message?: { content?: string }; delta?: { content?: string } }> | undefined
+    if (choices && choices.length > 0) {
+      const msg = choices[0].message?.content ?? choices[0].delta?.content ?? ''
+      return msg
+    }
+  } catch { /* fall through */ }
+  return ''
+}
+
+/**
+ * SSE parser for NVIDIA streaming. Yields text deltas.
+ * NVIDIA uses standard SSE with choices[0].delta.content
+ */
+export async function* streamNvidia(res: Response): AsyncGenerator<string, void, void> {
   const reader = res.body!.getReader()
   const decoder = new TextDecoder()
   let buf = ''
@@ -75,7 +109,7 @@ export async function* streamGemini(res: Response): AsyncGenerator<string, void,
       eventCount++
       try {
         const json = JSON.parse(payload)
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text
+        const text = json?.choices?.[0]?.delta?.content || json?.choices?.[0]?.message?.content
         if (text) {
           textCount++
           yield text
@@ -83,5 +117,5 @@ export async function* streamGemini(res: Response): AsyncGenerator<string, void,
       } catch { /* ignore */ }
     }
   }
-  console.log(`[llm] streamGemini: ${eventCount} eventos SSE, ${textCount} con texto`)
+  console.log(`[llm] streamNvidia: ${eventCount} eventos SSE, ${textCount} con texto`)
 }
