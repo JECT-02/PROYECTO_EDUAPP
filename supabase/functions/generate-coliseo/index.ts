@@ -2,7 +2,7 @@
 // Generate a final boss battle (coliseo) test
 import { corsHeaders } from '../_shared/cors.ts'
 import { getAccessToken, getUserClient, getAdminClient } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 import { QUIZ_SYSTEM } from '../_shared/prompts/quiz.ts'
 
 Deno.serve(async (req) => {
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     })
     if (!llmRes.ok) return jsonError(500, 'LLM error')
     const llmJson = await llmRes.json()
-    const text = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const text = extractLlmText(llmJson) || '{}'
     let parsed: { questions?: unknown[] } = {}
     try { parsed = JSON.parse(text) } catch { parsed = {} }
     return jsonOk({ questions: parsed.questions ?? [] })

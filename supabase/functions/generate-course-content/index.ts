@@ -2,7 +2,7 @@
 // Batch-generates complete content (lessons, quizzes, exercises, exams) for ALL nodes of a course
 import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 
 const ALLOWED_TYPES = ['theory', 'practice', 'quiz', 'boss', 'reward']
 
@@ -81,7 +81,7 @@ Devuelve SOLO el HTML, sin markdown ni etiquetas de codigo.`
   })
   if (!res.ok) throw new Error(`LLM error: ${res.status}`)
   const json = await res.json()
-  return json?.candidates?.[0]?.content?.parts?.[0]?.text || '<p>Contenido no disponible</p>'
+  return extractLlmText(json) || '<p>Contenido no disponible</p>'
 }
 
 async function generatePracticeContent(node: NodeToGenerate, context: string): Promise<string> {
@@ -113,7 +113,7 @@ Devuelve SOLO el HTML.`
   })
   if (!res.ok) throw new Error(`LLM error: ${res.status}`)
   const json = await res.json()
-  return json?.candidates?.[0]?.content?.parts?.[0]?.text || '<p>Ejercicio no disponible</p>'
+  return extractLlmText(json) || '<p>Ejercicio no disponible</p>'
 }
 
 async function generateQuizContent(node: NodeToGenerate, context: string): Promise<string> {
@@ -157,7 +157,7 @@ Devuelve SOLO el JSON.`
   })
   if (!res.ok) throw new Error(`LLM error: ${res.status}`)
   const json = await res.json()
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+  const text = extractLlmText(json) || '{}'
   return text
 }
 
@@ -202,7 +202,7 @@ Devuelve SOLO el JSON.`
   })
   if (!res.ok) throw new Error(`LLM error: ${res.status}`)
   const json = await res.json()
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+  const text = extractLlmText(json) || '{}'
   return text
 }
 

@@ -1,7 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
 import { embedQuery } from '../_shared/embeddings.ts'
-import { callLlm, streamGemini } from '../_shared/llm.ts'
+import { callLlm, streamNvidia } from '../_shared/llm.ts'
 import { LESSON_SYSTEM } from '../_shared/prompts/lesson.ts'
 
 Deno.serve(async (req) => {
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         const enc = new TextEncoder()
         let full = ''
         try {
-          for await (const delta of streamGemini(llmRes)) {
+          for await (const delta of streamNvidia(llmRes)) {
             full += delta
             controller.enqueue(enc.encode(`data: ${JSON.stringify({ text: delta })}\n\n`))
           }

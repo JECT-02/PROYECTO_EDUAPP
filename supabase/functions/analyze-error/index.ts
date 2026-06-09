@@ -2,7 +2,7 @@
 // Generate a one-sentence explanation of why a student got a question wrong
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 import { ANALYZE_ERROR_SYSTEM } from '../_shared/prompts/analyze-error.ts'
 
 Deno.serve(async (req) => {
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     })
     if (!llmRes.ok) return jsonError(500, 'LLM error')
     const llmJson = await llmRes.json()
-    const explanation = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? ''
+    const explanation = (extractLlmText(llmJson) || '').trim()
     return jsonOk({ explanation })
   } catch (e) {
     console.error(e)

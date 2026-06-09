@@ -2,7 +2,7 @@
 // AI assistant for teacher to refine roadmap via chat
 import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 
 const ALLOWED_TYPES = ['theory', 'practice', 'quiz', 'boss', 'reward']
 
@@ -104,7 +104,7 @@ Recuerda responder SOLO con el JSON especificado.`
     }
 
     const llmJson = await llmRes.json()
-    const text = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const text = extractLlmText(llmJson) || '{}'
     console.log('[chat-roadmap] respuesta IA:', text.slice(0, 200))
 
     let parsed: { mensaje?: string; cambios?: Array<{ accion: string; posicion: number; tipo?: string; titulo?: string; descripcion?: string; nueva_posicion?: number; nuevo_tipo?: string; nuevo_titulo?: string; nueva_descripcion?: string }> } = {}

@@ -2,7 +2,7 @@
 // Generate an SVG medal for a student achievement
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 
 Deno.serve(async (req) => {
   const cors = handleCors(req)
@@ -34,7 +34,7 @@ Reglas:
     })
     if (!llmRes.ok) return jsonError(500, 'LLM error')
     const llmJson = await llmRes.json()
-    const inner = (llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+    const inner = (extractLlmText(llmJson) || '').trim()
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">${inner}</svg>`
 
     const admin = getAdminClient()

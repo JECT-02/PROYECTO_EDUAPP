@@ -1,7 +1,7 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
 import { embedQuery } from '../_shared/embeddings.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 import { QUIZ_SYSTEM } from '../_shared/prompts/quiz.ts'
 
 Deno.serve(async (req) => {
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       return jsonError(500, `LLM error: ${err.slice(0, 200)}`)
     }
     const llmJson = await llmRes.json()
-    const text = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || '{}'
+    const text = extractLlmText(llmJson) || '{}'
     let parsed: { questions?: unknown[] } = {}
     try { parsed = JSON.parse(text) } catch { parsed = {} }
 

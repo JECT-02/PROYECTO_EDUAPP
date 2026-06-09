@@ -1,10 +1,26 @@
 import { corsHeaders } from '../_shared/cors.ts'
 import { getUserClient, getAccessToken, getAdminClient } from '../_shared/supabase-admin.ts'
-import { callLlm } from '../_shared/llm.ts'
+import { callLlm, extractLlmText } from '../_shared/llm.ts'
 import { ROADMAP_SYSTEM } from '../_shared/prompts/roadmap.ts'
 
 type GenNode = { title: string; type: string; description: string; position: number; content?: string }
 const ALLOWED_TYPES = new Set(['theory', 'practice', 'quiz', 'boss', 'reward'])
+
+const DEFAULT_BOSS_CONTENT = JSON.stringify({
+  title: 'Examen final',
+  questions: [
+    { id: 1, text: '¿Cuál es el concepto principal abordado en este curso?', options: ['A) Concepto A', 'B) Concepto B', 'C) Concepto C', 'D) Concepto D'], correct: 0, explanation: 'Revisa el material del curso para confirmar.' },
+    { id: 2, text: '¿Qué aplicación práctica tiene lo aprendido?', options: ['A) Aplicación 1', 'B) Aplicación 2', 'C) Aplicación 3', 'D) Aplicación 4'], correct: 1, explanation: 'La aplicación correcta se describe en las lecciones.' },
+    { id: 3, text: '¿Cómo se relacionan los conceptos clave?', options: ['A) Relación A', 'B) Relación B', 'C) Relación C', 'D) Relación D'], correct: 2, explanation: 'La relación se explica en la teoría del curso.' },
+    { id: 4, text: '¿Cuál de los siguientes es un ejemplo práctico?', options: ['A) Ejemplo 1', 'B) Ejemplo 2', 'C) Ejemplo 3', 'D) Ejemplo 4'], correct: 3, explanation: 'Este ejemplo se cubre en la sección práctica.' },
+    { id: 5, text: '¿Qué habilidad desarrolla este módulo?', options: ['A) Habilidad 1', 'B) Habilidad 2', 'C) Habilidad 3', 'D) Habilidad 4'], correct: 0, explanation: 'La habilidad se desarrolla a lo largo del curso.' },
+    { id: 6, text: '¿Cuál es la mejor estrategia para aplicar este conocimiento?', options: ['A) Estrategia 1', 'B) Estrategia 2', 'C) Estrategia 3', 'D) Estrategia 4'], correct: 1, explanation: 'La estrategia se detalla en las lecciones avanzadas.' },
+    { id: 7, text: '¿Qué error común se debe evitar?', options: ['A) Error 1', 'B) Error 2', 'C) Error 3', 'D) Error 4'], correct: 2, explanation: 'Este error se menciona en las advertencias del curso.' },
+    { id: 8, text: '¿Cómo se mide el éxito en este tema?', options: ['A) Métrica 1', 'B) Métrica 2', 'C) Métrica 3', 'D) Métrica 4'], correct: 3, explanation: 'La métrica se define en los objetivos del curso.' },
+    { id: 9, text: '¿Qué recurso complementario recomiendas?', options: ['A) Recurso 1', 'B) Recurso 2', 'C) Recurso 3', 'D) Recurso 4'], correct: 0, explanation: 'El recurso se menciona en las referencias.' },
+    { id: 10, text: '¿Cuál es el siguiente paso después de este curso?', options: ['A) Siguiente curso', 'B) Práctica avanzada', 'C) Proyecto final', 'D) Repaso general'], correct: 2, explanation: 'El proyecto final integra todos los conceptos aprendidos.' },
+  ],
+})
 
 function enforceRegulation(nodes: GenNode[]): GenNode[] {
   if (!Array.isArray(nodes) || nodes.length === 0) return nodes
@@ -13,7 +29,7 @@ function enforceRegulation(nodes: GenNode[]): GenNode[] {
     if (!ALLOWED_TYPES.has(n.type)) n.type = 'theory'
   }
   if (sorted[0].type !== 'theory') {
-    sorted[0] = { ...sorted[0], type: 'theory', title: sorted[0].title || 'Bienvenida' }
+    sorted[0] = { ...sorted[0], type: 'theory', title: sorted[0].title || 'Bienvenida', content: sorted[0].content || `<h2>Bienvenida</h2><p>Comienza tu viaje de aprendizaje en este curso.</p>` }
   }
   const lastIdx = sorted.length - 1
   if (sorted[lastIdx].type !== 'boss') {
@@ -21,9 +37,13 @@ function enforceRegulation(nodes: GenNode[]): GenNode[] {
       title: 'Examen final', type: 'boss',
       description: 'Desafío final integrador del curso.',
       position: lastIdx + 2,
+      content: DEFAULT_BOSS_CONTENT,
     })
   } else {
     sorted[lastIdx].type = 'boss'
+    if (!sorted[lastIdx].content) {
+      sorted[lastIdx].content = DEFAULT_BOSS_CONTENT
+    }
   }
   let lastQuizPos = -10
   for (let i = 0; i < sorted.length; i++) {
@@ -32,6 +52,15 @@ function enforceRegulation(nodes: GenNode[]): GenNode[] {
         sorted[i] = { ...sorted[i], type: 'practice' }
       } else {
         lastQuizPos = i
+      }
+    }
+    // Ensure each node has at least minimal content
+    if (!sorted[i].content && sorted[i].type !== 'reward') {
+      sorted[i] = {
+        ...sorted[i],
+        content: sorted[i].type === 'quiz'
+          ? JSON.stringify({ questions: [{ id: 1, text: '¿Pregunta de ejemplo?', options: ['A) Opción A', 'B) Opción B', 'C) Opción C', 'D) Opción D'], correct: 0, explanation: 'Explicación' }] })
+          : `<h2>${sorted[i].title}</h2><p>${sorted[i].description || 'Contenido de esta lección.'}</p><p>El contenido detallado será generado automáticamente. Puedes editarlo o regenerarlo usando el asistente IA.</p>`,
       }
     }
   }
@@ -103,12 +132,11 @@ Deno.serve(async (req) => {
 
     let materialText = ''
     if (sources && sources.length > 0) {
-      for (const src of sources) {
-        const text = await extractFileText(admin, src.id)
-        if (text.length > 0) {
-          materialText += `\n\n--- ${src.filename} ---\n\n${text.slice(0, 5000)}`
-        }
-        if (materialText.length > 15000) break
+      // Only extract text from the first file to save time (free tier limit)
+      const src = sources[0]
+      const text = await extractFileText(admin, src.id)
+      if (text.length > 0) {
+        materialText = `\n\n--- ${src.filename} ---\n\n${text.slice(0, 3000)}`
       }
     }
     console.log(`[generate-roadmap] material: ${materialText.length} chars`)
@@ -121,14 +149,13 @@ ${materialText
   ? `Material de referencia:\n${materialText}`
   : '(Sin archivos de referencia. Usa el nombre y descripción del curso.)'}
 
-IMPORTANTE: Genera entre 8 y 15 nodos con contenido COMPLETO. Sigue las reglas del system prompt.
-RESPONDE ÚNICAMENTE CON EL JSON. SIN markdown, SIN texto adicional, SIN \`\`\` ni \`\`\`json. SOLO el objeto JSON.`
+Genera 5-10 nodos con contenido completo. SOLO JSON, sin markdown.`
 
     const llmRes = await callLlm({
       system: ROADMAP_SYSTEM,
       messages: [{ role: 'user', parts: [{ text: userMsg }] }],
       temperature: 0.6,
-      maxOutputTokens: 16384,
+      maxOutputTokens: 4096,
     })
     if (!llmRes.ok) {
       const errBody = await llmRes.text().catch(() => 'unknown')
@@ -136,7 +163,7 @@ RESPONDE ÚNICAMENTE CON EL JSON. SIN markdown, SIN texto adicional, SIN \`\`\` 
       return jsonError(500, 'LLM error: ' + errBody.slice(0, 200))
     }
     const llmJson = await llmRes.json()
-    const raw = llmJson?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const raw = extractLlmText(llmJson) || ''
     console.log('[generate-roadmap] respuesta IA (primeros 300):', raw.slice(0, 300))
 
     let parsed: { nodes?: GenNode[] }
@@ -218,7 +245,11 @@ function safeParseJson(raw: string): { nodes?: GenNode[] } {
 
   // 4. Intento directo
   const d1 = attempt(s)
-  if (d1) return d1
+  if (d1) {
+    // NVIDIA sometimes wraps in {"roadmap":{...}}
+    if (d1.roadmap && Array.isArray(d1.roadmap.nodes)) return d1.roadmap
+    return d1
+  }
 
   // 5. Eliminar comas finales en bucle hasta que no cambie más
   //    (cubre comas antes de ] o } con cualquier whitespace)
