@@ -117,7 +117,7 @@ set /a RETRIES=0
 :wait_ai
 ping -n 2 127.0.0.1 >nul 2>&1
 set /a RETRIES+=1
-for /f "tokens=*" %%h in ('curl -s http://localhost:%AI_PORT%/api/health 2^>nul') do (
+for /f "tokens=*" %%h in ('node -e "fetch('http://localhost:%AI_PORT%/api/health').then(r=>process.stdout.write('ok')).catch(()=>process.exit(1))" 2^>nul') do (
     echo       AI Backend is ready.
     goto ai_ready
 )

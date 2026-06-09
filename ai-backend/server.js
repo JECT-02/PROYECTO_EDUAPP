@@ -18,7 +18,7 @@ function warn(tag, msg, err) {
   if (err?.stack) console.warn(`[${ts}][${tag}] Stack: ${err.stack.split('\n').slice(1, 3).join('; ')}`)
 }
 
-process.on('uncaughtException', (err) => warn('FATAL', 'Uncaught exception', err))
+process.on('uncaughtException', (err) => { warn('FATAL', 'Uncaught exception', err); process.exit(1) })
 process.on('unhandledRejection', (err) => warn('FATAL', 'Unhandled rejection', err))
 
 // Load .env from parent directory
