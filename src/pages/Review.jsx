@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
+import { analyzeError } from '../lib/llm'
+import { isSupabaseConfigured } from '../lib/api'
 import './Review.css'
 
 export default function Review() {
@@ -12,12 +14,59 @@ export default function Review() {
   const [hubOpen, setHubOpen] = useState(false)
   const [analogyType, setAnalogyType] = useState('Como si tuviera 5 años')
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [aiExplanations, setAiExplanations] = useState({})
+  const [loadingExplanations, setLoadingExplanations] = useState(true)
 
-  // Receive answers from router state, fallback to empty array
   const answers = state?.answers || []
   const incorrectAnswers = answers.filter(a => !a.isCorrect)
 
-  // If no data, show empty state
+  // Load AI explanations for all incorrect answers on mount
+  useEffect(() => {
+    if (incorrectAnswers.length === 0) {
+      setLoadingExplanations(false)
+      return
+    }
+    if (!isSupabaseConfigured) {
+      setLoadingExplanations(false)
+      return
+    }
+
+    let cancelled = false
+    async function loadExplanations() {
+      setLoadingExplanations(true)
+      const explanations = {}
+
+      for (let i = 0; i < incorrectAnswers.length; i++) {
+        const answer = incorrectAnswers[i]
+        try {
+          const concept = answer.question?.split(' ').slice(0, 4).join(' ') || ''
+          const result = await analyzeError({
+            question: answer.question,
+            userAnswer: answer.selected >= 0 ? answer.options[answer.selected] : 'No respondiste',
+            correctAnswer: answer.options[answer.correct],
+            courseId,
+            concept,
+          })
+          if (!cancelled && result?.explanation) {
+            explanations[i] = result.explanation
+          }
+        } catch {
+          // Fallback: use the explanation from the quiz if available
+          if (answer.explanation) {
+            explanations[i] = answer.explanation
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setAiExplanations(explanations)
+        setLoadingExplanations(false)
+      }
+    }
+    loadExplanations()
+    return () => { cancelled = true }
+  }, [incorrectAnswers, courseId])
+
   if (answers.length === 0) {
     return (
       <PageWrapper className="review-page">
@@ -40,6 +89,7 @@ export default function Review() {
 
   const currentAnswer = incorrectAnswers[currentIndex] || answers.find(a => !a.isCorrect) || answers[0]
   const totalIncorrect = incorrectAnswers.length
+  const currentAiExplanation = aiExplanations[currentIndex] || currentAnswer?.explanation || ''
 
   function handleNext() {
     setHubOpen(false)
@@ -58,7 +108,6 @@ export default function Review() {
     }
   }
 
-  // If no incorrect answers, show congrats
   if (totalIncorrect === 0) {
     return (
       <PageWrapper className="review-page">
@@ -115,13 +164,13 @@ export default function Review() {
           </div>
 
           {/* AI Analysis */}
-          <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentAnswer.explanation || 'Revisa el material de clase'}`}>
+          <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentAiExplanation || 'Revisa el material de clase'}`}>
             <div aria-hidden="true">
               <div className="ai-header">
                 <Mascot type="owl" size="sm" mood="normal" />
                 <div>
-                  <h3 className="ai-title">Análisis</h3>
-                  {currentAnswer.explanation && (
+                  <h3 className="ai-title">Análisis IA</h3>
+                  {currentAiExplanation && (
                     <span className="ai-concept">
                       {currentAnswer.selected >= 0
                         ? `Confundiste "${currentAnswer.options[currentAnswer.selected]}" con "${currentAnswer.options[currentAnswer.correct]}"`
@@ -131,10 +180,16 @@ export default function Review() {
                 </div>
               </div>
               <div className="ai-body">
-                <p>{currentAnswer.explanation || 'Revisa el material de clase para entender mejor este concepto.'}</p>
+                {loadingExplanations ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
+                    <LoaderCircle size={16} className="animate-spin" /> Analizando tu respuesta...
+                  </div>
+                ) : (
+                  <p>{currentAiExplanation || 'Revisa el material de clase para entender mejor este concepto. La IA no pudo generar una explicación detallada.'}</p>
+                )}
               </div>
               <div className="ai-source">
-                <BookOpen size={14} /> Fuente: Material de clase del curso
+                <BookOpen size={14} /> Fuente: Análisis IA basado en el material del curso
               </div>
             </div>
           </div>
@@ -149,7 +204,6 @@ export default function Review() {
               </button>
             </div>
           ) : (
-            /* Hub de Refuerzo Multifuente */
             <div className="hub-card animate-fadeInUp">
               <h2 className="hub-title">Refuerzo</h2>
 
@@ -180,11 +234,11 @@ export default function Review() {
 
               <div className="hub-section">
                 <h4 className="hub-sub"><Play size={16}/> 2. Video Recomendado</h4>
-                <div className="video-card" tabIndex={0} role="link" aria-label={`Video recomendado. Mitocondrias: Central Energética. Clip: 02:15 a 04:30. Presiona Enter para abrir`} onClick={() => window.open('https://youtube.com', '_blank')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open('https://youtube.com', '_blank') } }}>
+                <div className="video-card" tabIndex={0} role="link" aria-label={`Video recomendado. Presiona Enter para buscar`} onClick={() => window.open('https://youtube.com', '_blank')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open('https://youtube.com', '_blank') } }}>
                   <div className="video-thumb">▶</div>
                   <div className="video-info">
-                    <div className="v-title">Mitocondrias: Central Energética</div>
-                    <div className="v-time">Clip: 02:15 - 04:30</div>
+                    <div className="v-title">Busca un video relacionado en YouTube</div>
+                    <div className="v-time">Aprende con video</div>
                   </div>
                   <ExternalLink size={16} color="var(--text-muted)"/>
                 </div>

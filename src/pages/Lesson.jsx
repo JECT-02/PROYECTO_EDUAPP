@@ -8,69 +8,6 @@ import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import './Lesson.css'
 
-const COURSE_CONTENT = {
-  '1': {
-    title: 'La Membrana Plasmática',
-    content: [
-      "La <key>membrana plasmática</key> es una estructura vital que delimita la célula, separando su medio interno del entorno externo.",
-      "Está compuesta principalmente por una <key>bicapa lipídica</key> de fosfolípidos, donde se insertan proteínas que actúan como canales.",
-      "Su función principal es el <key>transporte selectivo</key>: permite el paso de nutrientes y la expulsión de desechos.",
-      "Además, juega un papel crucial en la <key>comunicación celular</key>, detectando señales químicas del exterior."
-    ],
-    simplified: [
-      "Imagina que la célula es como una pequeña ciudad y la <key>membrana</key> es su muralla protectora.",
-      "Esta muralla tiene <key>puertas inteligentes</key> que solo dejan pasar comida y energía.",
-      "Está hecha de una capa doble de grasitas especiales que permiten que todo se mueva con suavidad.",
-      "También tiene 'antenas' para recibir mensajes de otras células vecinas."
-    ]
-  },
-  '2': {
-    title: 'Límites y Continuidad',
-    content: [
-      "Un <key>límite</key> describe el comportamiento de una función cuando se acerca a un valor específico de x.",
-      "Decimos que una función es <key>continua</key> si no presenta saltos, huecos o asíntotas en su dominio.",
-      "El concepto de límite es la base fundamental sobre la cual se construye todo el <key>cálculo diferencial</key> e integral.",
-      "Para que un límite exista, los límites laterales (por izquierda y derecha) deben ser exactamente <key>iguales</key>."
-    ],
-    simplified: [
-      "Un <key>límite</key> es como ver a qué lugar intenta llegar una hormiguita en un dibujo.",
-      "Una línea es <key>continua</key> si puedes dibujarla sin levantar el lápiz del papel.",
-      "Es el primer paso para entender cómo cambian las cosas rápidamente en matemáticas.",
-      "Si por ambos lados llegas al mismo punto, entonces el camino está bien definido."
-    ]
-  },
-  '3': {
-    title: 'La Revolución Industrial',
-    content: [
-      "La <key>Revolución Industrial</key> fue un proceso de transformación económica, social y tecnológica que comenzó en la segunda mitad del siglo XVIII.",
-      "Se originó en el Reino de Gran Bretaña y luego se extendió a gran parte de Europa occidental y América Anglosajona.",
-      "La invención de la <key>máquina de vapor</key> por James Watt fue el catalizador principal de este cambio sin precedentes.",
-      "Marcó el paso de una economía basada en la agricultura y el trabajo manual a una dominada por la <key>industria</key> y la manufactura."
-    ],
-    simplified: [
-      "Fue la época en la que el mundo empezó a usar <key>máquinas</key> para hacer el trabajo que antes hacían las personas.",
-      "Todo empezó en Inglaterra hace mucho tiempo, cuando inventaron motores que funcionaban con vapor.",
-      "Gracias a esto, se pudieron crear <key>fábricas</key> gigantes y trenes que viajaban muy rápido.",
-      "La gente dejó el campo para ir a trabajar a las nuevas ciudades industriales."
-    ]
-  },
-  '4': {
-    title: 'Sintaxis Básica de Python',
-    content: [
-      "Python es un lenguaje de programación de <key>alto nivel</key>, conocido por su legibilidad y simplicidad sintáctica.",
-      "Las <key>variables</key> en Python no requieren una declaración de tipo explícita, lo que lo hace dinámico y flexible.",
-      "La <key>indentación</key> no es solo por estética; en Python es obligatoria para definir bloques de código.",
-      "Utiliza funciones integradas como <key>print()</key> para mostrar información en la consola de manera inmediata."
-    ],
-    simplified: [
-      "Python es como darle instrucciones a la computadora en un lenguaje muy parecido al <key>inglés</key>.",
-      "Puedes guardar información en cajitas llamadas <key>variables</key> sin complicaciones.",
-      "Para que Python te entienda, debes dejar espacios (sangría) al principio de algunas líneas.",
-      "Si quieres que la computadora te diga algo, solo usas el comando <key>print</key>."
-    ]
-  }
-}
-
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
@@ -78,8 +15,7 @@ export default function Lesson() {
   const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
   const [dbLoading, setDbLoading] = useState(true)
-
-  const fallbackData = COURSE_CONTENT[courseId] || COURSE_CONTENT['1']
+  const [allNodes, setAllNodes] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +29,7 @@ export default function Lesson() {
       const nodesFn = isTeacher ? getCourseNodesAllStatus : getCourseNodes
       const { data: nodes } = await nodesFn(courseId)
       if (cancelled) return
+      if (nodes) setAllNodes(nodes)
       const found = (nodes || []).find((n) => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
       if (found?.content) {
         setDbNode(found)
@@ -153,11 +90,15 @@ export default function Lesson() {
 
   const lessonData = dbNode
     ? {
-        title: dbNode.title || fallbackData.title,
+        title: dbNode.title || 'Lección',
         content: splitContent(dbNode.content),
-        simplified: fallbackData.simplified,
+        simplified: ['Contenido simplificado no disponible.'],
       }
-    : fallbackData
+    : {
+        title: 'Cargando lección...',
+        content: ['Espera un momento mientras se carga el contenido de la lección.'],
+        simplified: ['Cargando...'],
+      }
 
   const [content, setContent] = useState(lessonData.content)
   const [displayedText, setDisplayedText] = useState(content.map(() => ''))
@@ -165,7 +106,6 @@ export default function Lesson() {
   const [skip, setSkip] = useState(false)
   const [progress, setProgress] = useState(0)
   const [isAiEnhanced, setIsAiEnhanced] = useState(false)
-  const [isTooltipOpen, setTooltip] = useState(null)
 
   const [showChat, setShowChat] = useState(false)
   const [messages, setMessages] = useState([
@@ -173,6 +113,8 @@ export default function Lesson() {
   ])
   const [inputText, setInputText] = useState('')
   const [chatStreaming, setChatStreaming] = useState(false)
+  const [courseSources, setCourseSources] = useState([])
+  const courseTitle = lessonData?.title || 'Curso'
   const chatEndRef = useRef(null)
   const chatAbortRef = useRef(null)
   const lastAiResponseRef = useRef('')
@@ -235,6 +177,26 @@ export default function Lesson() {
   useEffect(() => {
     if (showChat) {
       chatMessagesRef.current?.focus()
+      if (courseSources.length === 0 && isSupabaseConfigured) {
+        ;(async () => {
+          try {
+            const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
+            const token = await getAccessToken()
+            const res = await fetch(`${AI_BACKEND_URL}/api/course-sources`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ courseId }),
+            })
+            const data = await res.json()
+            if (data?.files?.length > 0) {
+              setCourseSources(data.files)
+              console.log(`[chat] ${data.files.length} archivos cargados como contexto`)
+            }
+          } catch (e) {
+            console.warn('[chat] no se pudieron cargar fuentes del curso:', e.message)
+          }
+        })()
+      }
     }
   }, [showChat])
 
@@ -283,6 +245,7 @@ export default function Lesson() {
       return
     }
 
+    const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
     const accessToken = await getAccessToken()
     console.log('[chat] enviando mensaje:', userMsg.slice(0, 60))
     const controller = new AbortController()
@@ -290,15 +253,27 @@ export default function Lesson() {
     setChatStreaming(true)
     setMessages(prev => [...prev, { role: 'ai', text: '' }])
 
+    const fileTexts = [
+      ...(courseSources.length > 0 ? courseSources : []),
+      ...(lessonData.content.length > 0
+        ? [{ filename: 'Lección actual', text: lessonData.content.join('\n').slice(0, 5000) }]
+        : []),
+    ]
+
     try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+      const res = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
           Accept: 'text/event-stream',
         },
-        body: JSON.stringify({ courseId, message: userMsg, history: messages.slice(-6) }),
+        body: JSON.stringify({
+          question: userMsg,
+          courseTitle: courseTitle,
+          fileTexts,
+          history: messages.slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text })),
+        }),
         signal: controller.signal,
       })
       if (!res.ok || !res.body) {
@@ -322,12 +297,10 @@ export default function Lesson() {
           const line = evt.split('\n').find((l) => l.startsWith('data:'))
           if (!line) continue
           const payload = line.replace(/^data:\s*/, '')
-          if (payload === '[DONE]') {
-            console.log('[chat] stream finalizado')
-            continue
-          }
+          if (payload === '[DONE]') continue
           try {
             const parsed = JSON.parse(payload)
+            if (parsed.done) break
             if (typeof parsed.text === 'string') {
               chunkCount++
               acc += parsed.text
@@ -336,8 +309,8 @@ export default function Lesson() {
                 copy[copy.length - 1] = { role: 'ai', text: acc }
                 return copy
               })
-            } else {
-              console.warn('[chat] chunk sin text:', parsed)
+            } else if (parsed.error) {
+              throw new Error(parsed.error)
             }
           } catch {
             acc += payload
@@ -376,6 +349,20 @@ export default function Lesson() {
     }
   }
 
+  /**
+   * Find the next node and navigate to it.
+   * Logic: after finishing a node, go to the next node in the roadmap.
+   * If it's the last node, go back to roadmap.
+   */
+  function findNextNode() {
+    if (!allNodes || allNodes.length === 0) return null
+    // Sort by position
+    const sorted = [...allNodes].sort((a, b) => (a.position || 0) - (b.position || 0))
+    const currentIdx = sorted.findIndex(n => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
+    if (currentIdx === -1 || currentIdx >= sorted.length - 1) return null
+    return sorted[currentIdx + 1]
+  }
+
   async function handleFinishNode() {
     try {
       if (isSupabaseConfigured && dbNode?.id) {
@@ -388,7 +375,16 @@ export default function Lesson() {
         }).catch(() => { /* sin enrollment es ok */ })
       }
     } catch { /* no-op */ }
-    navigate(`/roadmap/${courseId}`)
+
+    // Navigate to the next node
+    const nextNode = findNextNode()
+    if (nextNode) {
+      const path = nextNode.type === 'quiz' ? '/quiz' : nextNode.type === 'boss' ? '/coliseo' : '/lesson'
+      navigate(`${path}/${courseId}/${nextNode.position || nextNode.id}`)
+    } else {
+      // No more nodes, go back to roadmap
+      navigate(`/roadmap/${courseId}`)
+    }
   }
 
   return (
@@ -410,11 +406,6 @@ export default function Lesson() {
           onKeyDown={handleContentKeyDown}
           onFocus={(e) => { if (e.target === e.currentTarget) { setActiveParagraph(0); paragraphRefs.current[0]?.focus() } }}
         >
-          {content === lessonData.simplified && (
-            <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={14}/> Contenido simplificado por la IA
-            </div>
-          )}
           {isAiEnhanced && content !== lessonData.simplified && (
             <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
               <span><Sparkles size={14}/> Contenido mejorado por el Tutor IA</span>
@@ -468,7 +459,7 @@ export default function Lesson() {
             className="btn btn-primary btn-lg"
             onClick={handleFinishNode}
             disabled={progress < 75}
-            aria-label="Terminar nodo y volver al mapa"
+            aria-label="Terminar nodo y continuar al siguiente"
           >
             Terminar Nodo
           </button>
