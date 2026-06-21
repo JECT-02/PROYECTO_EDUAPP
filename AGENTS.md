@@ -178,6 +178,8 @@ docs/               # Documentación del proyecto
 | `nodejs-backend-patterns` | Cuando crees/modifiques el ai-backend Express |
 | `nodejs-best-practices` | Cuando trabajes con Node.js en general |
 | `composition-patterns` | Cuando refactorices componentes React complejos |
+| `supabase` | Cuando trabajes con Supabase: DB, Auth, Edge Functions, Storage, CLI, migraciones, RLS |
+| `supabase-postgres-best-practices` | Cuando optimices queries SQL, esquemas, indexes o rendimiento de Postgres |
 
 ---
 
