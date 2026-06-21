@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
       dni: body.dni,
       password: body.password, // DEMO ONLY: texto plano
       accessibility_settings: body.accessibility ?? {},
+      onboarding_completed: false,
     }
     const { error: pErr } = await admin.from('profiles').upsert(profile, { onConflict: 'id' })
     if (pErr) console.error('profile upsert error:', pErr.message)

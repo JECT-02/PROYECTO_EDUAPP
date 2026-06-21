@@ -113,7 +113,7 @@ export default function OnboardingAvatar() {
                 // Persist to Supabase profile (no-op if not signed in)
                 try {
                   const avatarIndex = ['🦊','🐺','🦁','🐯','🦅','🐬','🦋','🌟'].indexOf(avatar)
-                  const update = { avatar_id: avatarIndex >= 0 ? avatarIndex : null }
+                  const update = { avatar_id: avatarIndex >= 0 ? avatarIndex : null, onboarding_completed: true }
                   if (isStudent) {
                     update.pet_type = pet
                     update.pet_name = petName || null

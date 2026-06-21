@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import {
   getProfile,
@@ -43,10 +43,18 @@ function profileToUser(profile, email) {
   }
 }
 
+function isOnboardingCompleteLocal(role) {
+  try {
+    const prefs = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
+    return !!prefs[`onboardingCompleted_${role}`]
+  } catch { return false }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [linkedStudents, setLinkedStudents] = useState([])
+  const hydratingRef = useRef(0)
 
   const refreshLinked = useCallback(async (parentId) => {
     if (!parentId) {
@@ -63,17 +71,23 @@ export function AuthProvider({ children }) {
   }, [])
 
   const hydrateFromSession = useCallback(async (session) => {
+    const callId = ++hydratingRef.current
     if (!session?.user) {
+      if (callId !== hydratingRef.current) return
       setUser(null)
       setLinkedStudents([])
       setLoading(false)
       return
     }
     const { data: profile, error } = await getProfile(session.user.id)
+    if (callId !== hydratingRef.current) return
     if (error) {
       console.warn('[auth] No se pudo cargar el perfil:', error.message)
     }
     const u = profileToUser(profile, session.user.email)
+    if (u) {
+      u.onboardingCompleted = profile?.onboarding_completed || isOnboardingCompleteLocal(u.role)
+    }
     setUser(u)
     if (u?.role === 'parent') {
       await refreshLinked(u.id)
@@ -117,7 +131,8 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     await hydrateFromSession(data.session)
-    return { user: profileToUser(null, data.user?.email) }
+    const u = profileToUser((await getProfile(data.user?.id)).data, data.user?.email)
+    return { user: u }
   }
 
   async function register({ email, password, fullName, role, ageBand, institution, subject, relation, dni, accessibility, avatar_id, pet_type, pet_name }) {
@@ -194,7 +209,13 @@ export function AuthProvider({ children }) {
     if (!user?.id) return
     const { data } = await getProfile(user.id)
     if (data) {
-      setUser((prev) => (prev ? { ...prev, fullProfile: data, name: data.full_name || prev.name, avatar: DEFAULT_AVATAR[data.role] || prev.avatar } : prev))
+      setUser((prev) => (prev ? {
+        ...prev,
+        fullProfile: data,
+        name: data.full_name || prev.name,
+        avatar: DEFAULT_AVATAR[data.role] || prev.avatar,
+        onboardingCompleted: data.onboarding_completed || isOnboardingCompleteLocal(data.role),
+      } : prev))
     }
   }, [user])
 
@@ -202,7 +223,13 @@ export function AuthProvider({ children }) {
     if (!user?.id) return { error: new Error('No hay sesión') }
     const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single()
     if (!error && data) {
-      setUser((prev) => (prev ? { ...prev, fullProfile: data, name: data.full_name || prev.name, avatar: DEFAULT_AVATAR[data.role] || prev.avatar } : prev))
+      setUser((prev) => (prev ? {
+        ...prev,
+        fullProfile: data,
+        name: data.full_name || prev.name,
+        avatar: DEFAULT_AVATAR[data.role] || prev.avatar,
+        onboardingCompleted: data.onboarding_completed || prev.onboardingCompleted,
+      } : prev))
     }
     return { data, error }
   }, [user])
@@ -210,6 +237,11 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!user
   const role = user?.role || null
   const studentId = user?.fullProfile?.id || user?.id || null
+
+  const checkOnboardingComplete = useCallback((u) => {
+    if (!u) return false
+    return u.onboardingCompleted || u.fullProfile?.onboarding_completed || isOnboardingCompleteLocal(u.role)
+  }, [])
 
   const value = {
     user,
@@ -226,6 +258,7 @@ export function AuthProvider({ children }) {
     unlinkStudent,
     refreshProfile,
     updateProfile: updateProfileData,
+    checkOnboardingComplete,
     ROLE_ROUTES,
     PUBLIC_ROUTES,
   }

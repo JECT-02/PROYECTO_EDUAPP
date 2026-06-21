@@ -24,15 +24,8 @@ import ParentDashboard from './pages/ParentDashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 
-function isOnboardingComplete(role) {
-  try {
-    const prefs = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
-    return !!prefs[`onboardingCompleted_${role}`]
-  } catch { return false }
-}
-
 function ProtectedRoute({ children, allowedRoles }) {
-  const { isAuthenticated, role, loading } = useAuth()
+  const { isAuthenticated, role, loading, user, checkOnboardingComplete } = useAuth()
   const location = useLocation()
 
   if (loading) {
@@ -43,12 +36,15 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (!isOnboardingComplete(role)) {
+  if (role === null) {
+    return <RouteFallback />
+  }
+
+  if (!checkOnboardingComplete(user)) {
     return <Navigate to="/onboarding/accessibility" replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {
-    // Redirect to the role's home page
     const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
     return <Navigate to={redirectMap[role] || '/dashboard'} replace />
   }
@@ -77,14 +73,17 @@ function FocusManager() {
 }
 
 function PublicRoute({ children }) {
-  const { isAuthenticated, role, loading } = useAuth()
+  const { isAuthenticated, role, loading, user, checkOnboardingComplete } = useAuth()
 
   if (loading) {
     return <RouteFallback />
   }
 
   if (isAuthenticated) {
-    if (!isOnboardingComplete(role)) {
+    if (role === null) {
+      return <RouteFallback />
+    }
+    if (!checkOnboardingComplete(user)) {
       return <Navigate to="/onboarding/accessibility" replace />
     }
     const redirectMap = { teacher: '/teacher', student: '/dashboard', parent: '/parent' }
