@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { getCourseNodes, getCourseNodesAllStatus, markNodeProgress, isSupabaseConfigured } from '../lib/api'
+import { getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,7 +11,7 @@ import './Lesson.css'
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
-  const { role } = useAuth()
+  const { role, studentId } = useAuth()
   const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
   const [dbLoading, setDbLoading] = useState(true)
@@ -365,16 +365,27 @@ export default function Lesson() {
 
   async function handleFinishNode() {
     try {
-      if (isSupabaseConfigured && dbNode?.id) {
-        await markNodeProgress({
-          enrollmentId: null,
-          nodeId: dbNode.id,
-          state: 'completed',
-          score: 1,
-          completed: true,
-        }).catch(() => { /* sin enrollment es ok */ })
+      if (isSupabaseConfigured && dbNode?.id && !isTeacher && studentId) {
+        const { data: enrollments } = await getStudentEnrollments(studentId)
+        const enrollment = (enrollments || []).find(
+          (e) => e.course_id === courseId || String(e.course_id) === String(courseId)
+        )
+        if (enrollment) {
+          const { error } = await markNodeProgress({
+            enrollmentId: enrollment.id,
+            nodeId: dbNode.id,
+            state: 'completed',
+            score: 1,
+            completed: true,
+          })
+          if (error) console.warn('[lesson] markNodeProgress error:', error.message)
+        } else {
+          console.warn('[lesson] no enrollment found for student', studentId, 'course', courseId)
+        }
       }
-    } catch { /* no-op */ }
+    } catch (e) {
+      console.warn('[lesson] handleFinishNode error:', e)
+    }
 
     // Navigate to the next node
     const nextNode = findNextNode()
