@@ -40,14 +40,14 @@ const RELATIONS = ['Padre','Madre','Tutor legal','Abuelo/a','Otro']
 
 export default function Register() {
   const navigate = useNavigate()
-  const { isAuthenticated, register } = useAuth()
+  const { isAuthenticated, register, login } = useAuth()
 
   // Si ya está autenticado al montar el componente, redirigir (solo en mount, no interfiere con registro)
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+      navigate('/onboarding/accessibility', { replace: true })
     }
-  }, [])
+  }, [isAuthenticated])
   const [step, setStep] = useState(1)
   const [role, setRole] = useState('')
   const [form, setForm] = useState({
@@ -59,28 +59,9 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [otpHint] = useState(() => {
-    // En modo simulación, mostramos el "código" que el sistema "envió" para UX,
-    // pero el usuario puede escribir cualquier valor.
-    return String(Math.floor(100000 + Math.random() * 900000))
-  })
+  const [confirmed, setConfirmed] = useState(false)
 
   const upd = (key, val) => setForm(p => ({ ...p, [key]: val }))
-
-  function setOtpDigit(i, val) {
-    const v = String(val).replace(/\D/g, '').slice(0, 1)
-    setOtp((p) => p.map((d, idx) => (idx === i ? v : d)))
-    // autofocus siguiente
-    if (v && i < 5) {
-      const el = document.getElementById(`otp-${i + 1}`)
-      if (el) el.focus()
-    }
-  }
-
-  function fillOtpDemo() {
-    setOtp(otpHint.split(''))
-  }
 
   function canAdvance() {
     if (step === 1) return !!role
@@ -91,22 +72,18 @@ export default function Register() {
       if (role === 'parent') return base && form.relation
       return base
     }
-    if (step === 3) {
-      // OTP simulado: cualquier combinación de 6 dígitos es válida.
-      return true
-    }
     return true
   }
 
   async function next() {
     if (!canAdvance()) return
-    if (step === 3) {
-      // Validación simulada: el OTP puede ser cualquier cosa, siempre es true.
+    if (step === 2) {
       setLoading(true)
+      setError('')
       try {
         const fullName = `${form.firstName} ${form.lastName}`.trim()
         const ageBandMap = { '7-10 años': '7-10', '11-14 años': '11-14', '15-17 años': '15-17', '18+ años': '18+' }
-        await register({
+        const result = await register({
           email: form.email,
           password: form.password,
           fullName,
@@ -117,15 +94,30 @@ export default function Register() {
           relation: form.relation,
           dni: form.dni,
         })
-        // Auto-login ya se hizo dentro de register() — saltamos al onboarding
-        navigate('/onboarding/accessibility')
+        if (result?.needsConfirmation) {
+          setStep(3)
+          setConfirmed(true)
+        }
       } catch (err) {
         setError(err.message || 'No se pudo crear la cuenta. Intenta de nuevo.')
       } finally {
         setLoading(false)
       }
     } else {
-      setStep((s) => Math.min(s + 1, 3))
+      setStep((s) => Math.min(s + 1, 2))
+    }
+  }
+
+  async function handleContinue() {
+    setLoading(true)
+    setError('')
+    try {
+      await login({ email: form.email, password: form.password })
+      navigate('/onboarding/accessibility')
+    } catch (err) {
+      setError(err.message || 'No se pudo iniciar sesión.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -137,14 +129,17 @@ export default function Register() {
 
           {/* Progress steps */}
           <div className="register-steps">
-            {['Rol','Datos','Verifica'].map((s, i) => (
-              <div key={s} className={`step-item ${step > i+1 ? 'done' : step === i+1 ? 'active' : ''}`}>
-                <div className="step-circle">
-                  {step > i+1 ? <CheckCircle size={16}/> : i+1}
+            {['Rol','Datos','Confirmar'].map((s, i) => {
+              const isDone = confirmed || step > i + 1
+              return (
+                <div key={s} className={`step-item ${isDone ? 'done' : step === i + 1 ? 'active' : ''}`}>
+                  <div className="step-circle">
+                    {isDone ? <CheckCircle size={16}/> : i + 1}
+                  </div>
+                  <span>{s}</span>
                 </div>
-                <span>{s}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Step 1 — Role selection */}
@@ -293,11 +288,17 @@ export default function Register() {
                   <input type="checkbox" />
                   Acepto los <span className="link-inline">términos y política de privacidad</span>
                 </label>
+
+                {error && (
+                  <div className="form-error" role="alert" style={{ marginTop: 16 }}>
+                    {error}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 3 — Simulated 6-digit OTP verification (any value works) */}
+          {/* Step 3 — Email confirmation */}
           {step === 3 && (
             <div className="step-content animate-fadeInUp">
               <div className="otp-icon-wrap">
@@ -308,32 +309,19 @@ export default function Register() {
                   </svg>
                 </div>
               </div>
-              <h2 className="step-title">Verifica tu correo</h2>
+              <h2 className="step-title">Revisa tu correo</h2>
               <p className="step-sub">
-                Ingresa el código de 6 dígitos que <em>simulamos haber enviado</em> a <strong>{form.email || 'tu correo'}</strong>.
-              </p>
-              <p className="step-sub" style={{ fontSize: '0.78rem', marginTop: 4, color: 'var(--text-dim)' }}>
-                <strong>Modo simulación:</strong> cualquier código de 6 dígitos es válido. No se envía correo real.
+                Te enviamos un link de confirmación a <strong>{form.email || 'tu correo'}</strong>.
+                Haz click en el enlace para activar tu cuenta y continuar.
               </p>
 
-              <div className="otp-inputs">
-                {otp.map((d, i) => (
-                  <input
-                    key={i}
-                    id={`otp-${i}`}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    className="otp-box"
-                    value={d}
-                    onChange={(e) => setOtpDigit(i, e.target.value)}
-                    aria-label={`Dígito ${i + 1}`}
-                  />
-                ))}
-              </div>
-
-              <button type="button" className="link-btn" style={{ marginTop: 12, fontSize: '0.82rem' }} onClick={fillOtpDemo}>
-                Usar código sugerido ({otpHint})
+              <button
+                className={`btn btn-primary full-w ${loading ? 'loading' : ''}`}
+                onClick={handleContinue}
+                disabled={loading}
+                style={{ marginTop: 16 }}
+              >
+                {loading ? <span className="spinner"/> : 'Continuar'}
               </button>
 
               {error && (
@@ -345,26 +333,26 @@ export default function Register() {
           )}
 
           {/* Navigation */}
-          <div className="register-nav">
-            {step > 1 && (
-              <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}>
-                Atrás
-              </button>
-            )}
-            <button
-              className={`btn btn-primary ${loading ? 'loading' : ''}`}
-              onClick={next}
-              disabled={!canAdvance() || loading}
-              style={{ marginLeft: 'auto' }}
-            >
-              {loading
-                ? <span className="spinner"/>
-                : step === 3
-                  ? 'Comenzar'
+          {step < 3 && (
+            <div className="register-nav">
+              {step > 1 && (
+                <button className="btn btn-ghost" onClick={() => setStep(s => s - 1)}>
+                  Atrás
+                </button>
+              )}
+              <button
+                className={`btn btn-primary ${loading ? 'loading' : ''}`}
+                onClick={next}
+                disabled={!canAdvance() || loading}
+                style={{ marginLeft: 'auto' }}
+              >
+                {loading
+                  ? <span className="spinner"/>
                   : <> Siguiente <ChevronRight size={16}/></>
-              }
-            </button>
-          </div>
+                }
+              </button>
+            </div>
+          )}
 
           <p className="register-login">
             Ya tienes cuenta?{' '}

@@ -1,9 +1,6 @@
 // supabase/functions/register-user/index.ts
-// Crea un usuario con email_confirm=true (simulando la verificación por correo).
-// Usado por el frontend en lugar de supabase.auth.signUp() para evitar la dependencia
-// del envío de correo real. Bypasea el ciclo de confirmación.
-//
-// NOTA: en producción, esto debería reemplazarse por signUp() + verificación real.
+// Crea un usuario con email_confirm=false para que Supabase envíe un correo
+// de confirmación real. El usuario debe hacer click en el link para activar su cuenta.
 
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { getAdminClient } from '../_shared/supabase-admin.ts'
@@ -45,11 +42,11 @@ Deno.serve(async (req) => {
       return jsonError(409, 'Ya existe una cuenta con ese correo.')
     }
 
-    // 2) Crear usuario con email_confirm=true (simulación de verificación)
+    // 2) Crear usuario con email_confirm=false — Supabase enviará correo de confirmación
     const { data: created, error: cErr } = await admin.auth.admin.createUser({
       email: body.email,
       password: body.password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: {
         full_name: body.fullName,
         role: body.role,
@@ -90,8 +87,7 @@ Deno.serve(async (req) => {
 
     return jsonOk({
       user: { id: userId, email: body.email },
-      needsConfirmation: false,
-      simulated: true,
+      needsConfirmation: true,
     })
   } catch (e) {
     console.error(e)

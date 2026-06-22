@@ -75,6 +75,6 @@ export async function chatRoadmap({ courseId, message, nodes, history = [] }) {
 }
 
 export async function registerUserSimulated(payload) {
-  // Bypasea la verificación de correo: cualquier OTP de 6 dígitos será válido.
-  return callFunction({ name: 'register-user', body: payload, accessToken: null })
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  return callFunction({ name: 'register-user', body: payload, accessToken: anonKey })
 }

@@ -139,8 +139,6 @@ export function AuthProvider({ children }) {
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Supabase no está configurado.')
     }
-    // 1) Simular verificación: crear el usuario via Edge Function (email_confirm=true).
-    //    Esto bypasea la verificación real por correo y agrega el usuario a la DB.
     let result
     try {
       result = await registerUserSimulated({
@@ -151,13 +149,7 @@ export function AuthProvider({ children }) {
       throw new Error(e?.message || 'No se pudo crear la cuenta.')
     }
     if (result?.error) throw new Error(result.error)
-    // 2) Iniciar sesión automáticamente con las mismas credenciales.
-    const { data: loginData, error: lErr } = await supabase.auth.signInWithPassword({ email, password })
-    if (lErr) throw lErr
-    if (loginData?.session) {
-      await hydrateFromSession(loginData.session)
-    }
-    return { user: loginData?.user, needsConfirmation: false, simulated: true }
+    return { needsConfirmation: result?.needsConfirmation ?? false }
   }
 
   async function resetPassword(email) {

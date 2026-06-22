@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, GraduationCap, User, Heart, AlertCircle, RefreshCw } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Sparkles, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import PageWrapper from '../components/PageWrapper'
@@ -12,7 +12,6 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
-  const [role, setRole] = useState('student')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [errorKind, setErrorKind] = useState(null)
@@ -54,13 +53,13 @@ export default function Login() {
     if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
       return {
         kind: 'creds',
-        text: 'Correo o contraseña incorrectos. Si acabas de sembrar la base de datos, espera unos segundos y vuelve a intentar.',
+        text: 'Correo o contraseña incorrectos. Intenta de nuevo.',
       }
     }
     if (msg.includes('email not confirmed')) {
       return {
         kind: 'unconfirmed',
-        text: 'Tu correo aún no está verificado. En esta demo todas las cuentas se crean ya verificadas; si la tuya no lo está, ejecuta el seed de nuevo.',
+        text: 'Tu correo aún no está verificado. Revisa tu bandeja de entrada.',
       }
     }
     if (msg.includes('user not found') || msg.includes('no existe')) {
@@ -99,7 +98,7 @@ export default function Login() {
     }
     setLoading(true); setError(''); setErrorKind(null)
     try {
-      const res = await login({ email, password, role, magicLink: magicMode })
+      const res = await login({ email, password, magicLink: magicMode })
       if (res?.magicSent) {
         setMagicSent(true)
         setLoading(false)
@@ -179,31 +178,6 @@ export default function Login() {
                 <RefreshCw size={12} className="animate-spin" /> Verificando conexion con Supabase...
               </div>
             )}
-
-            {/* Role selector */}
-            <div className="role-selector">
-              <button
-                className={`role-selector-btn ${role === 'student' ? 'active' : ''}`}
-                onClick={() => setRole('student')}
-              >
-                <User size={16} />
-                Estudiante
-              </button>
-              <button
-                className={`role-selector-btn ${role === 'teacher' ? 'active' : ''}`}
-                onClick={() => setRole('teacher')}
-              >
-                <GraduationCap size={16} />
-                Docente
-              </button>
-              <button
-                className={`role-selector-btn ${role === 'parent' ? 'active' : ''}`}
-                onClick={() => setRole('parent')}
-              >
-                <Heart size={16} />
-                Padre
-              </button>
-            </div>
 
             {/* Mode toggle */}
             <div className="login-mode-toggle">
@@ -289,13 +263,6 @@ export default function Login() {
                   }
                 </button>
 
-                <div className="form-divider"><span>o accede con</span></div>
-                <div className="oauth-row">
-                  <button type="button" className="oauth-btn" style={{ width: '100%', justifyContent: 'center' }}>
-                    <img src="https://www.google.com/favicon.ico" width="18" height="18" alt="Google"/>
-                    Continuar con Google
-                  </button>
-                </div>
               </form>
             )}
 
