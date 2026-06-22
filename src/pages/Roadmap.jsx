@@ -4,7 +4,7 @@ import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Edit3, Eye, LoaderCircl
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateLocked } from '../utils/vibration'
-import { getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import './Roadmap.css'
 
@@ -29,18 +29,20 @@ export default function Roadmap() {
         return
       }
       try {
+        const { data: courseData } = await getCourseWithNodes(courseId)
+        if (cancelled) return
+        setCourseTitle(courseData?.title || 'Curso')
+
         const nodesFn = isTeacher ? getCourseNodesAllStatus : getCourseNodes
         const { data, error } = await nodesFn(courseId)
         if (cancelled) return
         if (error) throw error
         if (!data || data.length === 0) {
-          setCourseTitle('Curso sin contenido')
           setNodes([])
           setLoading(false)
           setErrorMsg('Este curso aún no tiene nodos en el roadmap.')
           return
         }
-        setCourseTitle(data[0]?.title ? 'Curso' : 'Curso')
 
         let mapped = data.map((n) => ({
           id: n.id,
