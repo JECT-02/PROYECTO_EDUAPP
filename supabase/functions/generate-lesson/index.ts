@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       messages: [{ role: 'user', parts: [{ text: userMsg }] }],
       stream: true,
       temperature: 0.6,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 6144,
     })
     if (!llmRes.ok || !llmRes.body) {
       const err = await llmRes.text().catch(() => 'unknown')

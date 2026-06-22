@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Volume2, FastForward, Check, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
+import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +16,7 @@ export default function Lesson() {
   const [dbNode, setDbNode] = useState(null)
   const [dbLoading, setDbLoading] = useState(true)
   const [allNodes, setAllNodes] = useState([])
+  const [courseName, setCourseName] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -30,6 +31,8 @@ export default function Lesson() {
       const { data: nodes } = await nodesFn(courseId)
       if (cancelled) return
       if (nodes) setAllNodes(nodes)
+      const { data: courseData } = await getCourseWithNodes(courseId)
+      if (!cancelled && courseData?.title) setCourseName(courseData.title)
       const found = (nodes || []).find((n) => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
       if (found?.content) {
         setDbNode(found)
@@ -45,7 +48,7 @@ export default function Lesson() {
         })
         if (!res.ok || !res.body) {
           console.warn('generate-lesson HTTP error:', res.status)
-          return
+          throw new Error('generate-lesson failed')
         }
         const reader = res.body.getReader()
         const decoder = new TextDecoder('utf-8')
@@ -71,10 +74,9 @@ export default function Lesson() {
           }
         }
         if (!cancelled && fullContent.trim()) {
-          const paragraphs = fullContent.split('\n').filter(p => p.trim()).map(p => p.trim())
           setDbNode({
             ...(found || { title: 'Lección' }),
-            content: paragraphs.length > 1 ? paragraphs : [fullContent],
+            content: fullContent,
             title: found?.title || 'Lección',
           })
         }
@@ -92,19 +94,13 @@ export default function Lesson() {
     ? {
         title: dbNode.title || 'Lección',
         content: splitContent(dbNode.content),
-        simplified: ['Contenido simplificado no disponible.'],
       }
     : {
         title: 'Cargando lección...',
-        content: ['Espera un momento mientras se carga el contenido de la lección.'],
-        simplified: ['Cargando...'],
+        content: ['<p>Espera un momento mientras se carga el contenido de la lección.</p>'],
       }
 
   const [content, setContent] = useState(lessonData.content)
-  const [displayedText, setDisplayedText] = useState(content.map(() => ''))
-  const [readIndex, setReadIndex] = useState(0)
-  const [skip, setSkip] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [isAiEnhanced, setIsAiEnhanced] = useState(false)
 
   const [showChat, setShowChat] = useState(false)
@@ -118,57 +114,19 @@ export default function Lesson() {
   const chatEndRef = useRef(null)
   const chatAbortRef = useRef(null)
   const lastAiResponseRef = useRef('')
-  const paragraphRefs = useRef([])
+  const blockRefs = useRef([])
   const chatInputRef = useRef(null)
   const chatMessagesRef = useRef(null)
-  const [activeParagraph, setActiveParagraph] = useState(0)
+  const [activeBlock, setActiveBlock] = useState(0)
 
   useEffect(() => {
     setContent(lessonData.content)
-    setDisplayedText(lessonData.content.map(() => ''))
-    setReadIndex(0)
-    setProgress(0)
-    setSkip(false)
     setIsAiEnhanced(false)
-    setActiveParagraph(0)
+    setActiveBlock(0)
     setMessages([
       { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
     ])
   }, [courseId, nodeId, dbNode])
-
-  useEffect(() => {
-    if (skip) {
-      setDisplayedText(content.map(t => formatParagraph(t)))
-      setProgress(100)
-      return
-    }
-
-    if (readIndex < content.length) {
-      const fullText = content[readIndex]
-      let currentLength = 0
-
-      const interval = setInterval(() => {
-        currentLength += 2
-        let textToShow = fullText.slice(0, currentLength)
-        textToShow = formatParagraph(textToShow)
-
-        setDisplayedText(prev => {
-          const next = [...prev]
-          next[readIndex] = textToShow
-          return next
-        })
-
-        if (currentLength >= fullText.length) {
-          clearInterval(interval)
-          setTimeout(() => {
-            setReadIndex(r => r + 1)
-            setProgress(((readIndex + 1) / content.length) * 100)
-          }, 800)
-        }
-      }, 20)
-      return () => clearInterval(interval)
-    }
-  }, [readIndex, skip, content])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -203,14 +161,14 @@ export default function Lesson() {
   function handleContentKeyDown(e) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const next = activeParagraph === displayedText.length - 1 ? 0 : activeParagraph + 1
-      setActiveParagraph(next)
-      paragraphRefs.current[next]?.focus()
+      const next = activeBlock === content.length - 1 ? 0 : activeBlock + 1
+      setActiveBlock(next)
+      blockRefs.current[next]?.focus()
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const prev = activeParagraph === 0 ? displayedText.length - 1 : activeParagraph - 1
-      setActiveParagraph(prev)
-      paragraphRefs.current[prev]?.focus()
+      const prev = activeBlock === 0 ? content.length - 1 : activeBlock - 1
+      setActiveBlock(prev)
+      blockRefs.current[prev]?.focus()
     }
   }
 
@@ -230,13 +188,6 @@ export default function Lesson() {
 
     if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
       setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
-      setTimeout(() => {
-        setContent(lessonData.simplified)
-        setDisplayedText(lessonData.simplified.map(() => ''))
-        setReadIndex(0)
-        setSkip(false)
-        setProgress(0)
-      }, 1000)
       return
     }
 
@@ -325,12 +276,7 @@ export default function Lesson() {
       console.log(`[chat] stream completo: ${chunkCount} chunks, total ${acc.length} chars`)
       if (acc.trim().length > 20) {
         lastAiResponseRef.current = acc
-        const paragraphs = acc.split('\n').filter(p => p.trim()).map(p => p.trim())
-        setContent(paragraphs.length > 1 ? paragraphs : [acc])
-        setReadIndex(0)
-        setDisplayedText(paragraphs.length > 1 ? paragraphs.map(() => '') : [''])
-        setSkip(false)
-        setProgress(0)
+        setContent(splitContent(acc))
         setIsAiEnhanced(true)
       }
     } catch (err) {
@@ -349,14 +295,8 @@ export default function Lesson() {
     }
   }
 
-  /**
-   * Find the next node and navigate to it.
-   * Logic: after finishing a node, go to the next node in the roadmap.
-   * If it's the last node, go back to roadmap.
-   */
   function findNextNode() {
     if (!allNodes || allNodes.length === 0) return null
-    // Sort by position
     const sorted = [...allNodes].sort((a, b) => (a.position || 0) - (b.position || 0))
     const currentIdx = sorted.findIndex(n => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
     if (currentIdx === -1 || currentIdx >= sorted.length - 1) return null
@@ -387,13 +327,11 @@ export default function Lesson() {
       console.warn('[lesson] handleFinishNode error:', e)
     }
 
-    // Navigate to the next node
     const nextNode = findNextNode()
     if (nextNode) {
       const path = nextNode.type === 'quiz' ? '/quiz' : nextNode.type === 'boss' ? '/coliseo' : '/lesson'
       navigate(`${path}/${courseId}/${nextNode.position || nextNode.id}`)
     } else {
-      // No more nodes, go back to roadmap
       navigate(`/roadmap/${courseId}`)
     }
   }
@@ -402,79 +340,64 @@ export default function Lesson() {
     <PageWrapper className="lesson-page">
       <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
         <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true"/></button>
-        <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseId}, Lección: ${lessonData.title}`}>
-          <span className="lesson-subtitle" aria-hidden="true">Curso {courseId} • Lección</span>
+        <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseName || courseId}, Lección: ${lessonData.title}`}>
+          <span className="lesson-subtitle" aria-hidden="true">{courseName || 'Curso'} • Lección</span>
           <h1 className="lesson-title" aria-hidden="true">{lessonData.title}</h1>
         </div>
       </header>
 
       <div className="lesson-content">
-        <div
-          className="lesson-text-container"
-          role="application"
-          aria-label="Contenido de la lección"
-          tabIndex={0}
-          onKeyDown={handleContentKeyDown}
-          onFocus={(e) => { if (e.target === e.currentTarget) { setActiveParagraph(0); paragraphRefs.current[0]?.focus() } }}
-        >
-          {isAiEnhanced && content !== lessonData.simplified && (
-            <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
-              <span><Sparkles size={14}/> Contenido mejorado por el Tutor IA</span>
-              <button
-                className="icon-btn sm"
-                onClick={() => {
-                  setIsAiEnhanced(false)
-                  setContent(lessonData.content)
-                  setDisplayedText(lessonData.content.map(() => ''))
-                  setReadIndex(0)
-                  setSkip(false)
-                  setProgress(0)
-                }}
-                title="Restaurar contenido original"
-                style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
-                aria-label="Restaurar contenido original"
-              >
-                <RefreshCw size={12}/> Original
-              </button>
-            </div>
-          )}
-          {displayedText.map((html, i) => (
-            <p
-              key={i}
-              ref={el => paragraphRefs.current[i] = el}
-              tabIndex={-1}
-              className="lesson-paragraph"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          ))}
-        </div>
+        {dbLoading ? (
+          <div className="lesson-loading" role="status" aria-label="Cargando lección">
+            <LoaderCircle size={32} className="animate-spin" aria-hidden="true" />
+          </div>
+        ) : (
+          <div
+            className="lesson-text-container"
+            role="application"
+            aria-label="Contenido de la lección"
+            tabIndex={0}
+            onKeyDown={handleContentKeyDown}
+            onFocus={(e) => { if (e.target === e.currentTarget) { setActiveBlock(0); blockRefs.current[0]?.focus() } }}
+          >
+            {isAiEnhanced && (
+              <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+                <span><Sparkles size={14}/> Contenido mejorado por el Tutor IA</span>
+                <button
+                  className="icon-btn sm"
+                  onClick={() => {
+                    setIsAiEnhanced(false)
+                    setContent(lessonData.content)
+                  }}
+                  title="Restaurar contenido original"
+                  style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+                  aria-label="Restaurar contenido original"
+                >
+                  <RefreshCw size={12}/> Original
+                </button>
+              </div>
+            )}
+            {content.map((html, i) => (
+              <div
+                key={i}
+                ref={el => blockRefs.current[i] = el}
+                tabIndex={-1}
+                className="lesson-block"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <footer className="lesson-footer">
-        <div className="lesson-progress-row">
-          <div className="progress-bar" style={{flex:1}}>
-            <div className="progress-fill" style={{width:`${progress}%`}}/>
-          </div>
-          <span className="progress-lbl" aria-live="polite">{Math.round(progress)}% completado</span>
-        </div>
-        <div className="lesson-footer-actions">
-          <button
-            className="btn btn-ghost"
-            onClick={() => setSkip(true)}
-            disabled={skip || progress >= 100}
-            aria-label="Saltar animación de escritura y mostrar todo el contenido"
-          >
-            <FastForward size={16}/> Saltar
-          </button>
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={handleFinishNode}
-            disabled={progress < 75}
-            aria-label="Terminar nodo y continuar al siguiente"
-          >
-            Terminar Nodo
-          </button>
-        </div>
+        <button
+          className="btn btn-primary btn-lg"
+          onClick={handleFinishNode}
+          aria-label="Terminar nodo y continuar al siguiente"
+        >
+          Terminar Nodo
+        </button>
       </footer>
 
       {showChat && (
@@ -540,21 +463,13 @@ export default function Lesson() {
   )
 }
 
-function formatParagraph(text) {
-  return text
-    .replace(/<key>/g, '<span class="interactive-word">')
-    .replace(/<\/key>/g, '</span>')
-}
-
 function splitContent(rawContent) {
   if (!rawContent) return []
   if (Array.isArray(rawContent)) return rawContent
-  const stripped = String(rawContent)
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-  return stripped
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
+  const html = String(rawContent)
+  const blocks = html
+    .split(/(?=<(?:h[23]|p|div|pre|ul|ol|blockquote)\b)/i)
+    .map(b => b.trim())
     .filter(Boolean)
+  return blocks.length > 0 ? blocks : [`<p>${html}</p>`]
 }
