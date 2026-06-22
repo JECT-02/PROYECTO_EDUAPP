@@ -40,6 +40,17 @@
   border-radius: 3px;
   transition: width 0.5s ease;
 }
+.rm-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rm-progress-pct {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 30px;
+}
 .rm-h-right {
   display: flex;
   align-items: center;
@@ -106,20 +117,55 @@
   z-index: 1;
 }
 
+/* Base type colors */
+.rm-node-v2.theory .node-main {
+  background: var(--primary);
+  color: #fff;
+}
+.rm-node-v2.theory .node-glow {
+  background: var(--primary);
+}
+.rm-node-v2.practice .node-main {
+  background: #22C55E;
+  color: #fff;
+}
+.rm-node-v2.practice .node-glow {
+  background: #22C55E;
+}
+.rm-node-v2.quiz .node-main {
+  background: var(--accent);
+  color: #fff;
+}
+.rm-node-v2.quiz .node-glow {
+  background: var(--accent);
+  opacity: 0;
+}
+.rm-node-v2.boss .node-main {
+  background: #4F46E5;
+  color: #fff;
+}
+.rm-node-v2.boss .node-glow {
+  background: #818CF8;
+}
+.rm-node-v2.reward .node-main {
+  background: #EC4899;
+  color: #fff;
+}
+.rm-node-v2.reward .node-glow {
+  background: #EC4899;
+}
+
 /* States */
 .rm-node-v2.completed .node-main {
-  background: var(--success) !important;
   color: #fff !important;
 }
 .rm-node-v2.completed .node-glow {
-  background: var(--success);
   opacity: 0.35;
 }
 .rm-node-v2.in_progress .node-main {
-  background: var(--primary) !important;
   color: #fff !important;
   transform: scale(1.1);
-  box-shadow: 0 0 40px rgba(108,99,255,0.3);
+  animation: nodeMainPulse 2s ease-in-out infinite;
 }
 .rm-node-v2.in_progress .node-glow {
   opacity: 0.7;
@@ -137,36 +183,42 @@
   opacity: 0 !important;
 }
 
-/* Types */
-.rm-node-v2.quiz.completed .node-main {
-  background: var(--accent) !important;
-  color: #fff !important;
+/* Type-specific overrides (in_progress) */
+.rm-node-v2.theory.in_progress .node-main {
+  background: #6C63FF;
+  animation-name: theoryPulse;
 }
-.rm-node-v2.quiz .node-glow {
-  background: var(--accent);
-  opacity: 0;
+.rm-node-v2.theory.in_progress .node-glow {
+  background: #7B73FF;
 }
-.rm-node-v2.quiz.completed .node-glow {
-  opacity: 0.4;
+.rm-node-v2.practice.in_progress .node-main {
+  background: #22C55E;
+  animation-name: practicePulse;
+}
+.rm-node-v2.practice.in_progress .node-glow {
+  background: #38D070;
+}
+.rm-node-v2.quiz.in_progress .node-main {
+  background: #F59E0B;
+  animation-name: quizPulse;
 }
 .rm-node-v2.quiz.in_progress .node-glow {
   opacity: 0.5;
 }
-.rm-node-v2.boss.completed .node-main {
-  background: #4F46E5 !important;
-  color: #fff !important;
-  box-shadow: 0 0 30px rgba(99,102,241,0.3);
-}
 .rm-node-v2.boss.in_progress .node-main {
-  background: var(--primary) !important;
-  color: #fff !important;
-  box-shadow: 0 0 30px rgba(108,99,255,0.3);
-}
-.rm-node-v2.boss .node-glow {
-  background: #818CF8;
+  background: #4F46E5;
+  animation-name: bossPulse;
+  box-shadow: 0 0 30px rgba(79,70,229,0.3);
 }
 .rm-node-v2.boss.in_progress .node-glow {
   opacity: 0.5;
+}
+.rm-node-v2.reward.in_progress .node-main {
+  background: #EC4899;
+  animation-name: rewardPulse;
+}
+.rm-node-v2.reward.in_progress .node-glow {
+  background: #F090B8;
 }
 
 /* ===== Sync bar flotante (inferior centrado) ===== */
@@ -273,6 +325,30 @@
 @keyframes nodePulse {
   0%, 100% { transform: scale(1); opacity: 0.6; }
   50% { transform: scale(1.3); opacity: 0.2; }
+}
+@keyframes nodeMainPulse {
+  0%, 100% { filter: brightness(1.2); }
+  50% { filter: brightness(0.9); }
+}
+@keyframes theoryPulse {
+  0%, 100% { background: #6C63FF; }
+  50% { background: #7B73FF; }
+}
+@keyframes practicePulse {
+  0%, 100% { background: #22C55E; }
+  50% { background: #38D070; }
+}
+@keyframes quizPulse {
+  0%, 100% { background: #F59E0B; }
+  50% { background: #F8C940; }
+}
+@keyframes bossPulse {
+  0%, 100% { background: #4F46E5; }
+  50% { background: #6878E8; }
+}
+@keyframes rewardPulse {
+  0%, 100% { background: #EC4899; }
+  50% { background: #F090B8; }
 }
 @keyframes activePathAnim {
   from { opacity: 0; }

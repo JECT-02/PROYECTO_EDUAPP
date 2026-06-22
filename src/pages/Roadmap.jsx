@@ -134,7 +134,8 @@ export default function Roadmap() {
     return d
   }
 
-  const completedCount = nodes.filter(n => n.status === 'completed' || n.status === 'in_progress').length
+  const completedCount = nodes.filter(n => n.status === 'completed').length
+  const progressPercent = nodes.length > 0 ? Math.round((completedCount / nodes.length) * 100) : 0
 
   return (
     <PageWrapper className="roadmap-page-wrap">
@@ -143,8 +144,11 @@ export default function Roadmap() {
           <button className="icon-btn" onClick={() => navigate(isTeacher ? '/teacher' : '/dashboard')} aria-label="Volver al inicio"><ArrowLeft size={18} aria-hidden="true"/></button>
           <div>
             <h2 className="rm-course-title">{courseTitle}</h2>
-            <div className="rm-progress-bar">
-              <div className="rm-progress-fill" style={{width: nodes.length > 0 ? `${(completedCount / nodes.length) * 100}%` : '0%'}} />
+            <div className="rm-progress-row">
+              <div className="rm-progress-bar">
+                <div className="rm-progress-fill" style={{width: `${progressPercent}%`}} />
+              </div>
+              <span className="rm-progress-pct">{progressPercent}%</span>
             </div>
           </div>
         </div>
