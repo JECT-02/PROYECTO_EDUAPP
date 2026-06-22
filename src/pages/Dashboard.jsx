@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { getStudentEnrollments, listStudentMedals, isSupabaseConfigured } from '../lib/api'
+import { getStudentEnrollments, listStudentMedals, getProgressForEnrollment, getCourseNodes, isSupabaseConfigured } from '../lib/api'
 import './Dashboard.css'
 
 const ICON_POOL = [
@@ -43,6 +43,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [enrollments, setEnrollments] = useState([])
   const [medals, setMedals] = useState([])
+  const [progressMap, setProgressMap] = useState({})
   const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
@@ -57,12 +58,27 @@ export default function Dashboard() {
         listStudentMedals(studentId),
       ])
       if (cancelled) return
-      setEnrollments((enr || []).map((e) => ({
+      const filtered = (enr || []).map((e) => ({
         enrollmentId: e.id,
+        courseId: e.course_id,
         course: e.courses,
-      })).filter((e) => e.course))
+      })).filter((e) => e.course)
+      setEnrollments(filtered)
       setMedals(meds || [])
       setLoadingData(false)
+
+      const progressEntries = await Promise.all(
+        filtered.map(async (e) => {
+          const [nodesResult, progressResult] = await Promise.all([
+            getCourseNodes(e.courseId),
+            getProgressForEnrollment(e.enrollmentId),
+          ])
+          const total = (nodesResult.data || []).length
+          const completed = (progressResult.data || []).filter(p => p.state === 'completed').length
+          return [e.courseId, total > 0 ? Math.round((completed / total) * 100) : 0]
+        })
+      )
+      if (!cancelled) setProgressMap(Object.fromEntries(progressEntries))
     }
     load()
     return () => { cancelled = true }
@@ -185,7 +201,8 @@ export default function Dashboard() {
 
           {/* Continue card */}
           {(() => {
-            const continueCourse = enrollments[0]?.course
+            const continueEnrollment = enrollments[0]
+            const continueCourse = continueEnrollment?.course
             if (!continueCourse) {
               return (
                 <motion.div
@@ -214,6 +231,7 @@ export default function Dashboard() {
                 </motion.div>
               )
             }
+            const continuePct = progressMap[continueCourse.id] || 0
             return (
               <motion.div
                 className="continue-card"
@@ -222,7 +240,7 @@ export default function Dashboard() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/roadmap/${continueCourse.id}`); } }}
-                aria-label={`Continuar curso: ${continueCourse.title}, ${continueCourse.profiles?.full_name ? `Prof. ${continueCourse.profiles.full_name}` : 'Continúa donde quedaste'}`}
+                aria-label={`Continuar curso: ${continueCourse.title}, ${continuePct} por ciento completado`}
               >
                 <div className="continue-content">
                   <div className="continue-badge badge badge-green">Continuar</div>
@@ -230,9 +248,9 @@ export default function Dashboard() {
                   <p className="continue-node">{continueCourse.profiles?.full_name ? `Prof. ${continueCourse.profiles.full_name}` : 'Continúa donde quedaste'}</p>
                   <div className="continue-progress">
                     <div className="progress-bar" style={{flex:1}}>
-                      <div className="progress-fill" style={{width:'35%', background:'linear-gradient(90deg,#22C55E,#4ADE80)'}}/>
+                      <div className="progress-fill" style={{width:`${continuePct}%`, background:'linear-gradient(90deg,#22C55E,#4ADE80)'}}/>
                     </div>
-                    <span className="continue-pct">—</span>
+                    <span className="continue-pct">{continuePct}%</span>
                   </div>
                   <button
                     className="btn btn-success"
@@ -294,6 +312,7 @@ export default function Dashboard() {
                 {enrollments.map((e, i) => {
                   const c = e.course
                   const visual = ICON_POOL[i % ICON_POOL.length]
+                  const pct = progressMap[c.id] || 0
                   return (
                     <motion.div
                       key={e.enrollmentId}
@@ -305,7 +324,7 @@ export default function Dashboard() {
                       animate={{ opacity:1, y:0, transition:{ delay: i*0.08 } }}
                       onClick={() => navigate(`/roadmap/${c.id}`)}
                       style={{ cursor:'pointer', '--course-color': visual.color }}
-                      aria-label={`${c.title}, ${c.profiles?.full_name || 'Docente'}: En progreso, 0 por ciento completado`}
+                      aria-label={`${c.title}, ${c.profiles?.full_name || 'Docente'}: En progreso, ${pct} por ciento completado`}
                     >
                       <div className="course-cover" aria-hidden="true" style={{ background:`linear-gradient(135deg,${visual.color}44,${visual.color}11)` }}>
                         <div style={{ color: visual.color }}>{visual.icon}</div>
@@ -318,9 +337,9 @@ export default function Dashboard() {
                         <p className="course-teacher">{c.profiles?.full_name || 'Docente'}</p>
                         <div className="course-progress-row">
                           <div className="progress-bar" style={{flex:1}}>
-                            <div className="progress-fill" style={{width:'0%', background:`linear-gradient(90deg,${visual.color},${visual.color}aa)`}}/>
+                            <div className="progress-fill" style={{width:`${pct}%`, background:`linear-gradient(90deg,${visual.color},${visual.color}aa)`}}/>
                           </div>
-                          <span className="course-pct" style={{color:visual.color}}>0%</span>
+                          <span className="course-pct" style={{color:visual.color}}>{pct}%</span>
                         </div>
                       </div>
                     </motion.div>
