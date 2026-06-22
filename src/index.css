@@ -2,7 +2,7 @@
 
 :root {
   --primary: #6C63FF;
-  --primary-light: #8B83FF;
+  --primary-light: #CAC7FF;
   --primary-dark: #4B44CC;
   --emerald: #10B981;
   --emerald-light: #34D399;
@@ -56,9 +56,9 @@ body {
   background-color: #080814;
   background-image:
     /* Grid horizontal esmeralda */
-    linear-gradient(rgba(16,185,129,0.05) 1px, transparent 1px),
+    linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
     /* Grid vertical púrpura */
-    linear-gradient(90deg, rgba(108,99,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108,99,255,0.03) 1px, transparent 1px),
     /* Gradiente login-style (esmeralda + púrpura) */
     linear-gradient(
       135deg,

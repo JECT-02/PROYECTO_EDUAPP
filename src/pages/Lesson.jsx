@@ -467,9 +467,18 @@ function splitContent(rawContent) {
   if (!rawContent) return []
   if (Array.isArray(rawContent)) return rawContent
   const html = String(rawContent)
-  const blocks = html
+  const containers = []
+  const protectedHtml = html.replace(
+    /<div\s+class="(?:example-box|key-concept)"[\s\S]*?<\/div>/gi,
+    (match) => {
+      containers.push(match)
+      return `<!--CONTAINER_${containers.length - 1}-->`
+    }
+  )
+  const blocks = protectedHtml
     .split(/(?=<(?:h[23]|p|div|pre|ul|ol|blockquote)\b)/i)
     .map(b => b.trim())
     .filter(Boolean)
+    .map(b => b.replace(/<!--CONTAINER_(\d+)-->/g, (_, i) => containers[parseInt(i)]))
   return blocks.length > 0 ? blocks : [`<p>${html}</p>`]
 }
