@@ -62,7 +62,7 @@ async function authenticate(req, res, next) {
 }
 
 // ─── NVIDIA helper ───────────────────────────────────────────
-async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 8192 }) {
+async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 8192, frequencyPenalty = 0.3, presencePenalty = 0.2 }) {
   const messages = []
   if (system) messages.push({ role: 'system', content: system })
   messages.push({ role: 'user', content: userMessage })
@@ -70,7 +70,7 @@ async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 
   const res = await fetch(LLM_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
-    body: JSON.stringify({ model: LLM_MODEL, messages, temperature, max_tokens: maxTokens }),
+    body: JSON.stringify({ model: LLM_MODEL, messages, temperature, max_tokens: maxTokens, frequency_penalty: frequencyPenalty, presence_penalty: presencePenalty }),
   })
   if (!res.ok) {
     const errBody = await res.text().catch(() => 'unknown')
@@ -126,7 +126,10 @@ const CHAT_SYSTEM = `Eres un tutor educativo experto. Responde las preguntas del
 Si la pregunta no está relacionada con el material, responde amablemente que solo puedes ayudar con el contenido del curso.
 Usa un tono amable y educativo. Da ejemplos concretos del material cuando sea posible.
 No inventes información que no esté en el material de referencia. Si no sabes la respuesta basada en el material, dilo honestamente.
-Mantén las respuestas CONCISAS (máximo 3 párrafos).`
+Mantén las respuestas CONCISAS (máximo 3 párrafos).
+NUNCA repitas frases o párrafos. Si ya dijiste algo, no lo vuelvas a decir con otras palabras.
+Si la respuesta es breve, TERMINA ahí. No añadas texto de relleno ni advertencias genéricas.
+Usa markdown para formatear: separa párrafos con una línea en blanco, usa **negrita** para conceptos clave, y listas con guiones para enumerar puntos.`
 
 // ─── 1. Extract text from file ───────────────────────────────
 app.post('/api/extract', authenticate, upload.single('file'), async (req, res) => {
@@ -257,7 +260,7 @@ app.post('/api/ask', authenticate, async (req, res) => {
     }
 
     const historyText = history.length > 0
-      ? '\n\nHistorial de la conversación:\n' + history.slice(-6).map(m => `${m.role === 'student' ? 'Estudiante' : 'Tutor'}: ${m.text}`).join('\n')
+      ? '\n\nHistorial de la conversación:\n' + history.filter(m => m.text && m.text.trim()).slice(-6).map(m => `${m.role === 'student' ? 'Estudiante' : 'Tutor'}: ${m.text}`).join('\n')
       : ''
 
     const userMsg = `${context}${historyText}\n\nPregunta del estudiante: ${question}\n\nResponde basándote ESTRICTAMENTE en el material de referencia. Sé conciso y educativo.`
@@ -355,7 +358,7 @@ app.post('/api/ask-stream', authenticate, async (req, res) => {
     }
 
     const historyText = history.length > 0
-      ? '\n\nHistorial:\n' + history.slice(-6).map(m => `${m.role === 'student' ? 'Estudiante' : 'Tutor'}: ${m.text}`).join('\n')
+      ? '\n\nHistorial:\n' + history.filter(m => m.text && m.text.trim()).slice(-6).map(m => `${m.role === 'student' ? 'Estudiante' : 'Tutor'}: ${m.text}`).join('\n')
       : ''
 
     const userMsg = `${context}${historyText}\n\nPregunta: ${question}\n\nResponde basándote ESTRICTAMENTE en el material. Sé conciso y educativo.`

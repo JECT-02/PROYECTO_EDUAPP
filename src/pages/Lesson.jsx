@@ -232,7 +232,7 @@ export default function Lesson() {
           question: userMsg,
           courseTitle: courseTitle,
           fileTexts,
-          history: messages.slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text })),
+          history: messages.filter(m => m.text && m.text.trim()).slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text })),
         }),
         signal: controller.signal,
       })

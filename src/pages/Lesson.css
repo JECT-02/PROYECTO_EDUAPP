@@ -362,6 +362,40 @@
   align-self: flex-start;
   border-bottom-left-radius: 2px;
 }
+.chat-msg ul,
+.chat-msg ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.chat-msg li {
+  margin: 4px 0;
+}
+.chat-msg p {
+  margin: 6px 0;
+}
+.chat-msg p:first-child {
+  margin-top: 0;
+}
+.chat-msg p:last-child {
+  margin-bottom: 0;
+}
+.chat-msg code {
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+.chat-msg pre {
+  background: rgba(0,0,0,0.3);
+  padding: 8px 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.chat-msg pre code {
+  background: none;
+  padding: 0;
+}
 .chat-input {
   flex: 1;
   background: rgba(255,255,255,0.02);
