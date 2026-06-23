@@ -7,7 +7,7 @@
   width: 100%;
   border: 1px solid rgba(255,255,255,0.04);
   background: linear-gradient(170deg, #080814, #0A0A14);
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   position: relative;
   overflow: hidden;
   box-shadow: 0 0 0 1px rgba(16,185,129,0.02) inset;
@@ -17,7 +17,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   background: linear-gradient(
     135deg,
     rgba(16,185,129,0.03),

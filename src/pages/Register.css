@@ -32,7 +32,7 @@
   padding: 48px 44px 40px;
   background: linear-gradient(170deg, #080814, #0A0A14);
   border: none;
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   position: relative;
   z-index: 1;
   box-shadow:
@@ -45,7 +45,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   background: linear-gradient(
     135deg,
     rgba(16,185,129,0.05),
@@ -161,7 +161,7 @@
   border: 1px solid rgba(255,255,255,0.04);
   background: rgba(255,255,255,0.01);
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 .role-card::before {
   content: '';
@@ -321,7 +321,7 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
   background: rgba(255,255,255,0.02);
   border: 2px solid rgba(255,255,255,0.04);
-  border-radius: var(--radius);
+  border-radius: 6px;
   color: var(--text);
   transition: var(--transition);
 }

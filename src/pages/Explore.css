@@ -36,7 +36,7 @@
   cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--course-color, #10B981) 12%, rgba(255,255,255,0.02));
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   transition: var(--transition);
   position: relative;
 }
@@ -45,7 +45,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #10B981) 14%, transparent), transparent 60%);
   pointer-events: none;
   z-index: 0;

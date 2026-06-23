@@ -94,7 +94,7 @@ input, textarea, select { font-family: inherit; outline: none; }
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 12px 24px; border-radius: var(--radius);
+  padding: 12px 24px; border-radius: 6px;
   font-weight: 600; font-size: 0.95rem; transition: var(--transition);
   cursor: pointer; border: none;
   font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.01em;
@@ -102,21 +102,18 @@ input, textarea, select { font-family: inherit; outline: none; }
 .btn-primary {
   background: linear-gradient(135deg, var(--primary), var(--purple));
   color: #FFFFFF; font-weight: 700;
-  box-shadow: 0 4px 15px rgba(108,99,255,0.4);
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(108,99,255,0.5); }
+.btn-primary:hover { transform: translateY(-2px); }
 .btn-emerald {
   background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
   color: #FFFFFF; font-weight: 700;
-  box-shadow: 0 4px 15px rgba(16,185,129,0.4);
 }
-.btn-emerald:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(16,185,129,0.5); }
+.btn-emerald:hover { transform: translateY(-2px); }
 .btn-accent {
   background: linear-gradient(135deg, var(--accent), var(--accent-light));
   color: #1A1935; font-weight: 800;
-  box-shadow: 0 4px 15px rgba(245,158,11,0.4);
 }
-.btn-accent:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(245,158,11,0.5); }
+.btn-accent:hover { transform: translateY(-2px); }
 .btn-ghost {
   background: transparent; color: var(--text-muted);
   border: 1px solid var(--border-light);
@@ -124,7 +121,7 @@ input, textarea, select { font-family: inherit; outline: none; }
 .btn-ghost:hover { background: var(--surface); color: var(--text); border-color: var(--primary); }
 .btn-success { background: linear-gradient(135deg, var(--success), #23A754); color: black; }
 .btn-danger { background: linear-gradient(135deg, var(--error), #DC2626); color: white; }
-.btn-lg { padding: 16px 32px; font-size: 1.1rem; border-radius: var(--radius-lg); }
+.btn-lg { padding: 16px 32px; font-size: 1.1rem; border-radius: 6px; }
 .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
@@ -132,7 +129,7 @@ input, textarea, select { font-family: inherit; outline: none; }
 .card {
   background: var(--glass);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -151,7 +148,7 @@ input, textarea, select { font-family: inherit; outline: none; }
 .input-field {
   background: var(--surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius);
+  border-radius: 6px;
   padding: 12px 16px; color: var(--text); font-size: 0.95rem;
   transition: var(--transition); width: 100%;
 }
@@ -361,7 +358,7 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
   position: fixed; bottom: 24px; left: 50%;
   transform: translateX(-50%);
   background: var(--surface-2); border: 1px solid var(--border-light);
-  border-radius: var(--radius); padding: 12px 20px;
+  border-radius: 6px; padding: 12px 20px;
   display: flex; align-items: center; gap: 10px;
   box-shadow: var(--shadow-lg); z-index: 1000;
   animation: fadeInUp 0.3s ease;
@@ -606,10 +603,8 @@ input:checked + .toggle-slider::before { transform: translateX(24px); }
 /* Buttons */
 .colorblind .btn-emerald {
   background: linear-gradient(135deg, var(--emerald), var(--emerald-dark));
-  box-shadow: 0 4px 15px rgba(33,145,140,0.4);
 }
 .colorblind .btn-emerald:hover {
-  box-shadow: 0 6px 25px rgba(33,145,140,0.5);
 }
 .colorblind .btn-success {
   background: linear-gradient(135deg, var(--success), #1A7A76);

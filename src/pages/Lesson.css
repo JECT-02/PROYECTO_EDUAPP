@@ -74,7 +74,7 @@
   margin-bottom: 24px;
   font-family: 'Plus Jakarta Sans', sans-serif;
   opacity: 0.9;
-  border-radius: 8px;
+  border-radius: 6px;
   outline: none;
   transition: background 0.2s, box-shadow 0.2s;
 }
@@ -138,7 +138,7 @@
 .lesson-block pre {
   background: #0d0d14;
   border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 20px;
   margin: 20px 0;
   overflow-x: auto;
@@ -192,7 +192,7 @@
 .lesson-block .example-box {
   background: rgba(16,185,129,0.06);
   border: 1px solid rgba(16,185,129,0.15);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 20px;
   margin: 20px 0;
   position: relative;
@@ -219,7 +219,7 @@
 .lesson-block .key-concept {
   background: rgba(245,158,11,0.06);
   border: 1px solid rgba(245,158,11,0.18);
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 20px;
   margin: 20px 0;
   position: relative;
@@ -279,14 +279,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(16,185,129,0.4);
   cursor: pointer;
   z-index: 1000;
   transition: var(--transition);
 }
 .ai-chat-trigger:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 25px rgba(16,185,129,0.6);
 }
 
 .ai-chat-window {
@@ -296,7 +294,7 @@
   width: 320px;
   height: 420px;
   border: 1px solid rgba(255,255,255,0.04);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   box-shadow: var(--shadow-lg);
   z-index: 1000;
   display: flex;
@@ -367,7 +365,7 @@
   flex: 1;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.04);
-  border-radius: 20px;
+  border-radius: 6px;
   padding: 8px 14px;
   color: var(--text);
   font-size: 1rem;
@@ -393,7 +391,7 @@
     left: 0;
     width: auto;
     height: 60vh;
-    border-radius: 20px 20px 0 0;
+    border-radius: 6px 6px 0 0;
   }
   .ai-chat-trigger {
     bottom: 160px;

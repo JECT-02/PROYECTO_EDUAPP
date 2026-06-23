@@ -17,7 +17,7 @@
   position: relative;
 }
 .logo-icon {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 36px; height: 36px; border-radius: 6px;
   background: linear-gradient(135deg, var(--primary), var(--purple));
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; box-shadow: var(--shadow-glow);
@@ -31,7 +31,7 @@
 .header-nav { display: flex; gap: 4px; flex: 1; }
 .nav-link {
   display: flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border-radius: 8px;
+  padding: 8px 14px; border-radius: 6px;
   font-size: 0.88rem; font-weight: 500;
   color: var(--text-muted); background: transparent;
   transition: var(--transition); cursor: pointer; border: none;
@@ -54,7 +54,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -76,7 +76,7 @@
   width: 200px;
   background: var(--surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   z-index: 200;
@@ -96,7 +96,7 @@
   color: var(--text-muted);
   transition: var(--transition);
   text-align: left;
-  border-radius: 10px;
+  border-radius: 6px;
   font-family: inherit;
 }
 .mobile-nav-link:hover {
@@ -120,7 +120,7 @@
 }.icon-btn {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--border-light);
   display: flex;
@@ -156,7 +156,7 @@
 }
 .avatar-dropdown {
   display: flex; align-items: center; gap: 8px;
-  cursor: pointer; padding: 6px 10px; border-radius: 10px;
+  cursor: pointer; padding: 6px 10px; border-radius: 6px;
   border: 1px solid var(--border-light);
   background: var(--surface); transition: var(--transition);
   position: relative;
@@ -176,7 +176,7 @@
   position: absolute; top: calc(100% + 8px); right: 0;
   width: 240px; background: var(--surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   box-shadow: var(--shadow-lg); overflow: hidden;
   animation: scaleIn 0.15s ease;
   transform-origin: top right; z-index: 200;
@@ -208,7 +208,7 @@
   position: absolute; top: calc(100% + 8px); right: 0;
   width: 320px; background: var(--surface);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   box-shadow: var(--shadow-lg); overflow: hidden;
   z-index: 200;
 }

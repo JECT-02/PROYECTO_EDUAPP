@@ -42,7 +42,7 @@
   cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--course-color, #22C55E) 25%, rgba(255,255,255,0.02));
   background: var(--surface);
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   position: relative;
   overflow: hidden;
 }
@@ -50,7 +50,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
+  border-radius: 6px;
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--course-color, #22C55E) 10%, transparent),
@@ -134,7 +134,7 @@
   cursor: pointer;
   border: 1px solid color-mix(in srgb, var(--course-color, #F59E0B) 12%, rgba(255,255,255,0.02));
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   transition: var(--transition);
   position: relative;
   overflow: hidden;
@@ -143,7 +143,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #F59E0B) 14%, transparent), transparent 60%);
   pointer-events: none;
   z-index: 0;
@@ -208,14 +208,14 @@
   transition: var(--transition);
   border: 1px solid color-mix(in srgb, var(--course-color, #10B981) 12%, rgba(255,255,255,0.02));
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   position: relative;
 }
 .course-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #10B981) 14%, transparent), transparent 60%);
   pointer-events: none;
   z-index: 0;
@@ -356,7 +356,7 @@
   padding: 20px;
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 .sidebar-title {
   font-family: 'Epilogue', sans-serif;

@@ -46,7 +46,7 @@
   transition: var(--transition);
   background: var(--surface);
   border: 1px solid rgba(255,255,255,0.04);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 
 .stat-card:hover {
@@ -107,13 +107,13 @@
   overflow: hidden;
   background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--course-color, #6C63FF) 12%, rgba(255,255,255,0.02));
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 .teacher-course-card::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--course-color, #6C63FF) 14%, transparent), transparent 60%);
   pointer-events: none;
   z-index: 0;
@@ -253,7 +253,7 @@
   max-width: 640px;
   background: var(--surface);
   border: 1px solid rgba(255,255,255,0.04);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   animation: scaleIn 0.25s ease;
@@ -275,7 +275,7 @@
 .modal-close-btn {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--surface-3);
   border: 1px solid var(--border-light);
   display: flex;
@@ -336,7 +336,7 @@
 /* File upload zone */
 .upload-zone {
   border: 2px dashed var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   padding: 40px 24px;
   display: flex;
   flex-direction: column;
@@ -411,7 +411,7 @@
   gap: 12px;
   padding: 10px 14px;
   background: var(--surface);
-  border-radius: var(--radius);
+  border-radius: 6px;
   border: 1px solid var(--border-light);
   animation: fadeInUp 0.2s ease;
 }
@@ -449,7 +449,7 @@
 .file-item-remove {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   display: flex;
@@ -496,7 +496,7 @@
   gap: 12px;
   padding: 14px 16px;
   background: var(--surface);
-  border-radius: var(--radius);
+  border-radius: 6px;
   border: 1px solid var(--border-light);
   transition: var(--transition);
 }
@@ -547,7 +547,7 @@
   right: 24px;
   z-index: 1100;
   padding: 16px 20px;
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -599,7 +599,7 @@
 .teacher-toast-close {
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   display: flex;
@@ -625,7 +625,7 @@
   text-align: center;
   background: var(--surface);
   border: 1px solid rgba(255,255,255,0.04);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 
 .course-detail-modal .modal-container {
@@ -702,7 +702,7 @@
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  border-radius: var(--radius);
+  border-radius: 6px;
   transition: var(--transition);
   cursor: pointer;
 }
@@ -789,7 +789,7 @@
 .alert-row-icon {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -849,7 +849,7 @@
   }
   .modal-container {
     max-width: 100%;
-    border-radius: var(--radius-lg);
+    border-radius: 6px;
   }
   .modal-body {
     padding: 20px;

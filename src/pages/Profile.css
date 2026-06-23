@@ -26,7 +26,7 @@
   margin-bottom: 24px;
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 
 .profile-avatar {
@@ -72,7 +72,7 @@
   cursor: pointer;
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   transition: var(--transition);
 }
 
@@ -101,7 +101,7 @@
   margin-bottom: 20px;
   border: 1px solid rgba(255,255,255,0.04);
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
 }
 
 .profile-info-section {
@@ -203,7 +203,7 @@
   font-size: 0.95rem;
   border: 1px solid rgba(239,68,68,0.15);
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: 6px;
   transition: var(--transition);
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
