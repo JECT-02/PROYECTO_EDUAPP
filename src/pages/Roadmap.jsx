@@ -134,7 +134,7 @@ export default function Roadmap() {
     return d
   }
 
-  const completedCount = nodes.filter(n => n.status === 'completed').length
+  const completedCount = nodes.filter(n => n.status === 'completed' || n.status === 'in_progress').length
   const progressPercent = nodes.length > 0 ? Math.round((completedCount / nodes.length) * 100) : 0
 
   return (
