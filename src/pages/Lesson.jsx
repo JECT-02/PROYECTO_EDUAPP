@@ -92,13 +92,13 @@ export default function Lesson() {
 
   const lessonData = dbNode
     ? {
-        title: dbNode.title || 'Lección',
-        content: splitContent(dbNode.content),
-      }
+      title: dbNode.title || 'Lección',
+      content: splitContent(dbNode.content),
+    }
     : {
-        title: 'Cargando lección...',
-        content: ['<p>Espera un momento mientras se carga el contenido de la lección.</p>'],
-      }
+      title: 'Cargando lección...',
+      content: ['<p>Espera un momento mientras se carga el contenido de la lección.</p>'],
+    }
 
   const [content, setContent] = useState(lessonData.content)
   const [isAiEnhanced, setIsAiEnhanced] = useState(false)
@@ -118,6 +118,7 @@ export default function Lesson() {
   const chatInputRef = useRef(null)
   const chatMessagesRef = useRef(null)
   const [activeBlock, setActiveBlock] = useState(0)
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
 
   useEffect(() => {
     setContent(lessonData.content)
@@ -129,14 +130,21 @@ export default function Lesson() {
   }, [courseId, nodeId, dbNode])
 
   useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = (e) => setIsDesktop(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   useEffect(() => {
-    if (showChat) {
+    if (showChat || isDesktop) {
       chatMessagesRef.current?.focus()
       if (courseSources.length === 0 && isSupabaseConfigured) {
-        ;(async () => {
+        ; (async () => {
           try {
             const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
             const token = await getAccessToken()
@@ -156,7 +164,7 @@ export default function Lesson() {
         })()
       }
     }
-  }, [showChat])
+  }, [showChat, isDesktop])
 
   function handleContentKeyDown(e) {
     if (e.key === 'ArrowDown') {
@@ -339,53 +347,114 @@ export default function Lesson() {
   return (
     <PageWrapper className="lesson-page">
       <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true"/></button>
+        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true" /></button>
         <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseName || courseId}, Lección: ${lessonData.title}`}>
           <span className="lesson-subtitle" aria-hidden="true">{courseName || 'Curso'} • Lección</span>
           <h1 className="lesson-title" aria-hidden="true">{lessonData.title}</h1>
         </div>
       </header>
 
-      <div className="lesson-content">
-        {dbLoading ? (
-          <div className="lesson-loading" role="status" aria-label="Cargando lección">
-            <LoaderCircle size={32} className="animate-spin" aria-hidden="true" />
-          </div>
-        ) : (
-          <div
-            className="lesson-text-container"
-            role="application"
-            aria-label="Contenido de la lección"
-            tabIndex={0}
-            onKeyDown={handleContentKeyDown}
-            onFocus={(e) => { if (e.target === e.currentTarget) { setActiveBlock(0); blockRefs.current[0]?.focus() } }}
-          >
-            {isAiEnhanced && (
-              <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
-                <span><Sparkles size={14}/> Contenido mejorado por el Tutor IA</span>
-                <button
-                  className="icon-btn sm"
-                  onClick={() => {
-                    setIsAiEnhanced(false)
-                    setContent(lessonData.content)
-                  }}
-                  title="Restaurar contenido original"
-                  style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
-                  aria-label="Restaurar contenido original"
-                >
-                  <RefreshCw size={12}/> Original
-                </button>
-              </div>
-            )}
-            {content.map((html, i) => (
-              <div
-                key={i}
-                ref={el => blockRefs.current[i] = el}
-                tabIndex={-1}
-                className="lesson-block"
-                dangerouslySetInnerHTML={{ __html: html }}
+      <div className="lesson-body">
+        <div className="lesson-content">
+          {dbLoading ? (
+            <div className="lesson-loading" role="status" aria-label="Cargando lección">
+              <LoaderCircle size={32} className="animate-spin" aria-hidden="true" />
+            </div>
+          ) : (
+            <div
+              className="lesson-text-container"
+              role="application"
+              aria-label="Contenido de la lección"
+              tabIndex={0}
+              onKeyDown={handleContentKeyDown}
+              onFocus={(e) => { if (e.target === e.currentTarget) { setActiveBlock(0); blockRefs.current[0]?.focus() } }}
+            >
+              {isAiEnhanced && (
+                <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
+                  <span><Sparkles size={14} /> Contenido mejorado por el Tutor IA</span>
+                  <button
+                    className="icon-btn sm"
+                    onClick={() => {
+                      setIsAiEnhanced(false)
+                      setContent(lessonData.content)
+                    }}
+                    title="Restaurar contenido original"
+                    style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+                    aria-label="Restaurar contenido original"
+                  >
+                    <RefreshCw size={12} /> Original
+                  </button>
+                </div>
+              )}
+              {content.map((html, i) => (
+                <div
+                  key={i}
+                  ref={el => blockRefs.current[i] = el}
+                  tabIndex={-1}
+                  className="lesson-block"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {(isDesktop || showChat) && (
+          <div className="ai-chat-window" role="dialog" aria-label="Chat con asistente">
+            <div className="chat-header">
+              <h3><Bot size={18} /> Tutor</h3>
+              {!isDesktop && (
+                <button className="icon-btn sm" onClick={() => setShowChat(false)} aria-label="Cerrar asistente"><X size={14} /></button>
+              )}
+            </div>
+            <div ref={chatMessagesRef} className="chat-messages" tabIndex={0} aria-live="polite" aria-label="Mensajes del asistente">
+              {messages.map((m, i) => (
+                (m.role === 'user' || m.text) && (
+                  <div
+                    key={i}
+                    className={`chat-msg ${m.role}`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(m.text || '').replace(/\n/g, '<br/>') }}
+                  />
+                )
+              ))}
+              {chatStreaming && (
+                <div className="chat-msg ai chat-typing">
+                  <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> Pensando
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="chat-input-area">
+              <input
+                ref={chatInputRef}
+                type="text"
+                className="chat-input"
+                placeholder="Pregunta algo..."
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !chatStreaming && handleSendChat()}
+                disabled={chatStreaming}
+                aria-label="Escribe tu pregunta al tutor"
               />
-            ))}
+              <button
+                className="chat-send"
+                onClick={handleSendChat}
+                disabled={chatStreaming}
+                aria-label="Enviar mensaje"
+              >
+                {<Send size={16} />}
+              </button>
+              {chatStreaming && (
+                <button
+                  className="chat-cancel"
+                  onClick={abortChat}
+                  aria-label="Detener respuesta del tutor"
+                  title="Detener"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -400,61 +469,7 @@ export default function Lesson() {
         </button>
       </footer>
 
-      {showChat && (
-        <div className="ai-chat-window" role="dialog" aria-label="Chat con asistente">
-          <div className="chat-header">
-            <h3><Bot size={18}/> Tutor IA</h3>
-            <button className="icon-btn sm" onClick={() => setShowChat(false)} aria-label="Cerrar asistente"><X size={14}/></button>
-          </div>
-          <div ref={chatMessagesRef} className="chat-messages" tabIndex={0} aria-live="polite" aria-label="Mensajes del asistente">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`chat-msg ${m.role}`}
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(m.text || '').replace(/\n/g, '<br/>') }}
-              />
-            ))}
-            {chatStreaming && (
-              <div className="chat-msg ai chat-typing">
-                <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> pensando...
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-          <div className="chat-input-area">
-            <input
-              ref={chatInputRef}
-              type="text"
-              className="chat-input"
-              placeholder="Pregunta algo..."
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !chatStreaming && handleSendChat()}
-              disabled={chatStreaming}
-              aria-label="Escribe tu pregunta al tutor IA"
-            />
-            <button
-              className="chat-send"
-              onClick={handleSendChat}
-              disabled={chatStreaming}
-              aria-label="Enviar mensaje"
-            >
-              {chatStreaming ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Send size={16}/>}
-            </button>
-            {chatStreaming && (
-              <button
-                className="chat-cancel"
-                onClick={abortChat}
-                aria-label="Detener respuesta del tutor"
-                title="Detener"
-              >
-                <X size={14}/>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      {!showChat && (
+      {!isDesktop && !showChat && (
         <button className="ai-chat-trigger" onClick={() => setShowChat(true)} aria-label="Abrir asistente de IA">
           <Bot size={28} />
         </button>

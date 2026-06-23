@@ -263,7 +263,7 @@ export default function RoadmapDesigner() {
         background: 'var(--surface)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="icon-btn" onClick={() => navigate('/teacher')}><ArrowLeft size={18}/></button>
+          <button className="icon-btn" onClick={() => navigate('/teacher')}><ArrowLeft size={18} /></button>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Diseñador de Roadmap</h2>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{nodes.length} nodos • Arrastra o usa el chat IA para modificar</span>
@@ -272,21 +272,21 @@ export default function RoadmapDesigner() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {success && (
             <span style={{ color: '#22C55E', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Check size={14}/> {success}
+              <Check size={14} /> {success}
             </span>
           )}
           {error && (
             <span style={{ color: '#FCA5A5', fontSize: '0.85rem' }}>{error}</span>
           )}
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/roadmap/${courseId}`)}>
-            <Eye size={14}/> Vista estudiante
+            <Eye size={14} /> Vista estudiante
           </button>
           <button
             className="btn btn-primary"
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? <LoaderCircle size={16} className="animate-spin"/> : <Save size={16}/>}
+            {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Publicando...' : 'Publicar Roadmap'}
           </button>
         </div>
@@ -319,7 +319,7 @@ export default function RoadmapDesigner() {
                     disabled={generating}
                     style={{ gap: 8 }}
                   >
-                    {generating ? <LoaderCircle size={18} className="animate-spin"/> : <Sparkles size={18}/>}
+                    {generating ? <LoaderCircle size={18} className="animate-spin" /> : <Sparkles size={18} />}
                     {generating ? 'Generando...' : 'Generar Roadmap con IA'}
                   </button>
                 </div>
@@ -347,7 +347,7 @@ export default function RoadmapDesigner() {
                           <div className="node-title-text">{node.title || 'Sin título'}</div>
                           {node.status === 'pending_review' && (
                             <div className="node-status-tag" style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B' }}>
-                              <Sparkles size={10}/> PENDIENTE
+                              <Sparkles size={10} /> PENDIENTE
                             </div>
                           )}
                           {node.status === 'draft' && (
@@ -371,7 +371,7 @@ export default function RoadmapDesigner() {
                         )}
                         {typeof node.id === 'string' && node.id.startsWith('new_') && (
                           <button className="icon-btn sm" onClick={() => handleDeleteNode(node.id)} title="Eliminar" style={{ width: 22, height: 22, color: '#EF4444' }}>
-                            <Trash2 size={12}/>
+                            <Trash2 size={12} />
                           </button>
                         )}
                       </div>
@@ -391,12 +391,12 @@ export default function RoadmapDesigner() {
         }}>
           <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontWeight: 600 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Bot size={18} style={{ color: 'var(--primary)' }}/>
+              <Bot size={18} style={{ color: 'var(--primary)' }} />
               Asistente IA
             </div>
             {nodes.length === 0 && !loading && (
               <button className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={generating} style={{ gap: 4, fontSize: '0.75rem' }}>
-                {generating ? <LoaderCircle size={12} className="animate-spin"/> : <Sparkles size={12}/>}
+                {generating ? <LoaderCircle size={12} className="animate-spin" /> : <Sparkles size={12} />}
                 {generating ? 'Generando...' : 'Generar'}
               </button>
             )}
@@ -416,7 +416,7 @@ export default function RoadmapDesigner() {
             ))}
             {chatLoading && (
               <div className="chat-msg ai chat-typing" style={{ alignSelf: 'flex-start' }}>
-                <LoaderCircle size={14} className="animate-spin" /> pensando...
+                <LoaderCircle size={14} className="animate-spin" /> Pensando
               </div>
             )}
             {pendingChanges && !chatLoading && (
@@ -426,7 +426,7 @@ export default function RoadmapDesigner() {
                   onClick={() => applyChanges(pendingChanges)}
                   style={{ gap: 6 }}
                 >
-                  <Sparkles size={14}/> Aplicar cambios sugeridos
+                  <Sparkles size={14} /> Aplicar cambios sugeridos
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
@@ -452,7 +452,7 @@ export default function RoadmapDesigner() {
               style={{ flex: 1 }}
             />
             <button className="chat-send" onClick={handleSendChat} disabled={chatLoading}>
-              {chatLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16}/>}
+              {chatLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>
         </div>
