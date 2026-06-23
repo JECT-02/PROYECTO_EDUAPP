@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'luci
 import PageWrapper from '../components/PageWrapper'
 import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
+import { renderMarkdown } from '../lib/markdown'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import './Lesson.css'
@@ -413,7 +414,7 @@ export default function Lesson() {
                   <div
                     key={i}
                     className={`chat-msg ${m.role}`}
-                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(m.text || '').replace(/\n/g, '<br/>') }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text || '') }}
                   />
                 )
               ))}
