@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw, ChevronDown } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
@@ -103,6 +104,11 @@ export default function Lesson() {
 
   const [content, setContent] = useState(lessonData.content)
   const [isAiEnhanced, setIsAiEnhanced] = useState(false)
+  const [generatedVersions, setGeneratedVersions] = useState([])
+  const [activeVersion, setActiveVersion] = useState(null)
+  const [showVersionMenu, setShowVersionMenu] = useState(false)
+  const [menuPos, setMenuPos] = useState(null)
+  const versionTriggerRef = useRef(null)
 
   const [showChat, setShowChat] = useState(false)
   const [messages, setMessages] = useState([
@@ -124,6 +130,8 @@ export default function Lesson() {
   useEffect(() => {
     setContent(lessonData.content)
     setIsAiEnhanced(false)
+    setGeneratedVersions([])
+    setActiveVersion(null)
     setActiveBlock(0)
     setMessages([
       { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
@@ -140,6 +148,15 @@ export default function Lesson() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!showVersionMenu) return
+    const handler = (e) => {
+      if (!e.target.closest('.ai-feedback-badge-dropdown') && !e.target.closest('.ai-feedback-dropdown-menu')) setShowVersionMenu(false)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [showVersionMenu])
 
   useEffect(() => {
     if (showChat || isDesktop) {
@@ -195,10 +212,8 @@ export default function Lesson() {
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setInputText('')
 
-    if (userMsg.toLowerCase().includes('no entiendo') || userMsg.toLowerCase().includes('más fácil')) {
-      setMessages(prev => [...prev, { role: 'ai', text: 'Entiendo perfectamente. Voy a simplificar los conceptos para ti.' }])
-      return
-    }
+    const contentUpdateKeywords = ['mejora', 'regenera', 'genera', 'nueva versión', 'explica de otra forma', 'explícame de otra manera', 'simplifica', 'no entiendo', 'más fácil']
+    const requestContentUpdate = contentUpdateKeywords.some(kw => userMsg.toLowerCase().includes(kw))
 
     if (!isSupabaseConfigured) {
       setMessages(prev => [...prev, { role: 'ai', text: 'Estoy procesando una explicación más detallada sobre ese punto...' }])
@@ -221,6 +236,8 @@ export default function Lesson() {
     ]
 
     try {
+      const historyPayload = messages.filter(m => m.text && m.text.trim()).slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text }))
+
       const res = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
         method: 'POST',
         headers: {
@@ -232,7 +249,7 @@ export default function Lesson() {
           question: userMsg,
           courseTitle: courseTitle,
           fileTexts,
-          history: messages.filter(m => m.text && m.text.trim()).slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text })),
+          history: historyPayload,
         }),
         signal: controller.signal,
       })
@@ -283,18 +300,85 @@ export default function Lesson() {
         }
       }
       console.log(`[chat] stream completo: ${chunkCount} chunks, total ${acc.length} chars`)
-      if (acc.trim().length > 20) {
-        lastAiResponseRef.current = acc
-        setContent(splitContent(acc))
-        setIsAiEnhanced(true)
+
+      if (requestContentUpdate && acc.trim().length > 20) {
+        try {
+          const contentRes = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              Accept: 'text/event-stream',
+            },
+            body: JSON.stringify({
+              question: userMsg,
+              courseTitle: courseTitle,
+              fileTexts,
+              history: historyPayload,
+              contentMode: true,
+            }),
+            signal: controller.signal,
+          })
+          if (contentRes.ok && contentRes.body) {
+            const reader2 = contentRes.body.getReader()
+            const decoder2 = new TextDecoder('utf-8')
+            let buf2 = ''
+            let acc2 = ''
+            while (true) {
+              const { value, done } = await reader2.read()
+              if (done) break
+              buf2 += decoder2.decode(value, { stream: true })
+              const evts = buf2.split('\n\n')
+              buf2 = evts.pop() || ''
+              for (const evt of evts) {
+                const line = evt.split('\n').find(l => l.startsWith('data:'))
+                if (!line) continue
+                const payload = line.replace(/^data:\s*/, '')
+                if (payload === '[DONE]') continue
+                try {
+                  const parsed = JSON.parse(payload)
+                  if (typeof parsed.text === 'string') acc2 += parsed.text
+                } catch { acc2 += payload }
+              }
+            }
+            if (acc2.trim().length > 20) {
+              const versionId = Date.now()
+              const versionContent = splitContent(acc2)
+              setGeneratedVersions(prev => [...prev, { id: versionId, content: versionContent }])
+              setContent(versionContent)
+              setActiveVersion(versionId)
+              setIsAiEnhanced(true)
+              setMessages(prev => {
+                const copy = [...prev]
+                copy[copy.length - 1] = {
+                  role: 'ai',
+                  text: `📄 <a href="#" class="version-link" data-version-id="${versionId}">Ver contenido generado (v${generatedVersions.length + 1})</a>\n\nAquí tienes una nueva versión del contenido. Puedes volver al original con el botón arriba.`
+                }
+                return copy
+              })
+            } else {
+              setMessages(prev => {
+                const copy = [...prev]
+                copy[copy.length - 1] = { role: 'ai', text: 'No pude generar una versión alternativa. Intenta de nuevo.' }
+                return copy
+              })
+            }
+          }
+        } catch (contentErr) {
+          if (contentErr.name !== 'AbortError') console.error('[chat] contentMode error:', contentErr)
+        }
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.error('[chat] error:', err)
-        const detail = err.message ? `. ${err.message.split('. ')[0]}` : ''
+        const isNvidiaError = err.message?.includes('NVIDIA') || err.message?.includes('500')
+        const detail = isNvidiaError ? '' : err.message ? `. ${err.message.split('. ')[0]}` : ''
+        const errorMsg = isNvidiaError
+          ? 'El servicio de IA no está disponible temporalmente. Intenta de nuevo en unos momentos.'
+          : `Lo siento, hubo un error al consultar al tutor${detail}. Intenta de nuevo.`
         setMessages(prev => {
           const copy = [...prev]
-          copy[copy.length - 1] = { role: 'ai', text: `Lo siento, hubo un error al consultar al tutor${detail}. Intenta de nuevo.` }
+          copy[copy.length - 1] = { role: 'ai', text: errorMsg }
           return copy
         })
       }
@@ -371,21 +455,59 @@ export default function Lesson() {
               onFocus={(e) => { if (e.target === e.currentTarget) { setActiveBlock(0); blockRefs.current[0]?.focus() } }}
             >
               {isAiEnhanced && (
-                <div className="ai-feedback-badge animate-fadeInUp" style={{ background: 'rgba(99,102,241,0.1)', color: '#818CF8', padding: '8px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
-                  <span><Sparkles size={14} /> Contenido mejorado por el Tutor IA</span>
+                <div className="ai-feedback-badge animate-fadeInUp">
+                  <span className="ai-feedback-badge-label"><Sparkles size={14} /> Contenido mejorado por el Tutor IA</span>
+                  <div className="ai-feedback-badge-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      ref={versionTriggerRef}
+                      className="ai-feedback-dropdown-trigger"
+                      onClick={() => {
+                        if (!showVersionMenu) {
+                          const rect = versionTriggerRef.current?.getBoundingClientRect()
+                          if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left })
+                        }
+                        setShowVersionMenu(prev => !prev)
+                      }}
+                      aria-haspopup="listbox"
+                      aria-expanded={showVersionMenu}
+                    >
+                      {activeVersion !== null ? `Versión ${generatedVersions.findIndex(v => v.id === activeVersion) + 1}` : 'Original'}
+                      <ChevronDown size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {showVersionMenu && menuPos && createPortal(
+                <div className="ai-feedback-dropdown-menu" role="listbox" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}>
                   <button
-                    className="icon-btn sm"
+                    className={`ai-feedback-dropdown-item ${activeVersion === null ? 'active' : ''}`}
+                    role="option"
+                    aria-selected={activeVersion === null}
                     onClick={() => {
-                      setIsAiEnhanced(false)
+                      setActiveVersion(null)
                       setContent(lessonData.content)
+                      setShowVersionMenu(false)
                     }}
-                    title="Restaurar contenido original"
-                    style={{ color: '#818CF8', background: 'rgba(99,102,241,0.2)', border: 'none', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
-                    aria-label="Restaurar contenido original"
                   >
                     <RefreshCw size={12} /> Original
                   </button>
-                </div>
+                  {generatedVersions.map((v, i) => (
+                    <button
+                      key={v.id}
+                      className={`ai-feedback-dropdown-item ${activeVersion === v.id ? 'active' : ''}`}
+                      role="option"
+                      aria-selected={activeVersion === v.id}
+                      onClick={() => {
+                        setActiveVersion(v.id)
+                        setContent(v.content)
+                        setShowVersionMenu(false)
+                      }}
+                    >
+                      Versión {i + 1}
+                    </button>
+                  ))}
+                </div>,
+                document.body
               )}
               {content.map((html, i) => (
                 <div
@@ -408,7 +530,25 @@ export default function Lesson() {
                 <button className="icon-btn sm" onClick={() => setShowChat(false)} aria-label="Cerrar asistente"><X size={14} /></button>
               )}
             </div>
-            <div ref={chatMessagesRef} className="chat-messages" tabIndex={0} aria-live="polite" aria-label="Mensajes del asistente">
+            <div
+              ref={chatMessagesRef}
+              className="chat-messages"
+              tabIndex={0}
+              aria-live="polite"
+              aria-label="Mensajes del asistente"
+              onClick={(e) => {
+                const link = e.target.closest('.version-link')
+                if (link) {
+                  e.preventDefault()
+                  const versionId = Number(link.dataset.versionId)
+                  const version = generatedVersions.find(v => v.id === versionId)
+                  if (version) {
+                    setActiveVersion(versionId)
+                    setContent(version.content)
+                  }
+                }
+              }}
+            >
               {messages.map((m, i) => (
                 (m.role === 'user' || m.text) && (
                   <div
