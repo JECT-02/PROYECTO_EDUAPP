@@ -127,6 +127,16 @@ export default function Lesson() {
   const [activeBlock, setActiveBlock] = useState(0)
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
 
+  // Lock body/html scroll — only lesson-content and chat scroll
+  useEffect(() => {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   useEffect(() => {
     setContent(lessonData.content)
     setIsAiEnhanced(false)
@@ -430,7 +440,7 @@ export default function Lesson() {
   }
 
   return (
-    <PageWrapper className="lesson-page">
+    <PageWrapper className="lesson-page" style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden' }}>
       <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
         <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true" /></button>
         <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseName || courseId}, Lección: ${lessonData.title}`}>
