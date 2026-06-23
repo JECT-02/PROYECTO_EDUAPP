@@ -5,7 +5,7 @@ import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw, ChevronDown
 import PageWrapper from '../components/PageWrapper'
 import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
-import { renderMarkdown } from '../lib/markdown'
+import { renderMarkdown, renderLessonContent } from '../lib/markdown'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import './Lesson.css'
@@ -236,7 +236,10 @@ export default function Lesson() {
     const controller = new AbortController()
     chatAbortRef.current = controller
     setChatStreaming(true)
-    setMessages(prev => [...prev, { role: 'ai', text: '' }])
+
+    if (!requestContentUpdate) {
+      setMessages(prev => [...prev, { role: 'ai', text: '' }])
+    }
 
     const fileTexts = [
       ...(courseSources.length > 0 ? courseSources : []),
@@ -248,134 +251,119 @@ export default function Lesson() {
     try {
       const historyPayload = messages.filter(m => m.text && m.text.trim()).slice(-6).map(m => ({ role: m.role === 'user' ? 'student' : 'tutor', text: m.text }))
 
-      const res = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-          Accept: 'text/event-stream',
-        },
-        body: JSON.stringify({
-          question: userMsg,
-          courseTitle: courseTitle,
-          fileTexts,
-          history: historyPayload,
-        }),
-        signal: controller.signal,
-      })
-      if (!res.ok || !res.body) {
-        const errText = await res.text().catch(() => '')
-        console.error('[chat] error HTTP:', res.status, errText)
-        throw new Error(`Error ${res.status}: ${errText.slice(0, 200)}`)
-      }
-      console.log('[chat] conexion establecida, leyendo stream...')
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let buffer = ''
-      let acc = ''
-      let chunkCount = 0
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split('\n\n')
-        buffer = events.pop() || ''
-        for (const evt of events) {
-          const line = evt.split('\n').find((l) => l.startsWith('data:'))
-          if (!line) continue
-          const payload = line.replace(/^data:\s*/, '')
-          if (payload === '[DONE]') continue
-          try {
-            const parsed = JSON.parse(payload)
-            if (parsed.done) break
-            if (typeof parsed.text === 'string') {
-              chunkCount++
-              acc += parsed.text
+      if (requestContentUpdate) {
+        const contentRes = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'text/event-stream',
+          },
+          body: JSON.stringify({
+            question: userMsg,
+            courseTitle: courseTitle,
+            fileTexts,
+            history: historyPayload,
+            contentMode: true,
+          }),
+          signal: controller.signal,
+        })
+        if (!contentRes.ok || !contentRes.body) {
+          const errText = await contentRes.text().catch(() => '')
+          throw new Error(`Error ${contentRes.status}: ${errText.slice(0, 200)}`)
+        }
+        const reader = contentRes.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buf = ''
+        let acc = ''
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buf += decoder.decode(value, { stream: true })
+          const evts = buf.split('\n\n')
+          buf = evts.pop() || ''
+          for (const evt of evts) {
+            const line = evt.split('\n').find(l => l.startsWith('data:'))
+            if (!line) continue
+            const payload = line.replace(/^data:\s*/, '')
+            if (payload === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(payload)
+              if (typeof parsed.text === 'string') acc += parsed.text
+            } catch { acc += payload }
+          }
+        }
+        if (acc.trim().length > 20) {
+          const versionId = Date.now()
+          const versionContent = splitContent(renderLessonContent(acc))
+          setGeneratedVersions(prev => [...prev, { id: versionId, content: versionContent }])
+          setContent(versionContent)
+          setActiveVersion(versionId)
+          setIsAiEnhanced(true)
+          setMessages(prev => [...prev, {
+            role: 'ai',
+            text: `📄 <a href="#" class="version-link" data-version-id="${versionId}">Ver contenido generado (v${generatedVersions.length + 1})</a>\n\nAquí tienes una nueva versión del contenido. Puedes volver al original con el botón arriba.`
+          }])
+        } else {
+          setMessages(prev => [...prev, { role: 'ai', text: 'No pude generar una versión alternativa. Intenta de nuevo.' }])
+        }
+      } else {
+        const res = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+            Accept: 'text/event-stream',
+          },
+          body: JSON.stringify({
+            question: userMsg,
+            courseTitle: courseTitle,
+            fileTexts,
+            history: historyPayload,
+          }),
+          signal: controller.signal,
+        })
+        if (!res.ok || !res.body) {
+          const errText = await res.text().catch(() => '')
+          throw new Error(`Error ${res.status}: ${errText.slice(0, 200)}`)
+        }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+        let acc = ''
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const events = buffer.split('\n\n')
+          buffer = events.pop() || ''
+          for (const evt of events) {
+            const line = evt.split('\n').find((l) => l.startsWith('data:'))
+            if (!line) continue
+            const payload = line.replace(/^data:\s*/, '')
+            if (payload === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(payload)
+              if (parsed.done) break
+              if (typeof parsed.text === 'string') {
+                acc += parsed.text
+                setMessages(prev => {
+                  const copy = [...prev]
+                  copy[copy.length - 1] = { role: 'ai', text: acc }
+                  return copy
+                })
+              } else if (parsed.error) {
+                throw new Error(parsed.error)
+              }
+            } catch {
+              acc += payload
               setMessages(prev => {
                 const copy = [...prev]
                 copy[copy.length - 1] = { role: 'ai', text: acc }
                 return copy
               })
-            } else if (parsed.error) {
-              throw new Error(parsed.error)
-            }
-          } catch {
-            acc += payload
-            setMessages(prev => {
-              const copy = [...prev]
-              copy[copy.length - 1] = { role: 'ai', text: acc }
-              return copy
-            })
-          }
-        }
-      }
-      console.log(`[chat] stream completo: ${chunkCount} chunks, total ${acc.length} chars`)
-
-      if (requestContentUpdate && acc.trim().length > 20) {
-        try {
-          const contentRes = await fetch(`${AI_BACKEND_URL}/api/ask-stream`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-              Accept: 'text/event-stream',
-            },
-            body: JSON.stringify({
-              question: userMsg,
-              courseTitle: courseTitle,
-              fileTexts,
-              history: historyPayload,
-              contentMode: true,
-            }),
-            signal: controller.signal,
-          })
-          if (contentRes.ok && contentRes.body) {
-            const reader2 = contentRes.body.getReader()
-            const decoder2 = new TextDecoder('utf-8')
-            let buf2 = ''
-            let acc2 = ''
-            while (true) {
-              const { value, done } = await reader2.read()
-              if (done) break
-              buf2 += decoder2.decode(value, { stream: true })
-              const evts = buf2.split('\n\n')
-              buf2 = evts.pop() || ''
-              for (const evt of evts) {
-                const line = evt.split('\n').find(l => l.startsWith('data:'))
-                if (!line) continue
-                const payload = line.replace(/^data:\s*/, '')
-                if (payload === '[DONE]') continue
-                try {
-                  const parsed = JSON.parse(payload)
-                  if (typeof parsed.text === 'string') acc2 += parsed.text
-                } catch { acc2 += payload }
-              }
-            }
-            if (acc2.trim().length > 20) {
-              const versionId = Date.now()
-              const versionContent = splitContent(acc2)
-              setGeneratedVersions(prev => [...prev, { id: versionId, content: versionContent }])
-              setContent(versionContent)
-              setActiveVersion(versionId)
-              setIsAiEnhanced(true)
-              setMessages(prev => {
-                const copy = [...prev]
-                copy[copy.length - 1] = {
-                  role: 'ai',
-                  text: `📄 <a href="#" class="version-link" data-version-id="${versionId}">Ver contenido generado (v${generatedVersions.length + 1})</a>\n\nAquí tienes una nueva versión del contenido. Puedes volver al original con el botón arriba.`
-                }
-                return copy
-              })
-            } else {
-              setMessages(prev => {
-                const copy = [...prev]
-                copy[copy.length - 1] = { role: 'ai', text: 'No pude generar una versión alternativa. Intenta de nuevo.' }
-                return copy
-              })
             }
           }
-        } catch (contentErr) {
-          if (contentErr.name !== 'AbortError') console.error('[chat] contentMode error:', contentErr)
         }
       }
     } catch (err) {
@@ -386,11 +374,15 @@ export default function Lesson() {
         const errorMsg = isNvidiaError
           ? 'El servicio de IA no está disponible temporalmente. Intenta de nuevo en unos momentos.'
           : `Lo siento, hubo un error al consultar al tutor${detail}. Intenta de nuevo.`
-        setMessages(prev => {
-          const copy = [...prev]
-          copy[copy.length - 1] = { role: 'ai', text: errorMsg }
-          return copy
-        })
+        if (requestContentUpdate) {
+          setMessages(prev => [...prev, { role: 'ai', text: errorMsg }])
+        } else {
+          setMessages(prev => {
+            const copy = [...prev]
+            copy[copy.length - 1] = { role: 'ai', text: errorMsg }
+            return copy
+          })
+        }
       }
     } finally {
       setChatStreaming(false)

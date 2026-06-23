@@ -131,11 +131,19 @@ NUNCA repitas frases o párrafos. Si ya dijiste algo, no lo vuelvas a decir con 
 Si la respuesta es breve, TERMINA ahí. No añadas texto de relleno ni advertencias genéricas.
 Usa markdown para formatear: separa párrafos con una línea en blanco, usa **negrita** para conceptos clave, y listas con guiones para enumerar puntos.`
 
-const CONTENT_GENERATION_SYSTEM = `Eres un diseñador instruccional experto. Genera una versión alternativa completa y bien formateada de la lección.
-El contenido debe estar en formato HTML válido usando: <h2> para títulos, <p> para párrafos, <strong> para conceptos clave, <ul>/<li> para listas, <div class="key-concept"> para conceptos importantes, y <div class="example-box"> para ejemplos.
+const CONTENT_GENERATION_SYSTEM = `Eres un diseñador instruccional experto. Genera una versión alternativa completa de la lección en formato MARKDOWN.
+Usa ## para títulos principales, ### para subtítulos, **negrita** para conceptos clave, listas con - para enumerar puntos, y bloques de código con \`\`\`.
+Para conceptos importantes, usa este formato exacto:
+:::concept
+**Nombre del concepto:** Explicación del concepto.
+:::
+Para ejemplos, usa este formato exacto:
+:::example
+**Título del ejemplo:** Descripción o código del ejemplo.
+:::
 Basándote ESTRICTAMENTE en el material de referencia proporcionado. NO inventes contenido que no esté en el material.
 El contenido debe ser claro, intuitivo y estar bien organizado con secciones lógicas.
-Responde SOLO con el HTML del contenido, sin explicaciones adicionales ni texto fuera del HTML.`
+Responde SOLO con el markdown del contenido, sin explicaciones adicionales ni texto fuera del markdown. Sin bloques de código envolventes (\`\`\`markdown).`
 
 // ─── 1. Extract text from file ───────────────────────────────
 app.post('/api/extract', authenticate, upload.single('file'), async (req, res) => {
@@ -368,7 +376,7 @@ app.post('/api/ask-stream', authenticate, async (req, res) => {
       : ''
 
     const systemPrompt = contentMode ? CONTENT_GENERATION_SYSTEM : CHAT_SYSTEM
-    const suffix = contentMode ? '\n\nGenera una versión alternativa completa de esta lección en HTML.' : ''
+    const suffix = contentMode ? '\n\nGenera una versión alternativa completa de esta lección en markdown.' : ''
     const userMsg = `${context}${historyText}\n\nPregunta: ${question}${suffix}\n\nResponde basándote ESTRICTAMENTE en el material. Sé conciso y educativo.`
 
     // NVIDIA doesn't support streaming via the basic API; we get the full response and stream it back
