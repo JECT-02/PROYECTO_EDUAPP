@@ -529,6 +529,7 @@ export async function uploadSourceFile({ courseId, file }) {
   const content = btoa(binary)
 
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-source`
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token
 
@@ -537,6 +538,7 @@ export async function uploadSourceFile({ courseId, file }) {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
+      apikey: anonKey,
     },
     body: JSON.stringify({ courseId, filename: file.name, content }),
   })

@@ -1,11 +1,13 @@
 export async function streamFunction({ name, body, accessToken, onChunk, onDone, onError, signal }) {
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
+        apikey: anonKey,
         Accept: 'text/event-stream',
       },
       body: JSON.stringify(body),
@@ -56,11 +58,13 @@ export async function streamFunction({ name, body, accessToken, onChunk, onDone,
 
 export async function callFunction({ name, body, accessToken }) {
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
+      apikey: anonKey,
     },
     body: JSON.stringify(body),
   })
