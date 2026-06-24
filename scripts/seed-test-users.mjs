@@ -224,7 +224,6 @@ async function main() {
     await ensureProfile(id, u)
   }
   await linkParentToStudent(ids.parent, ids.student)
-  await seedDemoData(ids.teacher, ids.student)
   console.log('\n--- Listo ---')
   console.log('Credenciales:')
   console.log('  estudiante → default_student@eduapp.test / student123')

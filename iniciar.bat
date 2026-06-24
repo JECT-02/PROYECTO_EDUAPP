@@ -83,7 +83,7 @@ for %%f in (%FUNCS%) do (
 echo       OK.
 echo.
 
-rem 5. Seed users
+rem 5. Seed users (sin crear cursos demo)
 echo [5/8] Creando usuarios de prueba...
 call node scripts/seed-test-users.mjs
 if %errorlevel% neq 0 (
