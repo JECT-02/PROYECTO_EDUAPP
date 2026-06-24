@@ -56,37 +56,20 @@ export async function callLlm(opts: LlmOptions): Promise<Response> {
   console.log(`[llm] llamando a NVIDIA ${LLM_MODEL} stream=${isStreaming} tokens_max=${opts.maxOutputTokens ?? 2048}`)
   const start = Date.now()
 
-  let lastError: string | null = null
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      const delay = Math.min(1000 * Math.pow(2, attempt), 8000)
-      console.log(`[llm] retry ${attempt + 1}/3, esperando ${delay}ms...`)
-      await new Promise(r => setTimeout(r, delay))
-    }
-    const res = await fetch(LLM_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${NVIDIA_API_KEY}`,
-      },
-      body: JSON.stringify(body),
-    })
-    const elapsed = Date.now() - start
-    console.log(`[llm] respuesta NVIDIA: status=${res.status} elapsed=${elapsed}ms attempt=${attempt + 1}`)
-    if (res.ok) return res
-    if (res.status === 429) {
-      lastError = 'rate_limited'
-      continue
-    }
-    const errText = await res.text().catch(() => '')
-    lastError = `status=${res.status}`
-    console.error(`[llm] error NVIDIA: ${res.status} ${errText.slice(0, 200)}`)
-    if (res.status < 500) break
-  }
-  return new Response(JSON.stringify({ error: `LLM unavailable: ${lastError}` }), {
-    status: 502,
-    headers: { 'Content-Type': 'application/json' },
+  const res = await fetch(LLM_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${NVIDIA_API_KEY}`,
+    },
+    body: JSON.stringify(body),
   })
+  const elapsed = Date.now() - start
+  console.log(`[llm] respuesta NVIDIA: status=${res.status} elapsed=${elapsed}ms`)
+  if (!res.ok) {
+    console.error(`[llm] error NVIDIA: ${res.status}`)
+  }
+  return res
 }
 
 /**

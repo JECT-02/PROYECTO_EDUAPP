@@ -22,26 +22,45 @@ Deno.serve(async (req) => {
 
     const userMsg = `Concepto: ${concept || 'general'}\nPregunta: ${question}\nRespuesta del estudiante: ${userAnswer || '(sin respuesta)'}\nRespuesta correcta: ${correctAnswer}`
 
-    const temp = studentLevel === 'beginner' ? 0.6 : studentLevel === 'advanced' ? 0.3 : 0.4
+    const temp = studentLevel === 'beginner' ? 0.7 : 0.6
     const formalityHint = studentLevel === 'beginner'
       ? '\nUsa un lenguaje muy simple, como si explicaras a un niño.'
       : studentLevel === 'advanced'
         ? '\nUsa lenguaje técnico y preciso.'
         : ''
 
-    const llmRes = await callLlm({
-      system: ANALYZE_ERROR_SYSTEM + formalityHint,
-      messages: [{ role: 'user', parts: [{ text: userMsg }] }],
-      temperature: temp,
-      maxOutputTokens: 300,
-    })
-    if (!llmRes.ok) {
-      const errBody = await llmRes.json().catch(() => ({ error: 'LLM error' }))
-      return jsonError(502, (errBody as any).error || 'LLM error')
+    let explanation = ''
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const llmRes = await callLlm({
+        system: ANALYZE_ERROR_SYSTEM + formalityHint,
+        messages: [{ role: 'user', parts: [{ text: userMsg }] }],
+        temperature: attempt === 0 ? temp : 0.5,
+        maxOutputTokens: 1024,
+      })
+
+      if (llmRes.ok) {
+        const llmJson = await llmRes.json()
+        explanation = (extractLlmText(llmJson) || '').trim()
+        if (!explanation) {
+          const raw = llmJson?.choices?.[0]?.message?.content || llmJson?.choices?.[0]?.text || ''
+          if (raw) explanation = String(raw).trim()
+        }
+        console.log('[analyze-error] attempt', attempt, 'explanation len:', explanation?.length)
+        if (explanation && explanation.length > 10) break
+      } else if (llmRes.status === 429) {
+        const wait = 2000 * (attempt + 1)
+        console.log('[analyze-error] rate limited, waiting', wait, 'ms')
+        await new Promise(r => setTimeout(r, wait))
+        continue
+      } else {
+        console.error('[analyze-error] LLM fail:', llmRes.status)
+        break
+      }
     }
-    const llmJson = await llmRes.json()
-    const explanation = (extractLlmText(llmJson) || '').trim()
-    return jsonOk({ explanation })
+
+    if (!explanation || explanation.length < 5) {
+      return jsonOk({ explanation: 'La IA no pudo analizar este error. Revisa el material del curso.' })
+    }
   } catch (e) {
     console.error(e)
     return jsonError(500, e?.message || 'internal error')

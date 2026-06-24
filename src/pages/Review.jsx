@@ -104,7 +104,7 @@ export default function Review() {
               courseId,
               concept,
             }),
-            15000
+            20000
           )
           const raw = result?.explanation || ''
           const clean = sanitizeExplanation(raw)
