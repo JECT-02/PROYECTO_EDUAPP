@@ -23,6 +23,7 @@ const ROLE_ROUTES = {
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/onboarding/accessibility', '/onboarding/avatar']
 
 const DEFAULT_AVATAR = { teacher: '👩‍🏫', student: '🦊', parent: '👨‍👩‍👧' }
+const AVATARS = ['🦊','🐺','🦁','🐯','🦅','🐬','🦋','🌟']
 
 function getInitialName(email, role) {
   const prefix = role === 'teacher' ? 'Prof. ' : role === 'parent' ? 'Fam. ' : ''
@@ -37,7 +38,7 @@ function profileToUser(profile, email) {
     email: profile.email || email,
     role: profile.role,
     name: profile.full_name || getInitialName(email, profile.role),
-    avatar: DEFAULT_AVATAR[profile.role] || '🦊',
+    avatar: (typeof profile.avatar_id === 'number' ? AVATARS[profile.avatar_id] : null) || DEFAULT_AVATAR[profile.role] || '🦊',
     isAuthenticated: true,
     fullProfile: profile,
   }
@@ -205,7 +206,7 @@ export function AuthProvider({ children }) {
         ...prev,
         fullProfile: data,
         name: data.full_name || prev.name,
-        avatar: DEFAULT_AVATAR[data.role] || prev.avatar,
+        avatar: (typeof data.avatar_id === 'number' ? AVATARS[data.avatar_id] : null) || DEFAULT_AVATAR[data.role] || prev.avatar,
         onboardingCompleted: data.onboarding_completed || isOnboardingCompleteLocal(data.role),
       } : prev))
     }
@@ -219,7 +220,7 @@ export function AuthProvider({ children }) {
         ...prev,
         fullProfile: data,
         name: data.full_name || prev.name,
-        avatar: DEFAULT_AVATAR[data.role] || prev.avatar,
+        avatar: (typeof data.avatar_id === 'number' ? AVATARS[data.avatar_id] : null) || DEFAULT_AVATAR[data.role] || prev.avatar,
         onboardingCompleted: data.onboarding_completed || prev.onboardingCompleted,
       } : prev))
     }

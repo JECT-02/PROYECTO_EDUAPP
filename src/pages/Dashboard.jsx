@@ -6,7 +6,8 @@ import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { getStudentEnrollments, listStudentMedals, getProgressForEnrollment, getCourseNodes, isSupabaseConfigured } from '../lib/api'
+import { getStudentEnrollments, listStudentMedals, getProgressForEnrollment, getCourseNodes, isSupabaseConfigured, getUnderstandingData } from '../lib/api'
+import { calculateUnderstanding, understandingColor, understandingLabel } from '../lib/understanding'
 import './Dashboard.css'
 
 const ICON_POOL = [
@@ -18,16 +19,46 @@ const ICON_POOL = [
   { icon: <BookOpen size={32} />, color: '#8B5CF6' },
 ]
 
-const CHALLENGES = [
-  { title:'Repaso: División Celular', time:'~8 min', icon:<Beaker size={20}/>, color:'#22C55E', course:'Biología Celular' },
-  { title:'Coliseo de Retos', icon:<Trophy size={20}/>, color:'#22C55E', time:'30 min', course:'Biología Celular' },
-]
-
 function getGreeting() {
   const h = new Date().getHours()
   if (h < 12) return '¡Buenos días'
   if (h < 19) return '¡Buenas tardes'
   return '¡Buenas noches'
+}
+
+function buildDailyChallenges(enrollments, progressMap) {
+  const challenges = []
+  for (const e of enrollments) {
+    const course = e.course
+    if (!course) continue
+    const pct = progressMap[course.id] || 0
+    // Add review challenge if course has progress
+    if (e.enrollmentId) {
+      challenges.push({
+        id: `review-${course.id}`,
+        title: pct >= 80 ? 'Examen Final' : pct >= 40 ? 'Quiz de Repaso' : `Repaso: ${course.title?.slice(0, 25) || 'Lección'}`,
+        time: pct >= 80 ? '~15 min' : '~8 min',
+        icon: <Beaker size={20} />,
+        color: '#22C55E',
+        course: course.title || 'Curso',
+        courseId: course.id,
+        type: pct >= 80 ? 'boss' : 'quiz',
+      })
+    }
+  }
+  // Always include Coliseo challenge
+  const firstCourse = enrollments[0]
+  challenges.push({
+    id: 'coliseo-daily',
+    title: 'Coliseo de Retos',
+    icon: <Trophy size={20} />,
+    color: '#F59E0B',
+    time: '~30 min',
+    course: firstCourse?.course?.title || 'Curso',
+    courseId: firstCourse?.courseId || null,
+    type: 'coliseo',
+  })
+  return challenges.slice(0, 3)
 }
 
 function statusColor(s) {
@@ -45,6 +76,10 @@ export default function Dashboard() {
   const [medals, setMedals] = useState([])
   const [progressMap, setProgressMap] = useState({})
   const [loadingData, setLoadingData] = useState(true)
+  const [understanding, setUnderstanding] = useState(null)
+  const [totalCompleted, setTotalCompleted] = useState(0)
+  const [studyTimeMin, setStudyTimeMin] = useState(0)
+  const [dailyChallenges, setDailyChallenges] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -79,6 +114,29 @@ export default function Dashboard() {
         })
       )
       if (!cancelled) setProgressMap(Object.fromEntries(progressEntries))
+      if (!cancelled) {
+        const progressObj = Object.fromEntries(progressEntries)
+        setDailyChallenges(buildDailyChallenges(filtered, progressObj))
+      }
+
+      // Load understanding for first course
+      const allCompleted = Object.values(Object.fromEntries(progressEntries))
+      let sumCompleted = 0; let sumTime = 0
+      for (const e of filtered) {
+        const { data: ud } = await getUnderstandingData(studentId, e.courseId)
+        if (ud) {
+          sumCompleted += ud.completedNodes
+          sumTime += ud.studyTimeMin
+        }
+      }
+      if (filtered.length > 0) {
+        const { data: udFirst } = await getUnderstandingData(studentId, filtered[0].courseId)
+        if (!cancelled && udFirst) setUnderstanding(calculateUnderstanding(udFirst))
+      }
+      if (!cancelled) {
+        setTotalCompleted(sumCompleted)
+        setStudyTimeMin(sumTime)
+      }
     }
     load()
     return () => { cancelled = true }
@@ -127,38 +185,37 @@ export default function Dashboard() {
   const sidebarContent = (
     <>
       {/* Mascot panel */}
-      <div className="sidebar-card" tabIndex={0} role="region" aria-label="Tu compañero: Ember, nivel 2 juvenil, 820 de 1500 puntos de experiencia, 55 por ciento, 680 XP para nivel 3">
+      <div className="sidebar-card" tabIndex={0} role="region" aria-label={`Tu compañero: ${user?.fullProfile?.pet_name || 'Ember'}, nivel ${Math.floor((user?.fullProfile?.pet_xp || 0) / 500) + 1}`}>
         <div aria-hidden="true">
           <h3 className="sidebar-title">Tu compañero</h3>
           <div className="mascot-panel">
-            <Mascot type="dragon" size="lg" mood="normal" />
+            <Mascot type={user?.fullProfile?.pet_type || 'dragon'} size="lg" mood="normal" />
             <div className="mascot-info">
-              <div className="mascot-nm">Ember</div>
-              <div className="mascot-lvl">Nivel 2 – Juvenil</div>
+              <div className="mascot-nm">{user?.fullProfile?.pet_name || 'Ember'}</div>
+              <div className="mascot-lvl">Nivel {Math.floor((user?.fullProfile?.pet_xp || 0) / 500) + 1}</div>
             </div>
           </div>
           <div className="xp-bar-wrap">
             <div className="xp-labels">
-              <span>820 XP</span><span>1500 XP</span>
+              <span>{(user?.fullProfile?.pet_xp || 0)} XP</span><span>{Math.ceil((user?.fullProfile?.pet_xp || 0) / 500) * 500} XP</span>
             </div>
             <div className="progress-bar">
-              <div className="progress-fill" style={{width:'55%', background:'linear-gradient(90deg,#EF4444,#F97316)'}}/>
+              <div className="progress-fill" style={{width: `${Math.min(((user?.fullProfile?.pet_xp || 0) % 500) / 500 * 100, 100)}%`, background:'linear-gradient(90deg,#F59E0B,#8B5CF6)'}}/>
             </div>
-            <p className="xp-hint">680 XP para nivel 3</p>
           </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="sidebar-card" tabIndex={0} role="region" aria-label="Tu semana: 4 horas 20 minutos de estudio, 8 nodos completados, 72 por ciento de entendimiento, 5 medallas obtenidas">
+      <div className="sidebar-card" tabIndex={0} role="region" aria-label={`Estadísticas: ${studyTimeMin} minutos de estudio, ${totalCompleted} nodos completados, ${understanding ? understanding.value : 0} por ciento de entendimiento, ${medals.length} medallas`}>
         <div aria-hidden="true">
-          <h3 className="sidebar-title">Tu semana</h3>
+          <h3 className="sidebar-title">Tu progreso</h3>
           <div className="stats-list">
             {[
-              { label:'Tiempo de estudio', val:'4h 20min', icon:<Clock size={14}/>, color:'#6C63FF' },
-              { label:'Nodos completados', val:'8', icon:<BookOpen size={14}/>, color:'#22C55E' },
-              { label:'Nivel de entendimiento', val:'72%', icon:<TrendingUp size={14}/>, color:'#F59E0B' },
-              { label:'Medallas obtenidas', val:'5', icon:<Trophy size={14}/>, color:'#8B5CF6' },
+              { label:'Tiempo de estudio', val: studyTimeMin > 0 ? `${Math.floor(studyTimeMin/60)}h ${studyTimeMin%60}min` : '—', icon:<Clock size={14}/>, color:'#6C63FF' },
+              { label:'Nodos completados', val: String(totalCompleted), icon:<BookOpen size={14}/>, color:'#22C55E' },
+              { label:'Nivel de entendimiento', val: understanding ? `${understanding.value}%` : '—', icon:<TrendingUp size={14}/>, color: understanding ? understandingColor(understanding.value) : '#F59E0B' },
+              { label:'Medallas obtenidas', val: String(medals.length), icon:<Trophy size={14}/>, color:'#8B5CF6' },
             ].map(s => (
               <div key={s.label} className="stat-item">
                 <div className="stat-icon" style={{color:s.color, background:`${s.color}18`}}>{s.icon}</div>
@@ -173,14 +230,20 @@ export default function Dashboard() {
       </div>
 
       {/* Last medal */}
-      <div className="sidebar-card medal-card">
-        <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
-        <div className="medal-info">
-          <div className="medal-name">Explorador Curioso</div>
-          <div className="medal-sub">Última medalla obtenida</div>
+      {medals.length > 0 ? (
+        <div className="sidebar-card medal-card">
+          <div className="medal-icon-wrap" style={{ fontSize: '2rem' }}>🏅</div>
+          <div className="medal-info">
+            <div className="medal-name">{medals[0].name || medals[0].achievement || 'Medalla'}</div>
+            <div className="medal-sub">Última medalla obtenida</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')} aria-label={`Última medalla: ${medals[0].name || 'Medalla'}. Ir a logros`}>Ver todas</button>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/achievements')} aria-label="Última medalla: Explorador Curioso. Ir a la página de logros">Ver todas</button>
-      </div>
+      ) : (
+        <div className="sidebar-card" style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          Aún no tienes medallas. ¡Completa quizzes para ganarlas!
+        </div>
+      )}
     </>
   )
 
@@ -272,18 +335,17 @@ export default function Dashboard() {
           <section aria-label="Retos del día">
             <h2 className="section-title">Retos del día</h2>
             <div className="challenges-row">
-              {CHALLENGES.map((c, i) => (
+              {dailyChallenges.map(c => (
                 <motion.div
-                  key={i} className="challenge-card"
+                  key={c.id} className="challenge-card"
                   whileTap={{ scale:0.97 }}
                   onClick={() => {
-                    if (i === 1) navigate('/coliseo')
-                    else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1')
+                    if (c.type === 'coliseo') navigate(c.courseId ? `/coliseo/${c.courseId}` : '/coliseo')
+                    else navigate(`/roadmap/${c.courseId}`)
                   }}
                   style={{ cursor:'pointer', '--course-color': c.color }}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (i === 1) navigate('/coliseo'); else navigate(COURSE_QUIZ_MAP['1'] || '/roadmap/1'); } }}
+                  role="button" tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (c.type === 'coliseo') navigate(c.courseId ? `/coliseo/${c.courseId}` : '/coliseo'); else navigate(`/roadmap/${c.courseId}`) } }}
                   aria-label={`${c.title}: ${c.course}`}
                 >
                   <div className="ch-icon" style={{ background:`${c.color}18`, color:c.color }}>{c.icon}</div>
@@ -295,6 +357,9 @@ export default function Dashboard() {
                   <Zap size={16} style={{ color:c.color, flexShrink:0 }}/>
                 </motion.div>
               ))}
+              {dailyChallenges.length === 0 && (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Inscríbete en cursos para recibir retos diarios.</p>
+              )}
             </div>
           </section>
 

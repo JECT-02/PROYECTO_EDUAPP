@@ -4,7 +4,8 @@ import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Edit3, Eye, LoaderCircl
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateLocked } from '../utils/vibration'
-import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured, getUnderstandingData } from '../lib/api'
+import { calculateUnderstanding, understandingColor } from '../lib/understanding'
 import { useAuth } from '../context/AuthContext'
 import './Roadmap.css'
 
@@ -18,6 +19,7 @@ export default function Roadmap() {
   const [courseTitle, setCourseTitle] = useState('Cargando...')
   const [errorMsg, setErrorMsg] = useState('')
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [understanding, setUnderstanding] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -84,6 +86,10 @@ export default function Roadmap() {
         if (!cancelled) {
           setNodes(mapped)
           setLoading(false)
+        }
+        if (!isTeacher && studentId && !cancelled) {
+          const { data: ud } = await getUnderstandingData(studentId, courseId)
+          if (!cancelled && ud) setUnderstanding(calculateUnderstanding(ud))
         }
       } catch (e) {
         console.error('[roadmap] error:', e)
@@ -294,15 +300,17 @@ export default function Roadmap() {
         </div>
       </div>
 
-      <div className="sync-float">
-        <div className="sync-float-inner">
-          <span className="sync-float-label">Nivel de entendimiento</span>
-          <div className="sync-float-bar">
-            <div className="sync-float-fill" style={{width:'72%', background:'var(--primary)'}} />
+      {understanding && (
+        <div className="sync-float">
+          <div className="sync-float-inner">
+            <span className="sync-float-label">Nivel de entendimiento</span>
+            <div className="sync-float-bar">
+              <div className="sync-float-fill" style={{width:`${understanding.value}%`, background: understandingColor(understanding.value)}} />
+            </div>
+            <span className="sync-float-pct" style={{color: understandingColor(understanding.value)}}>{understanding.value}%</span>
           </div>
-          <span className="sync-float-pct" style={{color:'var(--primary-light)'}}>72%</span>
         </div>
-      </div>
+      )}
     </PageWrapper>
   )
 }

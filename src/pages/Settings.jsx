@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, Volume2, Eye, Type, Move, Mic, Glasses, Smartphone } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
+import { useAuth } from '../context/AuthContext'
 import './Settings.css'
 
 const PREF_OPTIONS = [
@@ -20,6 +21,7 @@ const ACCESSIBILITY_OPTIONS = [
 
 export default function Settings() {
   const navigate = useNavigate()
+  const { user, updateProfileData } = useAuth()
 
   const [prefs, setPrefs] = useState(() => {
     try {
@@ -27,6 +29,7 @@ export default function Settings() {
       return saved ? JSON.parse(saved) : {}
     } catch { return {} }
   })
+
   const toggle = (key) => {
     const nextVal = !prefs[key]
     setPrefs(p => {
@@ -34,16 +37,23 @@ export default function Settings() {
       localStorage.setItem('eduapp_prefs', JSON.stringify(next))
       return next
     })
-    // Apply/remove high contrast class on body
-    if (key === 'contrast') {
-      document.body.classList.toggle('high-contrast', nextVal)
+    // Persist accessibility settings to Supabase
+    if (user?.id) {
+      const acc = prefs
+      const merged = {
+        contrast: key === 'contrast' ? nextVal : !!acc.contrast,
+        narration: !!acc.voice,
+        reduced: key === 'reduced' ? nextVal : !!acc.reduced,
+        voice: key === 'voice' ? nextVal : !!acc.voice,
+        large_text: key === 'largeText' ? nextVal : !!acc.largeText,
+        colorblind: key === 'colorblind' ? nextVal : !!acc.colorblind,
+      }
+      updateProfileData({ accessibility_settings: merged }).catch(() => {})
     }
-    if (key === 'reduced') {
-      document.body.classList.toggle('reduce-motion', nextVal)
-    }
-    if (key === 'colorblind') {
-      document.body.classList.toggle('colorblind', nextVal)
-    }
+    // Apply body classes
+    if (key === 'contrast') document.body.classList.toggle('high-contrast', nextVal)
+    if (key === 'reduced') document.body.classList.toggle('reduce-motion', nextVal)
+    if (key === 'colorblind') document.body.classList.toggle('colorblind', nextVal)
     if (key === 'largeText') {
       document.body.classList.toggle('large-text', nextVal)
       document.documentElement.style.fontSize = nextVal ? '18px' : ''

@@ -3,12 +3,15 @@ import { useState, useEffect } from 'react'
 import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateWarning } from '../utils/vibration'
-import { getCourseNodes } from '../lib/api'
+import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
+import { checkAchievements } from '../lib/achievements'
 import './QuizResult.css'
 
 export default function QuizResult() {
   const { state } = useLocation()
   const navigate = useNavigate()
+  const { studentId } = useAuth()
   const {
     score = 0,
     total = 0,
@@ -23,6 +26,53 @@ export default function QuizResult() {
   const incorrectCount = answers.filter(a => !a.isCorrect).length
   const [nextNodePath, setNextNodePath] = useState(null)
   const [loadingNext, setLoadingNext] = useState(true)
+
+  // Persist quiz score to progress table
+  useEffect(() => {
+    if (!isSupabaseConfigured || !studentId || !courseId || !nodeId) return
+    let cancelled = false
+    async function persist() {
+      try {
+        const [{ data: nodes }, { data: enrollments }] = await Promise.all([
+          getCourseNodes(courseId),
+          getStudentEnrollments(studentId),
+        ])
+        if (cancelled) return
+        const enrollment = (enrollments || []).find(
+          e => e.course_id === courseId || String(e.course_id) === String(courseId)
+        )
+        if (!enrollment) return
+        const dbNode = (nodes || []).find(
+          n => String(n.position) === String(nodeId) || String(n.id) === String(nodeId)
+        )
+        if (!dbNode) return
+        const { error } = await markNodeProgress({
+          enrollmentId: enrollment.id,
+          nodeId: dbNode.id,
+          state: 'completed',
+          score: percentage,
+          completed: true,
+        })
+        if (error) console.warn('[quiz] markNodeProgress error:', error.message)
+
+        // Check achievements
+        const { data: progress } = await getProgressForEnrollment(enrollment.id)
+        const quizCompleted = (progress || []).filter(p => p.state === 'completed' && p.score != null).length
+        const isBoss = dbNode.type === 'boss'
+        const isPerfect = percentage === 100
+        const hour = new Date().getHours()
+        const unlocked = await checkAchievements(studentId, {
+          quiz_completed: quizCompleted,
+          quiz_perfect: isPerfect,
+          boss_passed: isBoss && percentage >= 60,
+          night_study: hour >= 22 || hour < 5,
+        })
+        if (unlocked.length > 0) console.log('[achievements] unlocked:', unlocked.map(a => a.name).join(', '))
+      } catch (e) { console.warn('[quiz] persist score error:', e.message) }
+    }
+    persist()
+    return () => { cancelled = true }
+  }, [studentId, courseId, nodeId, percentage])
 
   // Find next node for navigation
   useEffect(() => {
