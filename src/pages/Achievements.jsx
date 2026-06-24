@@ -5,6 +5,7 @@ import PageWrapper from '../components/PageWrapper'
 import { listStudentMedals, isSupabaseConfigured } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { getAllAchievements } from '../lib/achievements'
+import { useVoice } from '../context/VoiceContext'
 import './Achievements.css'
 
 const RARITY_COLOR = { common: '#A6A6BC', rare: '#3B82F6', epic: '#8B5CF6', legendary: '#F59E0B' }
@@ -13,6 +14,7 @@ const TYPE_ICON = { mastery: '👑', behavior: '🔥', secret: '🌟' }
 export default function Achievements() {
   const navigate = useNavigate()
   const { studentId } = useAuth()
+  const { setPageContext } = useVoice()
   const [earnedIds, setEarnedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
 
@@ -29,6 +31,8 @@ export default function Achievements() {
     load()
     return () => { cancelled = true }
   }, [studentId])
+
+  useEffect(() => { setPageContext({ page: 'achievements' }) }, [setPageContext])
 
   const catalog = getAllAchievements()
   const earnedCount = catalog.filter(a => earnedIds.has(a.id) || earnedIds.has(a.name)).length

@@ -8,6 +8,7 @@ import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { getStudentEnrollments, listStudentMedals, getProgressForEnrollment, getCourseNodes, isSupabaseConfigured, getUnderstandingData } from '../lib/api'
 import { calculateUnderstanding, understandingColor, understandingLabel } from '../lib/understanding'
+import { useVoice } from '../context/VoiceContext'
 import './Dashboard.css'
 
 const ICON_POOL = [
@@ -69,6 +70,7 @@ function statusColor(s) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, studentId } = useAuth()
+  const { setPageContext } = useVoice()
   const userName = user?.name?.split(' ')[0] || 'Estudiante'
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -141,6 +143,22 @@ export default function Dashboard() {
     load()
     return () => { cancelled = true }
   }, [studentId])
+
+  // Voice: set page context with course names for navigation
+  useEffect(() => {
+    if (enrollments.length > 0) {
+      const totalCompletedNodes = Object.values(progressMap).reduce((sum, pct) => sum + (pct > 0 ? 1 : 0), 0)
+      setPageContext({
+        page: 'dashboard',
+        courses: enrollments.map(e => e.course?.title || '').filter(Boolean),
+        courseIds: enrollments.map(e => e.courseId),
+        currentCourseId: enrollments[0]?.courseId,
+        totalNodes: totalCompletedNodes,
+      })
+    } else {
+      setPageContext({ page: 'dashboard' })
+    }
+  }, [enrollments, progressMap, setPageContext])
 
   // Lock body scroll when mobile drawer is open
   const drawerRef = useRef(null)

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bell, Volume2, Eye, Type, Move, Mic, Glasses, Smartphone } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
+import { useVoice } from '../context/VoiceContext'
 import './Settings.css'
 
 const PREF_OPTIONS = [
@@ -22,6 +23,7 @@ const ACCESSIBILITY_OPTIONS = [
 export default function Settings() {
   const navigate = useNavigate()
   const { user, updateProfileData } = useAuth()
+  const { voiceEnabled, toggleVoice } = useVoice()
 
   const [prefs, setPrefs] = useState(() => {
     try {
@@ -88,14 +90,31 @@ export default function Settings() {
               Accesibilidad
             </h2>
           </div>
-          {ACCESSIBILITY_OPTIONS.map((opt, i) => (
+          {ACCESSIBILITY_OPTIONS.map((opt) => (
             <SettingRow
               key={opt.key}
               icon={opt.icon}
               label={opt.label}
               desc={opt.desc}
-              active={!!prefs[opt.key]}
-              onToggle={() => toggle(opt.key)}
+              active={opt.key === 'voice' ? voiceEnabled : !!prefs[opt.key]}
+              onToggle={() => {
+                if (opt.key === 'voice') {
+                  toggleVoice()
+                  // Persist voice to profile
+                  if (user?.id) {
+                    const merged = {
+                      contrast: !!prefs.contrast,
+                      reduced: !!prefs.reduced,
+                      voice: !voiceEnabled,
+                      large_text: !!prefs.largeText,
+                      colorblind: !!prefs.colorblind,
+                    }
+                    updateProfileData({ accessibility_settings: merged }).catch(() => {})
+                  }
+                } else {
+                  toggle(opt.key)
+                }
+              }}
             />
           ))}
         </div>

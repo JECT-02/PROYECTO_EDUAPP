@@ -6,12 +6,14 @@ import { vibrateWarning } from '../utils/vibration'
 import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { checkAchievements } from '../lib/achievements'
+import { useVoice } from '../context/VoiceContext'
 import './QuizResult.css'
 
 export default function QuizResult() {
   const { state } = useLocation()
   const navigate = useNavigate()
   const { studentId } = useAuth()
+  const { setPageContext, registerHandler } = useVoice()
   const {
     score = 0,
     total = 0,
@@ -26,6 +28,12 @@ export default function QuizResult() {
   const incorrectCount = answers.filter(a => !a.isCorrect).length
   const [nextNodePath, setNextNodePath] = useState(null)
   const [loadingNext, setLoadingNext] = useState(true)
+
+  // Voice: page context + navigation handlers
+  useEffect(() => { setPageContext({ page: 'quizResult' }) }, [setPageContext])
+  useEffect(() => { return registerHandler('nextNode', () => { if (nextNodePath) navigate(nextNodePath) }) }, [nextNodePath, navigate, registerHandler])
+  useEffect(() => { return registerHandler('reviewErrors', () => navigate(`/review/${courseId}/${nodeId}`, { state: { answers, score, total } })) }, [courseId, nodeId, answers, score, total, navigate, registerHandler])
+  useEffect(() => { return registerHandler('retryQuiz', () => navigate(-1)) }, [navigate, registerHandler])
 
   // Persist quiz score to progress table
   useEffect(() => {

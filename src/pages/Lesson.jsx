@@ -8,12 +8,14 @@ import { sanitizeHtml } from '../lib/sanitize'
 import { renderMarkdown, renderLessonContent } from '../lib/markdown'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useVoice } from '../context/VoiceContext'
 import './Lesson.css'
 
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
   const { role, studentId } = useAuth()
+  const { registerHandler, setPageContext } = useVoice()
   const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
   const [dbLoading, setDbLoading] = useState(true)
@@ -189,6 +191,14 @@ export default function Lesson() {
       blockRefs.current[prev]?.focus()
     }
   }
+
+  // Voice: register lesson action handlers
+  useEffect(() => {
+    setPageContext({ page: 'lesson', courseTitle, nodeTitle: dbNode?.title || '', nodePosition: dbNode?.position, totalNodes: allNodes?.length })
+  }, [courseTitle, dbNode, setPageContext])
+  useEffect(() => { return registerHandler('finishNode', () => { if (dbNode) handleFinishNode() }) }, [dbNode, registerHandler])
+  useEffect(() => { return registerHandler('openChat', () => { setIsDesktop(true); setShowChat(true) }) }, [registerHandler])
+  useEffect(() => { return registerHandler('closeChat', () => { setShowChat(false) }) }, [registerHandler])
 
   const abortChat = useCallback(() => {
     if (chatAbortRef.current) {

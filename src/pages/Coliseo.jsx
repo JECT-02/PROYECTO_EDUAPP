@@ -6,6 +6,7 @@ import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
+import { useVoice } from '../context/VoiceContext'
 import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, updateProfileXP } from '../lib/api'
 import { checkAchievements } from '../lib/achievements'
 import { generateQuiz } from '../lib/llm'
@@ -15,6 +16,7 @@ export default function Coliseo() {
   const navigate = useNavigate()
   const { courseId } = useParams()
   const { studentId, user } = useAuth()
+  const { registerHandler, setPageContext } = useVoice()
   const [questions, setQuestions] = useState([])
   const [courseTitle, setCourseTitle] = useState('')
   const [loadingQuestions, setLoadingQuestions] = useState(true)
@@ -95,6 +97,19 @@ export default function Coliseo() {
   }, [courseId, studentId])
 
   const currentQ = questions[qIndex]
+
+  // Voice: register option selector + enter arena
+  useEffect(() => {
+    setPageContext({ page: 'coliseo', options: currentQ?.options || [] })
+    const unreg = registerHandler('selectOption', ({ index }) => {
+      if (currentQ?.options?.[index]) handleSelect(currentQ.options[index])
+    })
+    return unreg
+  }, [currentQ, registerHandler, setPageContext])
+  useEffect(() => {
+    const unreg = registerHandler('enterArena', () => { if (!started && !victory && !defeat) setStarted(true) })
+    return unreg
+  }, [started, victory, defeat, registerHandler])
 
   // Timer
   useEffect(() => {

@@ -6,6 +6,7 @@ import PageWrapper from '../components/PageWrapper'
 import { vibrateLocked } from '../utils/vibration'
 import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, getProgressForEnrollment, isSupabaseConfigured, getUnderstandingData } from '../lib/api'
 import { calculateUnderstanding, understandingColor } from '../lib/understanding'
+import { useVoice } from '../context/VoiceContext'
 import { useAuth } from '../context/AuthContext'
 import './Roadmap.css'
 
@@ -13,6 +14,7 @@ export default function Roadmap() {
   const navigate = useNavigate()
   const { courseId } = useParams()
   const { studentId, role } = useAuth()
+  const { setPageContext } = useVoice()
   const isTeacher = role === 'teacher'
   const [loading, setLoading] = useState(true)
   const [nodes, setNodes] = useState([])
@@ -87,6 +89,7 @@ export default function Roadmap() {
           setNodes(mapped)
           setLoading(false)
         }
+        if (!cancelled) setPageContext({ page: 'roadmap', courseTitle: data?.[0]?.courses?.title || courseTitle, nodePosition: 0, totalNodes: mapped.length })
         if (!isTeacher && studentId && !cancelled) {
           const { data: ud } = await getUnderstandingData(studentId, courseId)
           if (!cancelled && ud) setUnderstanding(calculateUnderstanding(ud))
