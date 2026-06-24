@@ -1,0 +1,146 @@
+[
+  {
+    "id": "first_quiz",
+    "name": "Primer Paso",
+    "description": "Completaste tu primer quiz",
+    "type": "mastery",
+    "rarity": "common",
+    "rule": { "quiz_completed": 1 }
+  },
+  {
+    "id": "perfect_quiz",
+    "name": "Mente Brillante",
+    "description": "Obtuviste 100% en un quiz",
+    "type": "mastery",
+    "rarity": "rare",
+    "rule": { "quiz_perfect": true }
+  },
+  {
+    "id": "five_quizzes",
+    "name": "Estudiante Dedicado",
+    "description": "Completaste 5 quizzes",
+    "type": "mastery",
+    "rarity": "rare",
+    "rule": { "quiz_completed": 5 }
+  },
+  {
+    "id": "ten_quizzes",
+    "name": "Evaluador Experto",
+    "description": "Completaste 10 quizzes",
+    "type": "mastery",
+    "rarity": "epic",
+    "rule": { "quiz_completed": 10 }
+  },
+  {
+    "id": "boss_slayer",
+    "name": "Guerrero del Conocimiento",
+    "description": "Aprobaste un examen final",
+    "type": "mastery",
+    "rarity": "epic",
+    "rule": { "boss_passed": true }
+  },
+  {
+    "id": "all_perfect",
+    "name": "Perfeccionista",
+    "description": "100% en todos los quizzes de un curso",
+    "type": "mastery",
+    "rarity": "legendary",
+    "rule": { "all_quiz_perfect": true }
+  },
+  {
+    "id": "three_courses",
+    "name": "Mente Curiosa",
+    "description": "Te inscribiste en 3 cursos",
+    "type": "mastery",
+    "rarity": "rare",
+    "rule": { "courses_enrolled": 3 }
+  },
+  {
+    "id": "ten_nodes",
+    "name": "Explorador",
+    "description": "Completaste 10 nodos de teoría",
+    "type": "mastery",
+    "rarity": "common",
+    "rule": { "theory_completed": 10 }
+  },
+  {
+    "id": "streak_3",
+    "name": "Buen Hábito",
+    "description": "3 días seguidos de estudio",
+    "type": "behavior",
+    "rarity": "common",
+    "rule": { "streak_days": 3 }
+  },
+  {
+    "id": "streak_7",
+    "name": "Racha Imparable",
+    "description": "7 días seguidos de estudio",
+    "type": "behavior",
+    "rarity": "epic",
+    "rule": { "streak_days": 7 }
+  },
+  {
+    "id": "speedster",
+    "name": "Velocista",
+    "description": "Quiz completado en < 2 min con > 80%",
+    "type": "behavior",
+    "rarity": "rare",
+    "rule": { "quiz_fast": true }
+  },
+  {
+    "id": "night_owl",
+    "name": "Noctámbulo",
+    "description": "Estudiaste después de las 10 PM",
+    "type": "behavior",
+    "rarity": "common",
+    "rule": { "night_study": true }
+  },
+  {
+    "id": "first_review",
+    "name": "Aprendiz Reflexivo",
+    "description": "Revisaste tus errores por primera vez",
+    "type": "behavior",
+    "rarity": "common",
+    "rule": { "review_completed": 1 }
+  },
+  {
+    "id": "coliseo_win",
+    "name": "Campeón del Coliseo",
+    "description": "Ganaste en el Coliseo de Retos",
+    "type": "mastery",
+    "rarity": "epic",
+    "rule": { "coliseo_won": true }
+  },
+  {
+    "id": "coliseo_perfect",
+    "name": "Leyenda del Coliseo",
+    "description": "Ganaste el Coliseo sin perder vidas",
+    "type": "mastery",
+    "rarity": "legendary",
+    "rule": { "coliseo_perfect": true }
+  },
+  {
+    "id": "first_course",
+    "name": "Primer Curso",
+    "description": "Completaste tu primer curso",
+    "type": "mastery",
+    "rarity": "rare",
+    "rule": { "course_completed": 1 }
+  },
+  {
+    "id": "ai_chat",
+    "name": "Compañero de Estudio",
+    "description": "Usaste el tutor IA por primera vez",
+    "type": "behavior",
+    "rarity": "common",
+    "rule": { "ai_chat_used": true }
+  },
+  {
+    "id": "ai_intensive",
+    "name": "Dependiente de IA",
+    "description": "10 interacciones con el tutor IA",
+    "type": "behavior",
+    "rarity": "rare",
+    "rule": { "ai_interactions": 10 }
+  }
+]
