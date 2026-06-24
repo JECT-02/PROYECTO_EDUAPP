@@ -21,6 +21,10 @@ export async function updateProfile(userId, updates) {
   return { data, error }
 }
 
+export async function updateProfileXP(userId, totalXp) {
+  return updateProfile(userId, { pet_xp: totalXp })
+}
+
 export async function listPublishedCourses({ search = '', limit = 50 } = {}) {
   if (!isSupabaseConfigured) return FALLBACK([])
   let q = supabase.from('courses').select('id, title, description, category, level, cover_url, rigor, created_at, profiles:teacher_id(full_name)').eq('status', 'published').order('created_at', { ascending: false }).limit(limit)
@@ -260,6 +264,36 @@ export async function listStudentMedals(studentId) {
     .eq('student_id', studentId)
     .order('unlocked_at', { ascending: false })
   return { data: data || [], error }
+}
+
+export async function getUnderstandingData(studentId, courseId) {
+  if (!isSupabaseConfigured) return FALLBACK(null)
+  const { data: enrollment, error: eErr } = await supabase
+    .from('enrollments')
+    .select('id, ai_interactions, study_time_sec')
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+  if (eErr || !enrollment) return { data: null, error: eErr }
+
+  const [{ data: nodes }, { data: progress }] = await Promise.all([
+    supabase.from('nodes').select('id, type').eq('course_id', courseId).eq('status', 'published'),
+    supabase.from('progress').select('state, score').eq('enrollment_id', enrollment.id),
+  ])
+  const totalNodes = (nodes || []).length
+  const completed = (progress || []).filter(p => p.state === 'completed').length
+  const scores = (progress || []).filter(p => p.score != null && p.state === 'completed').map(p => Number(p.score))
+  const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+  return {
+    data: {
+      completedNodes: completed,
+      totalNodes,
+      avgScore,
+      aiInteractions: enrollment.ai_interactions || 0,
+      studyTimeMin: Math.round((enrollment.study_time_sec || 0) / 60),
+    },
+    error: null,
+  }
 }
 
 export async function listNotifications(userId) {

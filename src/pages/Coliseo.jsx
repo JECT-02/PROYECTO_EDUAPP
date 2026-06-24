@@ -1,27 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Heart, ShieldAlert, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic, AlertCircle } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
-import { initAudio, playCorrect, playIncorrect, playVictory } from '../utils/sounds'
+import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
-import { isSupabaseConfigured } from '../lib/api'
-import { analyzeError } from '../lib/llm'
-import { recordWeakness } from '../lib/api'
+import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, updateProfileXP } from '../lib/api'
+import { checkAchievements } from '../lib/achievements'
+import { generateQuiz } from '../lib/llm'
 import './Coliseo.css'
-
-const QUESTIONS = [
-  { q: "¿Qué estructura celular es análoga a una central de procesamiento de empaques?", a: "Aparato de Golgi", options: ["El Núcleo", "Aparato de Golgi", "Lisosoma"] },
-  { q: "¿Cuál es la principal función de la mitocondria?", a: "Producción de energía (ATP)", options: ["Síntesis de proteínas", "Producción de energía (ATP)", "Fotosíntesis"] },
-  { q: "¿Qué componente delimita la célula del exterior?", a: "Membrana Plasmática", options: ["Citoplasma", "Pared Celular", "Membrana Plasmática"] },
-  { q: "¿Dónde se encuentra el material genético en una célula eucariota?", a: "Núcleo", options: ["Ribosomas", "Núcleo", "Vacuola"] },
-  { q: "¿Qué orgánulo es responsable de la fotosíntesis en plantas?", a: "Cloroplasto", options: ["Cloroplasto", "Mitocondria", "Leucoplasto"] }
-]
 
 export default function Coliseo() {
   const navigate = useNavigate()
-  const { studentId } = useAuth()
+  const { courseId } = useParams()
+  const { studentId, user } = useAuth()
+  const [questions, setQuestions] = useState([])
+  const [courseTitle, setCourseTitle] = useState('')
+  const [loadingQuestions, setLoadingQuestions] = useState(true)
   const [started, setStarted] = useState(false)
   const [lives, setLives] = useState(3)
   const [qIndex, setQIndex] = useState(0)
@@ -29,309 +25,279 @@ export default function Coliseo() {
   const [selected, setSelected] = useState(null)
   const [victory, setVictory] = useState(false)
   const [defeat, setDefeat] = useState(false)
-  const [timeLeft, setTimeLeft] = useState(1800) // 30 min in seconds
+  const [timeLeft, setTimeLeft] = useState(1800)
+  const [xpEarned, setXpEarned] = useState(0)
+  const [score, setScore] = useState(0)
   const [errorHint, setErrorHint] = useState('')
   const timerRef = useRef(null)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
-  const optionsRef = useRef(null)
-  const focusTimerRef = useRef(null)
 
-  const currentQ = QUESTIONS[qIndex]
-
-  // Timer countdown
+  // Load questions from course or generate
   useEffect(() => {
-    if (!started || victory || defeat) {
-      if (timerRef.current) clearInterval(timerRef.current)
-      return
+    let cancelled = false
+    async function load() {
+      setLoadingQuestions(true)
+      try {
+        // Try to load from course nodes (boss content)
+        if (courseId && isSupabaseConfigured && studentId) {
+          const { data: nodes } = await getCourseNodes(courseId)
+          if (!cancelled && nodes?.length) {
+            const bossNode = nodes.find(n => n.type === 'boss' && n.content)
+            if (bossNode) {
+              try {
+                const parsed = typeof bossNode.content === 'string' ? JSON.parse(bossNode.content) : bossNode.content
+                if (parsed?.questions?.length > 0) {
+                  const mapped = parsed.questions.map(q => ({
+                    q: q.text,
+                    a: q.options[q.correct] || q.options[0],
+                    options: q.options.slice(0, 4).filter(Boolean),
+                  }))
+                  if (!cancelled) setQuestions(mapped)
+                  setCourseTitle(nodes[0]?.title || 'Curso')
+                  setLoadingQuestions(false)
+                  return
+                }
+              } catch {}
+            }
+            // Fallback: pick quiz questions from nodes
+            const quizNodes = nodes.filter(n => n.type === 'quiz' && n.content)
+            const allQs = []
+            for (const qn of quizNodes) {
+              try {
+                const p = typeof qn.content === 'string' ? JSON.parse(qn.content) : qn.content
+                if (p?.questions) {
+                  p.questions.forEach(q => allQs.push({
+                    q: q.text,
+                    a: q.options[q.correct] || q.options[0],
+                    options: q.options.slice(0, 4).filter(Boolean),
+                  }))
+                }
+              } catch {}
+            }
+            if (allQs.length >= 3) {
+              const shuffled = allQs.sort(() => Math.random() - 0.5).slice(0, 10)
+              if (!cancelled) setQuestions(shuffled)
+              setCourseTitle(nodes[0]?.title || 'Curso')
+              setLoadingQuestions(false)
+              return
+            }
+          }
+        }
+        // Ultimate fallback: hardcoded generic questions
+        if (!cancelled) setQuestions(GENERIC_QUESTIONS)
+      } catch { if (!cancelled) setQuestions(GENERIC_QUESTIONS) }
+      if (!cancelled) setLoadingQuestions(false)
     }
+    load()
+    return () => { cancelled = true }
+  }, [courseId, studentId])
+
+  const currentQ = questions[qIndex]
+
+  // Timer
+  useEffect(() => {
+    if (!started || victory || defeat) { clearInterval(timerRef.current); return }
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current)
-          setDefeat(true)
-          return 0
-        }
+        if (prev <= 1) { clearInterval(timerRef.current); setDefeat(true); return 0 }
         return prev - 1
       })
     }, 1000)
     return () => clearInterval(timerRef.current)
   }, [started, victory, defeat])
 
-  // Reset timer on start
-  useEffect(() => {
-    if (started) {
-      setTimeLeft(1800)
-    }
-  }, [started])
+  useEffect(() => { if (started) setTimeLeft(1800) }, [started])
 
-  // Announce question + lives + time
   useEffect(() => {
     if (!started || victory || defeat) return
-    const t = timeLeft
-    const mins = Math.floor(t / 60)
-    const timeStr = mins >= 1 ? `${mins} minutos` : `${t} segundos`
-    setQuizAnnouncement(`${timeStr}. ${lives} vidas restantes. ${currentQ.q}`)
-    setFeedbackAnnouncement('')
-  }, [qIndex, started, victory, defeat, currentQ])  // lives se lee del closure al renderizar
-
-  // Auto-focus first option AFTER the aria-live announcement renders
-  useEffect(() => {
-    if (!started || victory || defeat || !quizAnnouncement) return
-    // Small delay so NVDA reads the aria-live announcement before focus moves
-    focusTimerRef.current = setTimeout(() => {
-      const firstBtn = optionsRef.current?.querySelector('.quiz-opt-btn')
-      firstBtn?.focus()
-    }, 800)
-    return () => {
-      if (focusTimerRef.current) clearTimeout(focusTimerRef.current)
-    }
-  }, [quizAnnouncement, started, victory, defeat])
-
-  // Announce result
-  useEffect(() => {
-    if (status === 'correct') {
-      setFeedbackAnnouncement('¡Correcto!')
-    } else if (status === 'incorrect') {
-      const correctIndex = currentQ.options.indexOf(currentQ.a)
-      setFeedbackAnnouncement(`Incorrecto. La respuesta correcta era ${String.fromCharCode(65 + correctIndex)}.`)
-    }
-  }, [status, currentQ])
-
-  // Announce victory / defeat
-  useEffect(() => {
-    if (victory) {
-      setFeedbackAnnouncement('¡Maestría lograda! Has superado el Coliseo de Retos con éxito.')
-      setQuizAnnouncement('')
-      setTimeAnnouncement('')
-    } else if (defeat) {
-      const msg = timeLeft === 0
-        ? 'Derrota. Se acabó el tiempo. No te rindas, el conocimiento llega con práctica.'
-        : 'Derrota. Has perdido todas tus vidas. Vuelve a repasar los temas y regresa más fuerte.'
-      setFeedbackAnnouncement(msg)
-      setQuizAnnouncement('')
-      setTimeAnnouncement('')
-    }
-  }, [victory, defeat])  // timeLeft se lee del closure al renderizar
-
-  // Announce time warnings
-  useEffect(() => {
-    if (timeLeft === 1200) setTimeAnnouncement('Quedan 20 minutos')
-    else if (timeLeft === 600) setTimeAnnouncement('Quedan 10 minutos')
-    else if (timeLeft === 300) setTimeAnnouncement('Quedan 5 minutos')
-    else if (timeLeft === 60) setTimeAnnouncement('Queda 1 minuto')
-    else if (timeLeft === 10) setTimeAnnouncement('Quedan 10 segundos')
-  }, [timeLeft])
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  }
-
-  const timerColor = timeLeft <= 60 ? '#EF4444' : timeLeft <= 300 ? '#F59E0B' : '#A7A9BE'
-
-  async function triggerAnalysis(questionObj, userAnswer) {
-    if (!isSupabaseConfigured) return
-    setErrorHint('')
-    try {
-      const concept = questionObj.q.split(' ').slice(0, 4).join(' ')
-      const { explanation } = await analyzeError({
-        question: questionObj.q,
-        userAnswer,
-        correctAnswer: questionObj.a,
-        concept,
-      })
-      if (explanation) setErrorHint(explanation)
-      if (studentId) {
-        await recordWeakness({
-          studentId,
-          concept,
-          isError: true,
-        })
-      }
-    } catch { /* silent */ }
-  }
+    const mins = Math.floor(timeLeft / 60)
+    setQuizAnnouncement(`${mins >= 1 ? mins + ' minutos' : timeLeft + ' segundos'}. ${lives} vidas. ${currentQ?.q || ''}`)
+  }, [qIndex, started, victory, defeat, currentQ, lives, timeLeft])
 
   function handleSelect(option) {
     if (status !== 'idle') return
     setSelected(option)
     if (option === currentQ.a) {
-      playCorrect()
-      vibrateCorrect()
+      playCorrect(); vibrateCorrect()
       setStatus('correct')
+      setScore(s => s + 1)
       setTimeout(() => {
-        if (qIndex + 1 < QUESTIONS.length) {
-          setQIndex(qIndex + 1)
-          setSelected(null)
-          setStatus('idle')
-          setErrorHint('')
+        if (qIndex + 1 < questions.length) {
+          setQIndex(qIndex + 1); setSelected(null); setStatus('idle'); setErrorHint('')
         } else {
-          playVictory()
-          vibrateVictory()
-          setVictory(true)
+          handleVictory()
         }
-      }, 1000)
+      }, 800)
     } else {
-      playIncorrect()
-      vibrateIncorrect()
+      playIncorrect(); vibrateIncorrect()
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
-      triggerAnalysis(currentQ, option).catch(() => { /* noop */ })
       setTimeout(() => {
-        if (newLives <= 0) {
-          setDefeat(true)
-        } else {
-          setQIndex(qIndex + 1 < QUESTIONS.length ? qIndex + 1 : qIndex)
-          setSelected(null)
-          setStatus('idle')
-          if (qIndex + 1 >= QUESTIONS.length) setVictory(true)
-        }
-      }, 1000)
+        if (newLives <= 0) { setDefeat(true) }
+        else if (qIndex + 1 >= questions.length) handleVictory()
+        else { setQIndex(qIndex + 1); setSelected(null); setStatus('idle'); setErrorHint('') }
+      }, 800)
     }
   }
 
-  // Determine page class
-  let pageClass = 'coliseo-page'
-  if (started && !victory && !defeat) pageClass += ' in-game'
-  else if (!started) pageClass += ' center-all'
-  else pageClass += ' center-all'
+  async function handleVictory() {
+    playVictory(); vibrateVictory()
+    const xpBonus = 150 + score * 30
+    setXpEarned(xpBonus)
+    setVictory(true)
+    // Award XP
+    if (studentId && isSupabaseConfigured) {
+      try {
+        const currentXp = user?.fullProfile?.pet_xp || 0
+        await updateProfileXP(studentId, currentXp + xpBonus)
+      } catch {}
+      // Check achievements
+      const perfect = lives === 3 && score === questions.length
+      checkAchievements(studentId, {
+        coliseo_won: true,
+        coliseo_perfect: perfect,
+      }).then(unlocked => {
+        if (unlocked.length) console.log('[achievements] coliseo:', unlocked.map(a => a.name).join(', '))
+      }).catch(() => {})
+    }
+  }
+
+  if (loadingQuestions) {
+    return (
+      <PageWrapper className="coliseo-page center-all">
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+          <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} />
+          <p>Preparando retos...</p>
+        </div>
+      </PageWrapper>
+    )
+  }
 
   return (
-    <PageWrapper className={pageClass}>
-      {/* ====== SIEMPRE MONTADOS: regiones aria-live para NVDA ====== */}
+    <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
       <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{quizAnnouncement}</div>
       <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
-      {/* ====== VICTORIA ====== */}
       {victory && (
         <div className="coliseo-intro animate-scaleIn">
-          <Trophy size={80} color="#FACC15" className="animate-bounce" style={{ margin: '0 auto 24px' }} />
-          <h1 className="gradient-text" style={{ fontSize: '2.5rem' }}>¡MAESTRÍA LOGRADA!</h1>
-          <p style={{ fontSize: '1.2rem', marginBottom: 32 }}>Has superado el Coliseo de Retos con éxito.</p>
-          <button className="btn btn-primary btn-lg" onClick={() => navigate('/dashboard')}>
-            Volver al Inicio <ArrowRight size={20}/>
-          </button>
-        </div>
-      )}
-
-      {/* ====== DERROTA ====== */}
-      {defeat && (
-        <div className="coliseo-intro animate-scaleIn" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
-          <div style={{ fontSize: '5rem', marginBottom: 16 }}>😢</div>
-          <h1 style={{ fontSize: '2.5rem', color: '#EF4444' }}>Derrota</h1>
-          <p style={{ fontSize: '1.1rem', marginBottom: 8, color: '#A7A9BE' }}>
-            {timeLeft === 0
-              ? 'Se acabó el tiempo. No te rindas, el conocimiento llega con práctica.'
-              : 'Has perdido todas tus vidas. Cada error es una oportunidad para aprender.'}
+          <Trophy size={80} color="#FACC15" style={{ margin: '0 auto 24px', display: 'block' }} />
+          <h1 className="gradient-text" style={{ fontSize: '2.5rem', textAlign: 'center' }}>¡MAESTRÍA LOGRADA!</h1>
+          <p style={{ fontSize: '1.2rem', marginBottom: 8, textAlign: 'center' }}>
+            Has superado el Coliseo de Retos
+            {courseTitle ? ` de ${courseTitle}` : ''} con éxito.
           </p>
-          <p style={{ fontSize: '0.95rem', marginBottom: 32, color: '#6B6D8A' }}>
-            {timeLeft === 0
-              ? 'Intenta de nuevo, la próxima vez lo lograrás.'
-              : 'Vuelve a repasar los temas y regresa más fuerte.'}
+          <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FACC15', textAlign: 'center', marginBottom: 4 }}>
+            ⭐ +{xpEarned} XP
+          </p>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 32 }}>
+            {score}/{questions.length} respuestas correctas, {lives} {lives === 1 ? 'vida' : 'vidas'} restantes
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-ghost" onClick={() => { setDefeat(false); setStarted(false); setLives(3); setQIndex(0); setStatus('idle'); setTimeLeft(1800); setQuizAnnouncement(''); setFeedbackAnnouncement(''); setTimeAnnouncement('') }}>
-              <RotateCcw size={16} /> Reintentar
+            <button className="btn btn-accent btn-lg" onClick={() => navigate('/dashboard')}>
+              <Home size={18} /> Dashboard
             </button>
-            <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-              <Home size={16} /> Ir al Inicio
+            {courseId && <button className="btn btn-primary btn-lg" onClick={() => navigate(`/roadmap/${courseId}`)}>
+              <ArrowRight size={18} /> Ver Roadmap
+            </button>}
+          </div>
+        </div>
+      )}
+
+      {defeat && (
+        <div className="coliseo-intro animate-scaleIn">
+          <span style={{ fontSize: '4rem', display: 'block', textAlign: 'center', marginBottom: 16 }}>💔</span>
+          <h1 style={{ textAlign: 'center', marginBottom: 12 }}>Derrota</h1>
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 24 }}>
+            Has perdido todas tus vidas. {score}/{questions.length} correctas.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button className="btn btn-accent btn-lg" onClick={() => { setDefeat(false); setStarted(false); setLives(3); setQIndex(0); setScore(0); setTimeLeft(1800) }}>
+              <RotateCcw size={18} /> Reintentar
+            </button>
+            <button className="btn btn-ghost btn-lg" onClick={() => navigate('/dashboard')}>
+              <Home size={18} /> Salir
             </button>
           </div>
         </div>
       )}
 
-      {/* ====== INTRO / INICIO ====== */}
       {!started && !victory && !defeat && (
-        <div className="coliseo-intro">
-          <button className="icon-btn close-arena" onClick={() => navigate('/dashboard')} title="Salir del Coliseo">
-            <X size={20} />
-          </button>
-          <div className="coliseo-icon-epic animate-pulse-glow-gold">👑</div>
-          <h1 className="gradient-text">Coliseo de Retos</h1>
-          <p>Examen Final: Biología Celular</p>
-          <ul className="coliseo-rules">
-            <li><Swords size={16}/> {QUESTIONS.length} preguntas</li>
-            <li><ShieldAlert size={16}/> 30 minutos. NO se puede pausar.</li>
-            <li><Heart size={16} color="#EF4444"/> 3 Vidas. Cada error resta una.</li>
-          </ul>
-          <div className="coliseo-actions">
-            <button className="btn btn-ghost" onClick={() => navigate('/dashboard')}>Volver al dashboard</button>
-            <button className="btn btn-accent btn-lg" onClick={() => { initAudio(); setStarted(true) }}>¡Entrar a la Arena!</button>
+        <div className="coliseo-intro animate-fadeInUp">
+          <Swords size={56} color="#FACC15" style={{ margin: '0 auto 16px', display: 'block' }} />
+          <h1 className="gradient-text" style={{ textAlign: 'center', marginBottom: 12 }}>Coliseo de Retos</h1>
+          {courseTitle && <p style={{ textAlign: 'center', color: 'var(--primary-light)', fontWeight: 700, marginBottom: 8 }}>{courseTitle}</p>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
+            <span>⚔️ {questions.length} preguntas</span>
+            <span>⏱️ 30 minutos</span>
+            <span>❤️ 3 vidas</span>
+            <span>⭐ XP x3 por victoria</span>
           </div>
+          <button className="btn btn-primary btn-lg full-w" onClick={() => setStarted(true)}>
+            ¡Entrar a la Arena!
+          </button>
         </div>
       )}
 
-      {/* ====== IN-GAME ====== */}
-      {started && !victory && !defeat && (
+      {started && !victory && !defeat && currentQ && (
         <>
-          <header className="coliseo-header" role="banner" aria-label="Encabezado del Coliseo">
-            <button className="icon-btn exit-btn" onClick={() => navigate('/dashboard')} aria-label="Abandonar arena">
-              <X size={18} aria-hidden="true" />
-            </button>
-            <div className="coliseo-progress">Ronda {qIndex + 1} / {QUESTIONS.length}</div>
-            <div className="coliseo-timer" style={{ color: timerColor }}>
-              <Clock size={16} style={{ marginRight: 6 }} />
-              {formatTime(timeLeft)}
+          <header className="coliseo-q-header">
+            <span style={{ fontWeight: 700 }}>Ronda {qIndex + 1}/{questions.length}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={14} color={timeLeft < 60 ? 'var(--error)' : timeLeft < 300 ? '#F59E0B' : 'var(--text-dim)'} />
+              <span style={{ color: timeLeft < 60 ? 'var(--error)' : timeLeft < 300 ? '#F59E0B' : 'var(--text-dim)', fontWeight: 700 }}>
+                {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+              </span>
             </div>
-            <div className="coliseo-lives">
-              {Array.from({length: 3}).map((_, i) => (
-                 <Heart key={i} size={24} fill={i < lives ? '#EF4444' : 'transparent'} color={i < lives ? '#EF4444' : '#6B6D8A'} />
+            <div style={{ display: 'flex', gap: 2 }}>
+              {[1, 2, 3].map(i => (
+                <Heart key={i} size={18} fill={i <= lives ? 'var(--error)' : 'none'} color={i <= lives ? 'var(--error)' : 'var(--text-dim)'} />
               ))}
             </div>
+            <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Salir del coliseo"><X size={18} /></button>
           </header>
-
-          <div className="coliseo-main">
-            <div className="coliseo-arena">
-              <Mascot type="dragon" mood={status==='incorrect'?'sad':status==='correct'?'happy':'normal'} size="lg" />
-              <div className="coliseo-q-card">
-                <h2>{currentQ.q}</h2>
-                <div ref={optionsRef} className="quiz-options">
-                  {currentQ.options.map((opt, i) => {
-                    let btnClass = 'quiz-opt-btn card '
-                    if (status !== 'idle') {
-                      if (opt === currentQ.a) btnClass += 'correct '
-                      else if (selected && opt === selected) btnClass += 'incorrect '
-                      else btnClass += 'disabled '
-                    }
-                    return (
-                      <button
-                        key={i}
-                        className={btnClass}
-                        onClick={() => handleSelect(opt)}
-                        disabled={status !== 'idle'}
-                        aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}
-                      >
-                        <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
-                        <span className="opt-text">{opt}</span>
-                        {status !== 'idle' && opt === currentQ.a && <span className="opt-icon" aria-hidden="true">✓</span>}
-                        {status !== 'idle' && selected && opt === selected && opt !== currentQ.a && <span className="opt-icon" aria-hidden="true">✗</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-                {status === 'incorrect' && errorHint && (
-                  <div className="coliseo-error-hint">
-                    <AlertCircle size={14} /> {errorHint}
-                  </div>
-                )}
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Mascot type="dragon" size="lg" mood={status === 'correct' ? 'happy' : status === 'incorrect' ? 'sad' : 'normal'} />
+            <div className="coliseo-q-card" style={{ width: '100%', maxWidth: 500, marginTop: 16 }}>
+              <h2 style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: 20 }}>{currentQ.q}</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {currentQ.options.map((opt, i) => {
+                  let cls = 'quiz-opt-btn card '
+                  if (status !== 'idle') {
+                    if (opt === currentQ.a) cls += 'correct '
+                    else if (opt === selected) cls += 'incorrect '
+                    else cls += 'disabled '
+                  }
+                  return (
+                    <button key={i} className={cls} onClick={() => handleSelect(opt)} disabled={status !== 'idle'}>
+                      <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
+                      <span className="opt-text">{opt}</span>
+                      {status !== 'idle' && opt === currentQ.a && <span className="opt-icon">✓</span>}
+                      {status !== 'idle' && opt === selected && opt !== currentQ.a && <span className="opt-icon">✗</span>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
-          </div>
-
-          {/* FAB de respuesta por voz (estándar RF-25) */}
-          <button
-            className="fab-mic"
-            aria-label="Responder por voz. Mantén presionado para dictar tu respuesta."
-            title="Mantener para responder por voz"
-          >
-            <Mic size={24} aria-hidden="true" />
-          </button>
+            {errorHint && status === 'incorrect' && (
+              <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', maxWidth: 500, width: '100%', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                {errorHint}
+              </div>
+            )}
+          </main>
         </>
       )}
     </PageWrapper>
   )
 }
+
+const GENERIC_QUESTIONS = [
+  { q: "¿Qué es lo más importante al empezar un nuevo tema de estudio?", a: "Entender los conceptos fundamentales", options: ["Memorizar todo de inmediato", "Entender los conceptos fundamentales", "Saltar a los ejercicios avanzados", "Leer solo el resumen"] },
+  { q: "¿Cuál es la mejor estrategia para retener información?", a: "Practicar con ejercicios y repasar", options: ["Leer una sola vez", "Practicar con ejercicios y repasar", "Estudiar solo antes del examen", "Copiar todo el material"] },
+  { q: "¿Qué debes hacer si no entiendes un concepto?", a: "Buscar ejemplos y preguntar al tutor", options: ["Ignorarlo y seguir", "Memorizarlo sin entender", "Buscar ejemplos y preguntar al tutor", "Cambiar de tema"] },
+  { q: "¿Por qué es importante hacer pausas al estudiar?", a: "Para consolidar el aprendizaje y evitar fatiga", options: ["Para perder el tiempo", "Para consolidar el aprendizaje y evitar fatiga", "Para olvidar lo estudiado", "Para distraerse"] },
+  { q: "¿Qué papel juega la práctica en el aprendizaje?", a: "Refuerza las conexiones neuronales", options: ["Ninguno, solo teoría importa", "Refuerza las conexiones neuronales", "Solo sirve para perder tiempo", "Es opcional"] },
+]
