@@ -427,14 +427,30 @@ export async function unlinkStudent(linkId) {
 
 export async function recordWeakness({ studentId, courseId, concept, isError = true }) {
   if (!isSupabaseConfigured) return FALLBACK(null)
-  // Tabla `weaknesses` (no RPC): insert simple
-  const { data, error } = await supabase.from('weaknesses').insert({
+  const { data: existing } = await supabase
+    .from('weaknesses')
+    .select('id, confusion_level, total_errors')
+    .eq('student_id', studentId)
+    .eq('course_id', courseId || undefined)
+    .eq('concept', concept)
+    .maybeSingle()
+
+  if (existing) {
+    return supabase.from('weaknesses').update({
+      confusion_level: (existing.confusion_level || 0) + 1,
+      total_errors: (existing.total_errors || 0) + 1,
+      last_seen: new Date().toISOString(),
+    }).eq('id', existing.id)
+  }
+
+  return supabase.from('weaknesses').insert({
     student_id: studentId,
-    course_id: courseId || null,
+    course_id: courseId,
     concept,
-    is_error: isError,
+    confusion_level: 1,
+    total_errors: 1,
+    last_seen: new Date().toISOString(),
   })
-  return { data, error }
 }
 
 export async function getStoragePath(courseId, filename) {
