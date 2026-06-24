@@ -22,6 +22,7 @@ export default function Quiz() {
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle')
   const [errorHint, setErrorHint] = useState('')
+  const [analyzingError, setAnalyzingError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
@@ -149,8 +150,9 @@ export default function Quiz() {
     vibrateTimeout()
     recordAnswer(-1)
     setStatus('incorrect')
-    triggerAnalysis(null).catch(() => {})
-    setTimeout(nextQuestion, 2000)
+    setAnalyzingError(true)
+    triggerAnalysis(null).finally(() => setAnalyzingError(false))
+    setTimeout(nextQuestion, 3500)
   }
 
   async function triggerAnalysis(selectedIndex) {
@@ -204,8 +206,11 @@ export default function Quiz() {
       playIncorrect()
       vibrateIncorrect()
       setStatus('incorrect')
-      triggerAnalysis(index).catch(() => {})
-      setTimeout(nextQuestion, 2000)
+      setAnalyzingError(true)
+      triggerAnalysis(index).finally(() => setAnalyzingError(false))
+      setTimeout(() => {
+        if (status === 'incorrect') nextQuestion()
+      }, 4000)
     }
   }
 
@@ -321,7 +326,11 @@ export default function Quiz() {
           <Mascot type="robot" size="sm" mood="sad" />
           <div className="toast-text">
             <strong>¡Cuidado!</strong> La respuesta correcta era la {String.fromCharCode(65 + q.correct)}.
-            {errorHint ? ` ${errorHint}` : ' Vamos a revisarlo luego.'}
+            {analyzingError
+              ? <span style={{ display: 'block', marginTop: 4, opacity: 0.7, fontSize: '0.82rem' }}>Analizando tu error...</span>
+              : errorHint
+                ? <span style={{ display: 'block', marginTop: 4 }}>{errorHint}</span>
+                : ' Vamos a revisarlo luego.'}
           </div>
         </div>
       )}
