@@ -28,8 +28,10 @@ export default function Settings() {
   const [prefs, setPrefs] = useState(() => {
     try {
       const saved = localStorage.getItem('eduapp_prefs')
-      return saved ? JSON.parse(saved) : {}
-    } catch { return {} }
+      const parsed = saved ? JSON.parse(saved) : {}
+      if (parsed.notifications === undefined) parsed.notifications = true
+      return parsed
+    } catch { return { notifications: true } }
   })
 
   const toggle = (key) => {

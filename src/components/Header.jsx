@@ -48,7 +48,10 @@ export default function Header({ onToggleSidebar }) {
   const pollRef = useRef(null)
 
   const prefsEnabled = useCallback(() => {
-    try { return !!JSON.parse(localStorage.getItem('eduapp_prefs') || '{}').notifications } catch { return true }
+    try {
+      const prefs = JSON.parse(localStorage.getItem('eduapp_prefs') || '{}')
+      return prefs.notifications !== false
+    } catch { return true }
   }, [])
 
   const loadNotifications = useCallback(async () => {
