@@ -370,16 +370,17 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
     return { data: null, error: new Error('Debe proporcionar DNI del estudiante.') }
   }
 
-  // One parent per student rule
-  const { data: existingAccepted } = await supabase
-    .from('parent_links')
-    .select('id')
-    .eq('student_id', student.id)
-    .eq('status', 'accepted')
-    .maybeSingle()
-  if (existingAccepted) {
+  // Check if student already has an accepted parent (via RPC, bypasses RLS)
+  const { data: hasParent, error: rpcErr } = await supabase
+    .rpc('check_student_has_parent', { p_student_id: student.id })
+  if (rpcErr) {
+    console.warn('[requestParentLink] RPC error:', rpcErr.message)
+  }
+  if (hasParent) {
     return { data: null, error: new Error('Este estudiante ya está vinculado a otro padre. Solo un padre por estudiante.') }
   }
+
+  // Check if this parent already has a link (any status) to this student
 
   // Check if this parent already has a link (any status) to this student
   const { data: existingLink } = await supabase
