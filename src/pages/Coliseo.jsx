@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, Mic, LoaderCircle } from 'lucide-react'
+import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
-import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, getProgressForEnrollment, updateProfileXP } from '../lib/api'
+import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, getProgressForEnrollment, updateProfileXP, updateProfile } from '../lib/api'
 import { checkAchievements } from '../lib/achievements'
-import { generateQuiz } from '../lib/llm'
 import './Coliseo.css'
 
 export default function Coliseo() {
@@ -36,48 +35,67 @@ export default function Coliseo() {
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
 
-  // Load questions from course quiz nodes up to student's progress
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoadingQuestions(true)
       try {
-        if (courseId && isSupabaseConfigured && studentId) {
-          const [{ data: nodes }, { data: enrollments }] = await Promise.all([
-            getCourseNodes(courseId),
-            getStudentEnrollments(studentId),
-          ])
-          if (cancelled || !nodes?.length) { setLoadingQuestions(false); return }
-          setCourseTitle(nodes[0]?.title || 'Curso')
-          // Find enrollment to get progress
-          const enrollment = (enrollments || []).find(e => e.course_id === courseId)
-          const progData = enrollment ? (await getProgressForEnrollment(enrollment.id)).data || [] : []
-          const completedNodeIds = new Set(progData.filter(p => p.state === 'completed').map(p => p.node_id))
-          // Collect ALL questions from quiz/boss nodes COMPLETED by student
-          const allQs = []
-          for (const n of nodes) {
-            if (n.type !== 'quiz' && n.type !== 'boss') continue
-            if (!completedNodeIds.has(n.id)) continue // only up to student progress
-            if (!n.content) continue
+        if (!courseId || !isSupabaseConfigured || !studentId) {
+          if (!cancelled) setQuestions(GENERIC_QUESTIONS)
+          if (!cancelled) setLoadingQuestions(false)
+          return
+        }
+
+        const { data: nodes } = await getCourseNodes(courseId)
+        if (cancelled) return
+
+        const enrollmentData = await getStudentEnrollments(studentId)
+        const enrollment = (enrollmentData?.data || []).find(
+          e => e.course_id === courseId || String(e.course_id) === String(courseId)
+        )
+        const progressData = enrollment ? (await getProgressForEnrollment(enrollment.id)).data || [] : []
+        const completedNodeIds = new Set(
+          progressData.filter(p => p.state === 'completed').map(p => p.node_id)
+        )
+
+        const sortedNodes = (nodes || []).sort((a, b) => a.position - b.position)
+        const lastCompletedIdx = sortedNodes.reduce((max, n, i) =>
+          completedNodeIds.has(n.id) ? i : max, 0
+        )
+
+        if (!cancelled) setCourseTitle(sortedNodes[0]?.title || sortedNodes[0]?.courses?.title || 'Curso')
+
+        const relevantNodes = sortedNodes.slice(0, lastCompletedIdx + 1)
+        const collectedQuestions = []
+
+        for (const node of relevantNodes) {
+          if (node.content) {
             try {
-              const p = typeof n.content === 'string' ? JSON.parse(n.content) : n.content
-              if (p?.questions) {
-                p.questions.forEach(q => {
-                  const opts = (q.options || []).slice(0, 4).filter(Boolean)
-                  if (opts.length >= 2 && q.text) {
-                    allQs.push({ q: q.text, a: opts[q.correct] || opts[0], options: opts })
-                  }
-                })
+              const parsed = typeof node.content === 'string' ? JSON.parse(node.content) : node.content
+              if (parsed?.questions) {
+                for (const q of parsed.questions) {
+                  collectedQuestions.push({
+                    q: q.text,
+                    a: q.options?.[q.correct] || q.options?.[0] || '',
+                    options: (q.options || []).slice(0, 4).filter(Boolean),
+                  })
+                }
               }
             } catch {}
           }
-          if (allQs.length >= 3) {
-            const shuffled = allQs.sort(() => Math.random() - 0.5).slice(0, 10)
-            if (!cancelled) { setQuestions(shuffled); setLoadingQuestions(false); return }
-          }
         }
+
+        if (collectedQuestions.length >= 5) {
+          const shuffled = collectedQuestions.sort(() => Math.random() - 0.5).slice(0, 10)
+          if (!cancelled) setQuestions(shuffled)
+        } else if (collectedQuestions.length > 0) {
+          if (!cancelled) setQuestions(collectedQuestions.sort(() => Math.random() - 0.5))
+        } else {
+          if (!cancelled) setQuestions(GENERIC_QUESTIONS)
+        }
+      } catch {
         if (!cancelled) setQuestions(GENERIC_QUESTIONS)
-      } catch { if (!cancelled) setQuestions(GENERIC_QUESTIONS) }
+      }
       if (!cancelled) setLoadingQuestions(false)
     }
     load()
@@ -86,11 +104,10 @@ export default function Coliseo() {
 
   const currentQ = questions[qIndex]
 
-  // Voice: register option selector + enter arena
   useEffect(() => {
     setPageContext({ page: 'coliseo', options: currentQ?.options || [] })
     const unreg = registerHandler('selectOption', ({ index }) => {
-      if (currentQ?.options?.[index]) handleSelect(currentQ.options[index])
+      if (currentQ?.options?.[index]) handleSelect(index)
     })
     return unreg
   }, [currentQ, registerHandler, setPageContext])
@@ -99,7 +116,6 @@ export default function Coliseo() {
     return unreg
   }, [started, victory, defeat, registerHandler])
 
-  // Timer
   useEffect(() => {
     if (!started || victory || defeat) { clearInterval(timerRef.current); return }
     timerRef.current = setInterval(() => {
@@ -113,19 +129,15 @@ export default function Coliseo() {
 
   useEffect(() => { if (started) setTimeLeft(1800) }, [started])
 
-  useEffect(() => {
-    if (!started || victory || defeat) return
-    const mins = Math.floor(timeLeft / 60)
-    setQuizAnnouncement(`${mins >= 1 ? mins + ' minutos' : timeLeft + ' segundos'}. ${lives} vidas. ${currentQ?.q || ''}`)
-  }, [qIndex, started, victory, defeat, currentQ, lives, timeLeft])
-
-  function handleSelect(option) {
-    if (status !== 'idle') return
-    setSelected(option)
-    if (option === currentQ.a) {
+  function handleSelect(index) {
+    if (status !== 'idle' || !currentQ) return
+    setSelected(index)
+    const isCorrect = currentQ.options[index] === currentQ.a
+    if (isCorrect) {
       playCorrect(); vibrateCorrect()
       setStatus('correct')
       setScore(s => s + 1)
+      setFeedbackAnnouncement('¡Correcto!')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
           setQIndex(qIndex + 1); setSelected(null); setStatus('idle'); setErrorHint('')
@@ -138,6 +150,7 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
+      setFeedbackAnnouncement(`Incorrecto. La respuesta era ${currentQ.a}`)
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()
@@ -148,22 +161,19 @@ export default function Coliseo() {
 
   async function handleVictory() {
     playVictory(); vibrateVictory()
-    const xpBonus = 150 + score * 30
+    const isDailyChallenge = !courseId || window.location.hash.includes('coliseo') && new URLSearchParams(window.location.hash.split('?')[1] || '').get('daily') === '1'
+    const xpBonus = isDailyChallenge ? 200 + score * 40 : 100 + score * 20
     setXpEarned(xpBonus)
     setVictory(true)
-    // Award XP
     if (studentId && isSupabaseConfigured) {
       try {
         const currentXp = user?.fullProfile?.pet_xp || 0
         await updateProfileXP(studentId, currentXp + xpBonus)
       } catch {}
-      // Check achievements
       const perfect = lives === 3 && score === questions.length
       checkAchievements(studentId, {
         coliseo_won: true,
         coliseo_perfect: perfect,
-      }).then(unlocked => {
-        if (unlocked.length) console.log('[achievements] coliseo:', unlocked.map(a => a.name).join(', '))
       }).catch(() => {})
     }
   }
@@ -179,6 +189,8 @@ export default function Coliseo() {
     )
   }
 
+  const timeColor = timeLeft < 60 ? 'var(--error)' : timeLeft < 300 ? '#F59E0B' : 'var(--text-dim)'
+
   return (
     <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
       <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{quizAnnouncement}</div>
@@ -190,14 +202,14 @@ export default function Coliseo() {
           <Trophy size={80} color="#FACC15" style={{ margin: '0 auto 24px', display: 'block' }} />
           <h1 className="gradient-text" style={{ fontSize: '2.5rem', textAlign: 'center' }}>¡MAESTRÍA LOGRADA!</h1>
           <p style={{ fontSize: '1.2rem', marginBottom: 8, textAlign: 'center' }}>
-            ¡Has superado el Coliseo de Retos
-            {courseTitle ? ` de ${courseTitle}` : ''}!
+            Has superado el Coliseo de Retos
+            {courseTitle ? ` de ${courseTitle}` : ''}.
           </p>
           <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FACC15', textAlign: 'center', marginBottom: 4 }}>
-            ⭐ +{xpEarned} XP <span style={{fontSize:'0.8rem',color:'var(--text-muted)',fontWeight:400}}>(Reto del día x3)</span>
+            ⭐ +{xpEarned} XP
           </p>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 32 }}>
-            {score}/{questions.length} correctas — {lives} {lives === 1 ? 'vida restante' : 'vidas restantes'} — {lives === 3 && score === questions.length ? '¡Victoria perfecta!' : score >= questions.length * 0.7 ? '¡Gran desempeño!' : '¡Bien hecho!'}
+            {score}/{questions.length} respuestas correctas, {lives} {lives === 1 ? 'vida' : 'vidas'} restantes
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-accent btn-lg" onClick={() => navigate('/dashboard')}>
@@ -237,7 +249,7 @@ export default function Coliseo() {
             <span>⚔️ {questions.length} preguntas</span>
             <span>⏱️ 30 minutos</span>
             <span>❤️ 3 vidas</span>
-            <span>⭐ XP x3 por victoria</span>
+            <span>⭐ XP por victoria</span>
           </div>
           <button className="btn btn-primary btn-lg full-w" onClick={() => setStarted(true)}>
             ¡Entrar a la Arena!
@@ -250,8 +262,8 @@ export default function Coliseo() {
           <header className="coliseo-q-header">
             <span style={{ fontWeight: 700 }}>Ronda {qIndex + 1}/{questions.length}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Clock size={14} color={timeLeft < 60 ? 'var(--error)' : timeLeft < 300 ? '#F59E0B' : 'var(--text-dim)'} />
-              <span style={{ color: timeLeft < 60 ? 'var(--error)' : timeLeft < 300 ? '#F59E0B' : 'var(--text-dim)', fontWeight: 700 }}>
+              <Clock size={14} color={timeColor} />
+              <span style={{ color: timeColor, fontWeight: 700 }}>
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
               </span>
             </div>
@@ -271,23 +283,23 @@ export default function Coliseo() {
                   let cls = 'quiz-opt-btn card '
                   if (status !== 'idle') {
                     if (opt === currentQ.a) cls += 'correct '
-                    else if (opt === selected) cls += 'incorrect '
+                    else if (i === selected) cls += 'incorrect '
                     else cls += 'disabled '
                   }
                   return (
-                    <button key={i} className={cls} onClick={() => handleSelect(opt)} disabled={status !== 'idle'}>
+                    <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={status !== 'idle'}>
                       <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
                       <span className="opt-text">{opt}</span>
                       {status !== 'idle' && opt === currentQ.a && <span className="opt-icon">✓</span>}
-                      {status !== 'idle' && opt === selected && opt !== currentQ.a && <span className="opt-icon">✗</span>}
+                      {status !== 'idle' && i === selected && opt !== currentQ.a && <span className="opt-icon">✗</span>}
                     </button>
                   )
                 })}
               </div>
             </div>
-            {errorHint && status === 'incorrect' && (
+            {status === 'incorrect' && (
               <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', maxWidth: 500, width: '100%', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                {errorHint}
+                La respuesta correcta era: <strong style={{ color: 'var(--success)' }}>{currentQ.a}</strong>
               </div>
             )}
           </main>

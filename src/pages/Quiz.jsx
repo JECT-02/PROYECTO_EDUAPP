@@ -154,7 +154,10 @@ export default function Quiz() {
         courseId,
         concept: q.text.split(' ').slice(0, 3).join(' '),
       })
-      if (explanation) setErrorHint(explanation)
+      if (explanation) {
+        const clean = sanitizeExplanation(explanation)
+        if (clean) setErrorHint(clean)
+      }
       if (studentId) {
         await recordWeakness({
           studentId,
@@ -164,6 +167,17 @@ export default function Quiz() {
         })
       }
     } catch { /* silent */ }
+  }
+
+  function sanitizeExplanation(text) {
+    if (!text || text.length < 2) return ''
+    const cleaned = text.replace(/["{}[\]\\]/g, '').trim()
+    if (cleaned.length > 200) return cleaned.slice(0, 200)
+    const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]/.test(cleaned)
+    const hasSpanish = /[áéíóúüñÁÉÍÓÚÜÑ]/.test(cleaned)
+    if (hasCJK && !hasSpanish) return ''
+    if (hasCJK) return cleaned.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
+    return cleaned
   }
 
   function handleSelect(index) {

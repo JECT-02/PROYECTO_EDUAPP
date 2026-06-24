@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Edit3, Eye, LoaderCircle } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Edit3, Eye, LoaderCircle, User, X } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateLocked } from '../utils/vibration'
@@ -13,9 +13,15 @@ import './Roadmap.css'
 export default function Roadmap() {
   const navigate = useNavigate()
   const { courseId } = useParams()
-  const { studentId, role } = useAuth()
+  const [searchParams] = useSearchParams()
+  const { studentId: authStudentId, role } = useAuth()
   const { setPageContext } = useVoice()
   const isTeacher = role === 'teacher'
+
+  const previewStudentId = searchParams.get('studentId')
+  const previewStudentName = searchParams.get('studentName')
+  const previewMode = isTeacher && !!previewStudentId
+
   const [loading, setLoading] = useState(true)
   const [nodes, setNodes] = useState([])
   const [courseTitle, setCourseTitle] = useState('Cargando...')
@@ -37,7 +43,8 @@ export default function Roadmap() {
         if (cancelled) return
         setCourseTitle(courseData?.title || 'Curso')
 
-        const nodesFn = isTeacher ? getCourseNodesAllStatus : getCourseNodes
+        const effectiveStudent = previewMode ? previewStudentId : authStudentId
+        const nodesFn = (isTeacher && !previewMode) ? getCourseNodesAllStatus : getCourseNodes
         const { data, error } = await nodesFn(courseId)
         if (cancelled) return
         if (error) throw error
@@ -53,11 +60,11 @@ export default function Roadmap() {
           position: n.position,
           type: n.type,
           title: n.title,
-          status: n.status === 'published' ? ('available') : (isTeacher ? 'available' : 'locked'),
+          status: n.status === 'published' ? ('available') : ((isTeacher && !previewMode) ? 'available' : 'locked'),
         }))
 
-        if (!isTeacher) {
-          const { data: enr } = await getStudentEnrollments(studentId)
+        if (!isTeacher || previewMode) {
+          const { data: enr } = await getStudentEnrollments(effectiveStudent)
           if (!cancelled) {
             const enrollment = (enr || []).find((e) => e.course_id === courseId || String(e.course_id) === String(courseId))
             let progressRows = []
@@ -91,9 +98,9 @@ export default function Roadmap() {
           // Track last viewed course
           try { localStorage.setItem('eduapp_last_course', JSON.stringify(courseId)) } catch {}
         }
-        if (!cancelled) setPageContext({ page: 'roadmap', courseTitle: data?.[0]?.courses?.title || courseTitle, nodePosition: 0, totalNodes: mapped.length })
-        if (!isTeacher && studentId && !cancelled) {
-          const { data: ud } = await getUnderstandingData(studentId, courseId)
+        if (!cancelled) setPageContext({ page: 'roadmap', courseTitle: courseData?.title || courseTitle, nodePosition: 0, totalNodes: mapped.length })
+        if (effectiveStudent && !isTeacher && !cancelled) {
+          const { data: ud } = await getUnderstandingData(effectiveStudent, courseId)
           if (!cancelled && ud) setUnderstanding(calculateUnderstanding(ud))
         }
       } catch (e) {
@@ -107,7 +114,7 @@ export default function Roadmap() {
     }
     load()
     return () => { cancelled = true }
-  }, [courseId, studentId, isTeacher])
+  }, [courseId, authStudentId, previewStudentId, isTeacher, previewMode])
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -174,6 +181,29 @@ export default function Roadmap() {
           </div>
         )}
       </div>
+
+      {previewMode && (
+        <div style={{
+          background: 'rgba(108,99,255,0.08)',
+          border: '1px solid rgba(108,99,255,0.2)',
+          borderRadius: 'var(--radius)',
+          padding: '10px 16px',
+          marginBottom: 12,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', color: 'var(--text)' }}>
+            <User size={16} style={{ color: 'var(--primary-light)' }} />
+            <span>Viendo progreso de <strong>{previewStudentName || 'Estudiante'}</strong></span>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/roadmap/${courseId}`)}>
+            <X size={14} /> Quitar vista previa
+          </button>
+        </div>
+      )}
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">

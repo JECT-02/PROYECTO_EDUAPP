@@ -28,38 +28,42 @@ function getGreeting() {
 }
 
 function buildDailyChallenges(enrollments, progressMap) {
+  const withProgress = enrollments.filter(e => (progressMap[e.courseId] || 0) > 0)
+  if (withProgress.length === 0) return []
+
   const challenges = []
-  for (const e of enrollments) {
-    const course = e.course
-    if (!course) continue
-    const pct = progressMap[course.id] || 0
-    // Add review challenge if course has progress
-    if (e.enrollmentId) {
-      challenges.push({
-        id: `review-${course.id}`,
-        title: pct >= 80 ? 'Examen Final' : pct >= 40 ? 'Quiz de Repaso' : `Repaso: ${course.title?.slice(0, 25) || 'Lección'}`,
-        time: pct >= 80 ? '~15 min' : '~8 min',
-        icon: <Beaker size={20} />,
-        color: '#22C55E',
-        course: course.title || 'Curso',
-        courseId: course.id,
-        type: pct >= 80 ? 'boss' : 'quiz',
-      })
-    }
+  const shuffledCourses = [...withProgress].sort(() => Math.random() - 0.5)
+
+  const coliseoCourse = shuffledCourses[0]
+  if (coliseoCourse && coliseoCourse.courseId) {
+    challenges.push({
+      id: 'coliseo-daily',
+      title: 'Coliseo de Retos',
+      icon: <Trophy size={20} />,
+      color: '#F59E0B',
+      time: '~15 min',
+      course: coliseoCourse.course?.title || 'Curso',
+      courseId: coliseoCourse.courseId,
+      type: 'coliseo',
+    })
   }
-  // Always include Coliseo challenge
-  const firstCourse = enrollments[0]
-  challenges.push({
-    id: 'coliseo-daily',
-    title: 'Coliseo de Retos',
-    icon: <Trophy size={20} />,
-    color: '#F59E0B',
-    time: '~30 min',
-    course: firstCourse?.course?.title || 'Curso',
-    courseId: firstCourse?.courseId || null,
-    type: 'coliseo',
-  })
-  return challenges.slice(0, 3)
+
+  const reviewCourse = shuffledCourses.length > 1 ? shuffledCourses[1] : shuffledCourses[0]
+  if (reviewCourse && reviewCourse.courseId) {
+    const pct = progressMap[reviewCourse.courseId] || 0
+    challenges.push({
+      id: `review-${reviewCourse.courseId}`,
+      title: pct >= 80 ? 'Examen Final' : pct >= 40 ? 'Quiz de Repaso' : 'Repaso Rápido',
+      icon: <Zap size={20} />,
+      color: '#22C55E',
+      time: pct >= 80 ? '~15 min' : '~8 min',
+      course: reviewCourse.course?.title || 'Curso',
+      courseId: reviewCourse.courseId,
+      type: pct >= 80 ? 'boss' : 'quiz',
+    })
+  }
+
+  return challenges.slice(0, 2)
 }
 
 function statusColor(s) {
@@ -82,6 +86,8 @@ export default function Dashboard() {
   const [totalCompleted, setTotalCompleted] = useState(0)
   const [studyTimeMin, setStudyTimeMin] = useState(0)
   const [dailyChallenges, setDailyChallenges] = useState([])
+  const [lastActiveEnrollment, setLastActiveEnrollment] = useState(null)
+  const [lastActiveInfo, setLastActiveInfo] = useState({ pct: 0, nodeTitle: '', nodeId: '' })
 
   useEffect(() => {
     let cancelled = false
@@ -112,14 +118,32 @@ export default function Dashboard() {
           ])
           const total = (nodesResult.data || []).length
           const completed = (progressResult.data || []).filter(p => p.state === 'completed').length
-          return [e.courseId, total > 0 ? Math.round((completed / total) * 100) : 0]
+          return { courseId: e.courseId, pct: total > 0 ? Math.round((completed / total) * 100) : 0, enrollment: e, prog: progressResult.data || [] }
         })
       )
-      if (!cancelled) setProgressMap(Object.fromEntries(progressEntries))
+      if (!cancelled) setProgressMap(Object.fromEntries(progressEntries.map(p => [p.courseId, p.pct])))
       if (!cancelled) {
-        const progressObj = Object.fromEntries(progressEntries)
+        const progressObj = Object.fromEntries(progressEntries.map(p => [p.courseId, p.pct]))
         setDailyChallenges(buildDailyChallenges(filtered, progressObj))
       }
+
+      // Find last active enrollment (most recent completed_at from progress)
+      let latest = null
+      let latestDate = null
+      let latestInfo = { pct: 0, nodeTitle: '', nodeId: '' }
+      for (const pe of progressEntries) {
+        for (const p of pe.prog) {
+          if (p.completed_at && (!latestDate || new Date(p.completed_at) > latestDate)) {
+            latestDate = new Date(p.completed_at)
+            latest = pe.enrollment
+            latestInfo.pct = pe.pct
+          }
+        }
+      }
+      if (!latest) latest = filtered[0]
+      if (cancelled) return
+      setLastActiveEnrollment(latest)
+      setLastActiveInfo(latestInfo)
 
       // Load understanding for first course
       const allCompleted = Object.values(Object.fromEntries(progressEntries))
@@ -273,20 +297,16 @@ export default function Dashboard() {
         <div className="dashboard-main">
           {/* Greeting */}
           <section aria-label="Bienvenida y progreso">
-          <div className="greeting-row" aria-label={`${getGreeting()}, ${userName}. Tienes 2 retos pendientes hoy.`}>
+          <div className="greeting-row" aria-label={`${getGreeting()}, ${userName}. ${dailyChallenges.length > 0 ? `Tienes ${dailyChallenges.length} reto${dailyChallenges.length !== 1 ? 's' : ''} pendiente${dailyChallenges.length !== 1 ? 's' : ''} hoy` : 'Sin retos pendientes por hoy'}`}>
             <div>
               <h1 className="greeting-text">{getGreeting()}, {userName}!</h1>
-              <p className="greeting-sub">Tienes 2 retos pendientes hoy</p>
+              <p className="greeting-sub">{dailyChallenges.length > 0 ? `Tienes ${dailyChallenges.length} reto${dailyChallenges.length !== 1 ? 's' : ''} pendiente${dailyChallenges.length !== 1 ? 's' : ''} hoy` : 'Sin retos pendientes por hoy'}</p>
             </div>
           </div>
 
           {/* Continue card */}
           {(() => {
-            // Pick last viewed course from localStorage, fallback to most recent enrollment
-            let lastViewedId = null
-            try { lastViewedId = JSON.parse(localStorage.getItem('eduapp_last_course') || 'null') } catch {}
-            const lastViewed = enrollments.find(e => e.courseId === lastViewedId)
-            const continueEnrollment = lastViewed || enrollments[0]
+            const continueEnrollment = lastActiveEnrollment
             const continueCourse = continueEnrollment?.course
             if (!continueCourse) {
               return (
@@ -316,7 +336,7 @@ export default function Dashboard() {
                 </motion.div>
               )
             }
-            const continuePct = progressMap[continueCourse.id] || 0
+            const continuePct = continueCourse ? (progressMap[continueCourse.id] || lastActiveInfo.pct || 0) : 0
             return (
               <motion.div
                 className="continue-card"

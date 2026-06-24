@@ -17,15 +17,22 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser(token)
     if (!user) return jsonError(401, 'Invalid session')
 
-    const { question, userAnswer, correctAnswer, concept } = await req.json()
+    const { question, userAnswer, correctAnswer, concept, studentLevel } = await req.json()
     if (!question || !correctAnswer) return jsonError(400, 'question and correctAnswer required')
 
     const userMsg = `Concepto: ${concept || 'general'}\nPregunta: ${question}\nRespuesta del estudiante: ${userAnswer || '(sin respuesta)'}\nRespuesta correcta: ${correctAnswer}`
 
+    const temp = studentLevel === 'beginner' ? 0.6 : studentLevel === 'advanced' ? 0.3 : 0.4
+    const formalityHint = studentLevel === 'beginner'
+      ? '\nUsa un lenguaje muy simple, como si explicaras a un niño.'
+      : studentLevel === 'advanced'
+        ? '\nUsa lenguaje técnico y preciso.'
+        : ''
+
     const llmRes = await callLlm({
-      system: ANALYZE_ERROR_SYSTEM,
+      system: ANALYZE_ERROR_SYSTEM + formalityHint,
       messages: [{ role: 'user', parts: [{ text: userMsg }] }],
-      temperature: 0.4,
+      temperature: temp,
       maxOutputTokens: 120,
     })
     if (!llmRes.ok) return jsonError(500, 'LLM error')

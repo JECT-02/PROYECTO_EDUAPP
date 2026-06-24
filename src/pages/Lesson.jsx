@@ -3,19 +3,19 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw, ChevronDown } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, updateProfileXP, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
-import { checkAchievements } from '../lib/achievements'
+import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured, updateProfileXP } from '../lib/api'
 import { sanitizeHtml } from '../lib/sanitize'
 import { renderMarkdown, renderLessonContent } from '../lib/markdown'
 import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
+import { notifyNodeCompleted } from '../lib/notifications'
 import './Lesson.css'
 
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
-  const { role, studentId } = useAuth()
+  const { role, studentId, user } = useAuth()
   const { registerHandler, setPageContext } = useVoice()
   const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
@@ -407,23 +407,12 @@ export default function Lesson() {
             completed: true,
           })
           if (error) console.warn('[lesson] markNodeProgress error:', error.message)
-          // Award XP for completing a node
-          try {
+          else {
+            notifyNodeCompleted(studentId, dbNode.title || 'Lección', courseName || 'tu curso').catch(() => {})
+            const xpBonus = 20
             const currentXp = user?.fullProfile?.pet_xp || 0
-            await updateProfileXP(studentId, currentXp + 15) // 15 XP per theory node
-          } catch {}
-          // Check achievements
-          try {
-            const { data: progress } = await getProgressForEnrollment(enrollment.id)
-            const theoryCompleted = (progress || []).filter(p => p.state === 'completed').length
-            checkAchievements(studentId, {
-              theory_completed: theoryCompleted,
-              courses_enrolled: (enrollments || []).length,
-              night_study: new Date().getHours() >= 22 || new Date().getHours() < 5,
-            }).then(unlocked => {
-              if (unlocked.length) console.log('[achievements] lesson:', unlocked.map(a => a.name).join(', '))
-            }).catch(() => {})
-          } catch {}
+            updateProfileXP(studentId, currentXp + xpBonus).catch(() => {})
+          }
         } else {
           console.warn('[lesson] no enrollment found for student', studentId, 'course', courseId)
         }

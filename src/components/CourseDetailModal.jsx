@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Users, AlertTriangle, TrendingUp, Clock,
   BrainCircuit, Search, Plus, Check, Hash,
-  UserPlus, Mail, IdCard, LoaderCircle, Trash2
+  UserPlus, Mail, IdCard, LoaderCircle, Trash2, Eye
 } from 'lucide-react'
 import { searchStudents, getCourseEnrollmentsWithProgress, addStudentToCourse } from '../lib/api'
 
 export default function CourseDetailModal({ isOpen, onClose, course, onDelete }) {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('participantes')
   const [searchQuery, setSearchQuery] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -477,6 +479,18 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                               <div style={{ flex: '0 0 100px', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-dim)' }}>
                                 {lastDays === 0 ? <span style={{ color: '#22C55E' }}>Hoy</span> : <span>{lastLabel}</span>}
                               </div>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                title="Ver progreso del estudiante"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigate(`/roadmap/${course.id}?studentId=${p.studentId}&studentName=${encodeURIComponent(p.fullName)}`)
+                                  onClose()
+                                }}
+                                style={{ flex: '0 0 auto', marginLeft: 8 }}
+                              >
+                                <Eye size={14} />
+                              </button>
                             </motion.div>
                           )
                         })

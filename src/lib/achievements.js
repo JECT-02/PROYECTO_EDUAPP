@@ -1,6 +1,7 @@
 import CATALOG from '../data/achievements.json'
 import { listStudentMedals, isSupabaseConfigured } from './api'
 import { supabase } from './supabase'
+import { notifyAchievement } from './notifications'
 
 export const RARITY_COLOR = { common: '#A6A6BC', rare: '#3B82F6', epic: '#8B5CF6', legendary: '#F59E0B' }
 export const RARITY_ICON = { mastery: '👑', behavior: '🔥', secret: '🌟' }
@@ -31,6 +32,9 @@ async function awardMedal(studentId, def) {
     description: def.description,
     unlocked_at: new Date().toISOString(),
   })
+  if (!error) {
+    notifyAchievement(studentId, def.name, def.rarity).catch(() => {})
+  }
   return !error
 }
 

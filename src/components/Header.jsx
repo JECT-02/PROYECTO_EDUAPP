@@ -1,27 +1,38 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Bell, ChevronDown, LogOut, User, Settings, Trophy, Home, Sparkles, Zap, Book, GraduationCap, Heart, Clock, AlertTriangle, TrendingUp, Users, PanelRightOpen } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { listNotifications } from '../lib/api'
+import { markAsRead, markAllAsRead } from '../lib/notifications'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import './Header.css'
 
-const NOTIFICATIONS_BY_ROLE = {
-  teacher: [
-    { id: 1, title: '3 estudiantes sin actividad', desc: 'Biología Celular — 5+ días sin acceder al curso.', time: 'Hace 10 min', icon: <Clock size={16} />, color: '#EF4444' },
-    { id: 2, title: 'Dificultad detectada', desc: '5 estudiantes con bajo rendimiento en "Anatomía Básica".', time: 'Hace 30 min', icon: <AlertTriangle size={16} />, color: '#F59E0B' },
-    { id: 3, title: 'Nuevo estudiante inscrito', desc: 'María García se unió a "Biología Celular".', time: 'Hace 1 hora', icon: <Users size={16} />, color: '#22C55E' },
-    { id: 4, title: 'Progreso destacado', desc: 'Carlos López completó el 100% de "Bioquímica General".', time: 'Hace 3 horas', icon: <TrendingUp size={16} />, color: '#6C63FF' },
-  ],
-  student: [
-    { id: 1, title: '¡Nuevo curso asignado!', desc: 'Biología Celular II ya está disponible.', time: 'Hace 5 min', icon: <Book size={16} />, color: '#6C63FF' },
-    { id: 2, title: 'Reto del día disponible', desc: 'Pon a prueba tus conocimientos en Mitocondria.', time: 'Hace 2 horas', icon: <Zap size={16} />, color: '#F59E0B' },
-    { id: 3, title: 'Medalla desbloqueada', desc: '¡Has ganado "Explorador Curioso"!', time: 'Ayer', icon: <Sparkles size={16} />, color: '#22C55E' },
-  ],
-  parent: [
-    { id: 1, title: 'Progreso semanal', desc: 'Tu hijo completó 3 lecciones esta semana.', time: 'Hace 15 min', icon: <TrendingUp size={16} />, color: '#22C55E' },
-    { id: 2, title: 'Nueva medalla', desc: '¡Tu hijo ganó "Maestro de la Mitocondria"!', time: 'Hace 1 hora', icon: <Sparkles size={16} />, color: '#F59E0B' },
-    { id: 3, title: 'Tiempo de estudio', desc: 'Tu hijo estudió 4.5 horas esta semana.', time: 'Hace 2 horas', icon: <Clock size={16} />, color: '#6C63FF' },
-  ],
+const ICON_MAP = {
+  medal: <Sparkles size={16} />,
+  progress: <TrendingUp size={16} />,
+  quiz_result: <Book size={16} />,
+  enrollment: <Book size={16} />,
+  new_student: <Users size={16} />,
+  student_progress: <TrendingUp size={16} />,
+  inactivity_alert: <Clock size={16} />,
+  child_progress: <TrendingUp size={16} />,
+  child_medal: <Sparkles size={16} />,
+  parent_request: <Users size={16} />,
+  coliseo_result: <Zap size={16} />,
+}
+
+const COLOR_MAP = {
+  medal: '#22C55E',
+  progress: '#22C55E',
+  quiz_result: '#6C63FF',
+  enrollment: '#6C63FF',
+  new_student: '#22C55E',
+  student_progress: '#6C63FF',
+  inactivity_alert: '#EF4444',
+  child_progress: '#22C55E',
+  child_medal: '#F59E0B',
+  parent_request: '#6C63FF',
+  coliseo_result: '#F59E0B',
 }
 
 export default function Header({ onToggleSidebar }) {
@@ -34,6 +45,42 @@ export default function Header({ onToggleSidebar }) {
   const [dbNotifs, setDbNotifs] = useState([])
   const mobileNavRef = useRef(null)
   const notifFirstFocusableRef = useRef(null)
+  const pollRef = useRef(null)
+
+  const prefsEnabled = useCallback(() => {
+    try { return !!JSON.parse(localStorage.getItem('eduapp_prefs') || '{}').notifications } catch { return true }
+  }, [])
+
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id || !prefsEnabled()) {
+      setDbNotifs([])
+      return
+    }
+    const { data } = await listNotifications(user.id)
+    setDbNotifs(data || [])
+  }, [user?.id, prefsEnabled])
+
+  useEffect(() => {
+    if (!user?.id) {
+      setDbNotifs([])
+      return
+    }
+    loadNotifications()
+    pollRef.current = setInterval(loadNotifications, 30000)
+    return () => { clearInterval(pollRef.current) }
+  }, [user?.id, loadNotifications])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user?.id) return
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => { loadNotifications() }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id, loadNotifications])
 
   // Close mobile nav on click outside
   useEffect(() => {
@@ -46,19 +93,6 @@ export default function Header({ onToggleSidebar }) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [mobileNavOpen])
-
-  // Load notifications from DB when user changes
-  useEffect(() => {
-    if (!user?.id) {
-      setDbNotifs([])
-      return
-    }
-    let cancelled = false
-    listNotifications(user.id).then(({ data }) => {
-      if (!cancelled) setDbNotifs(data || [])
-    })
-    return () => { cancelled = true }
-  }, [user?.id])
 
   // Focus notification dialog when it opens — makes NVDA read its content
   useEffect(() => {
@@ -74,13 +108,18 @@ export default function Header({ onToggleSidebar }) {
     dbNotifs.length > 0
       ? dbNotifs.map((n) => ({
           id: n.id,
+          read: n.read,
           title: n.payload?.title || n.type,
-          desc: n.payload?.desc || (n.payload?.student_name ? `Estudiante: ${n.payload.student_name}` : ''),
-          time: new Date(n.created_at).toLocaleString('es-ES'),
-          icon: <Bell size={16} />,
-          color: '#6C63FF',
+          desc: n.payload?.desc || '',
+          time: formatTimeAgo(n.created_at),
+          icon: ICON_MAP[n.type] || <Bell size={16} />,
+          color: COLOR_MAP[n.type] || '#6C63FF',
         }))
-      : NOTIFICATIONS_BY_ROLE[user?.role || 'student'] || NOTIFICATIONS_BY_ROLE.student
+      : null
+
+  const notifDisplay = notifications || getFallbackNotifs(user?.role)
+
+  const unreadCount = notifications ? notifications.filter(n => !n.read).length : 0
 
   const userData = user || { name: 'Usuario', avatar: '🦊', role: 'student' }
 
@@ -153,12 +192,12 @@ export default function Header({ onToggleSidebar }) {
           <div className="notif-wrapper">
             <button 
               className={`icon-btn notif-btn ${showNotifs ? 'active' : ''}`} 
-              aria-label={`Notificaciones: ${notifications.length} sin leer`}
+              aria-label={`Notificaciones: ${unreadCount} sin leer`}
               aria-expanded={showNotifs}
               onClick={() => { setShowNotifs(!showNotifs); setDropdown(false) }}
             >
               <Bell size={18} aria-hidden="true" />
-              <span className="notif-badge" aria-hidden="true">{notifications.length}</span>
+              {unreadCount > 0 && <span className="notif-badge" aria-hidden="true">{unreadCount}</span>}
             </button>
             {showNotifs && (
               <div
@@ -168,10 +207,30 @@ export default function Header({ onToggleSidebar }) {
               >
                 <div className="notif-header">
                   <h3 id="notif-heading">Notificaciones</h3>
+                  {unreadCount > 0 && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={async () => {
+                        await markAllAsRead(user.id)
+                        await loadNotifications()
+                      }}
+                    >
+                      Marcar todas leídas
+                    </button>
+                  )}
                 </div>
                 <div className="notif-list" role="list" aria-label="Lista de notificaciones" tabIndex="-1" ref={notifFirstFocusableRef}>
-                  {notifications.map(n => (
-                    <div key={n.id} className="notif-item">
+                  {notifDisplay.map(n => (
+                    <div
+                      key={n.id}
+                      className={`notif-item ${!n.read ? 'notif-unread' : ''}`}
+                      role="listitem"
+                      onClick={async () => {
+                        if (n.read) return
+                        await markAsRead(n.id)
+                        await loadNotifications()
+                      }}
+                    >
                       <div className="notif-icon" style={{ background: `${n.color}18`, color: n.color }} aria-hidden="true">
                         {n.icon}
                       </div>
@@ -180,11 +239,9 @@ export default function Header({ onToggleSidebar }) {
                         <div className="notif-desc">{n.desc}</div>
                         <div className="notif-time">{n.time}</div>
                       </div>
+                      {!n.read && <div className="notif-dot" style={{ background: n.color }} />}
                     </div>
                   ))}
-                </div>
-                <div className="notif-footer">
-                  <button className="btn btn-ghost btn-sm" aria-label="Marcar todas como leídas">Marcar todo como leído</button>
                 </div>
               </div>
             )}
@@ -251,4 +308,29 @@ function MobileNavLink({ to, icon, label, current, onClose }) {
       <span>{label}</span>
     </button>
   )
+}
+
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Ahora'
+  if (mins < 60) return `Hace ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `Hace ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `Hace ${days}d`
+  return new Date(dateStr).toLocaleDateString('es-ES')
+}
+
+function getFallbackNotifs(role) {
+  if (role === 'teacher') return [
+    { id: 'fb-1', read: true, title: 'Panel de notificaciones', desc: 'Las notificaciones reales aparecerán aquí cuando haya actividad.', time: '', icon: <Bell size={16} />, color: '#6C63FF' },
+  ]
+  if (role === 'parent') return [
+    { id: 'fb-1', read: true, title: 'Panel de notificaciones', desc: 'Las notificaciones sobre tu hijo aparecerán aquí.', time: '', icon: <Bell size={16} />, color: '#6C63FF' },
+  ]
+  return [
+    { id: 'fb-1', read: true, title: 'Sin notificaciones', desc: 'Completa lecciones y quizzes para recibir notificaciones.', time: '', icon: <Sparkles size={16} />, color: '#6C63FF' },
+  ]
 }

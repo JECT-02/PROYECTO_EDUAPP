@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured, requireSession } from './supabase'
+import { notifyCourseEnrolled, notifyTeacherNewStudent } from './notifications'
 
 const FALLBACK = (data) => ({ data, error: null, mocked: true })
 
@@ -116,6 +117,12 @@ export async function enrollStudent({ studentId, inviteToken }) {
     .insert({ student_id: studentId, course_id: course.id })
     .select()
     .single()
+  if (!error && data) {
+    notifyCourseEnrolled(studentId, course.title || 'Curso', null).catch(() => {})
+    if (course.teacher_id) {
+      notifyTeacherNewStudent(course.teacher_id, 'Un estudiante', course.title || 'Curso').catch(() => {})
+    }
+  }
   return { data, error }
 }
 
@@ -149,6 +156,9 @@ export async function addStudentToCourse({ courseId, studentId }) {
     .insert({ student_id: studentId, course_id: courseId })
     .select()
     .single()
+  if (!error && data) {
+    notifyCourseEnrolled(studentId, course.title || 'Curso', null).catch(() => {})
+  }
   return { data, error }
 }
 

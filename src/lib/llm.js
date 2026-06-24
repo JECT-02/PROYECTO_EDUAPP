@@ -1,11 +1,24 @@
 import { streamFunction, callFunction } from './streaming'
 import { getAccessToken } from './supabase'
 
-export async function chatWithTutor({ courseId, message, history = [] }) {
+export function getStudentLevel(understandingValue) {
+  if (understandingValue == null) return 'intermediate'
+  if (understandingValue <= 30) return 'beginner'
+  if (understandingValue <= 70) return 'intermediate'
+  return 'advanced'
+}
+
+export function getStudentTemperature(level) {
+  if (level === 'beginner') return 0.7
+  if (level === 'advanced') return 0.3
+  return 0.5
+}
+
+export async function chatWithTutor({ courseId, message, history = [], studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
   return streamFunction({
     name: 'chat',
-    body: { courseId, message, history },
+    body: { courseId, message, history, studentLevel },
     accessToken,
   })
 }
@@ -40,18 +53,22 @@ export async function generateCourseContent({ courseId, nodeIds }) {
   return callFunction({ name: 'generate-course-content', body: { courseId, nodeIds }, accessToken })
 }
 
-export async function analyzeError({ question, userAnswer, correctAnswer, courseId, concept }) {
+export async function analyzeError({ question, userAnswer, correctAnswer, courseId, concept, studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
   return callFunction({
     name: 'analyze-error',
-    body: { question, userAnswer, correctAnswer, courseId, concept },
+    body: { question, userAnswer, correctAnswer, courseId, concept, studentLevel },
     accessToken,
   })
 }
 
-export async function reinforceConcept({ concept, style = 'simple', courseId }) {
+export async function reinforceConcept({ concept, style = 'simple', courseId, question, courses, studentAnswer, correctAnswer, studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
-  return callFunction({ name: 'reinforce', body: { concept, style, courseId }, accessToken })
+  return callFunction({
+    name: 'reinforce',
+    body: { concept, style, courseId, question, courses, studentAnswer, correctAnswer, studentLevel },
+    accessToken,
+  })
 }
 
 export async function fetchYoutubeTranscript({ url }) {

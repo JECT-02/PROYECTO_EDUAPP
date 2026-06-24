@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle, Send, Search } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { analyzeError } from '../lib/llm'
+import { analyzeError, reinforceConcept } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes } from '../lib/api'
 import { useVoice } from '../context/VoiceContext'
 import './Review.css'
@@ -14,11 +14,14 @@ export default function Review() {
   const { state } = useLocation()
   const { setPageContext, registerHandler } = useVoice()
   const [hubOpen, setHubOpen] = useState(false)
-  const [analogyType, setAnalogyType] = useState('Como si tuviera 5 años')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [aiExplanations, setAiExplanations] = useState({})
   const [loadingExplanations, setLoadingExplanations] = useState(true)
   const [nextNodePath, setNextNodePath] = useState(null)
+  const [userQuestion, setUserQuestion] = useState('')
+  const [aiAnswer, setAiAnswer] = useState('')
+  const [loadingAiAnswer, setLoadingAiAnswer] = useState(false)
+  const [videoUrl, setVideoUrl] = useState('')
 
   useEffect(() => { setPageContext({ page: 'review' }) }, [setPageContext])
   useEffect(() => { return registerHandler('understood', () => handleEntendido()) }, [registerHandler])
@@ -26,7 +29,6 @@ export default function Review() {
   const answers = state?.answers || []
   const incorrectAnswers = answers.filter(a => !a.isCorrect)
 
-  // Find next node path for navigation after review
   useEffect(() => {
     let cancelled = false
     async function loadNext() {
@@ -55,7 +57,6 @@ export default function Review() {
     else navigate(`/roadmap/${courseId}`)
   }, [nextNodePath, navigate, courseId])
 
-  // Load AI explanations for all incorrect answers on mount
   useEffect(() => {
     if (incorrectAnswers.length === 0) {
       setLoadingExplanations(false)
@@ -82,14 +83,13 @@ export default function Review() {
             courseId,
             concept,
           })
-          if (!cancelled && result?.explanation) {
-            explanations[i] = result.explanation
+          if (!cancelled) {
+            const raw = result?.explanation || ''
+            const clean = sanitizeExplanation(raw)
+            explanations[i] = clean || 'La IA analizó tu error. Revisa el concepto nuevamente.'
           }
         } catch {
-          // Fallback: use the explanation from the quiz if available
-          if (answer.explanation) {
-            explanations[i] = answer.explanation
-          }
+          explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
         }
       }
 
@@ -101,6 +101,53 @@ export default function Review() {
     loadExplanations()
     return () => { cancelled = true }
   }, [incorrectAnswers, courseId])
+
+  function sanitizeExplanation(text) {
+    if (!text || text.length < 3) return ''
+    const cleaned = text.replace(/["{}[\]\\]/g, '').trim()
+    const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]/.test(cleaned)
+    if (hasCJK) return cleaned.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
+    return cleaned.length > 400 ? cleaned.slice(0, 400) + '...' : cleaned
+  }
+
+  useEffect(() => {
+    if (!hubOpen) {
+      setAiAnswer('')
+      setUserQuestion('')
+      setVideoUrl('')
+      return
+    }
+    const currentAnswer = incorrectAnswers[currentIndex]
+    if (!currentAnswer) return
+    const query = encodeURIComponent(
+      currentAnswer.question?.split(' ').slice(0, 6).join(' ') || ''
+    )
+    setVideoUrl(`https://www.youtube.com/results?search_query=${query}`)
+  }, [hubOpen, currentIndex, incorrectAnswers])
+
+  async function handleAskAI(e) {
+    e?.preventDefault()
+    if (!userQuestion.trim() || loadingAiAnswer) return
+    setLoadingAiAnswer(true)
+    setAiAnswer('')
+    try {
+      const currentAnswer = incorrectAnswers[currentIndex]
+      const result = await reinforceConcept({
+        concept: currentAnswer?.question?.split(' ').slice(0, 4).join(' ') || 'este tema',
+        question: userQuestion.trim(),
+        courses: [courseId],
+        studentAnswer: currentAnswer?.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : '',
+        correctAnswer: currentAnswer?.options[currentAnswer.correct] || '',
+      })
+      const raw = result?.explanation || result?.reinforcement || result?.text || ''
+      const clean = sanitizeExplanation(raw)
+      setAiAnswer(clean || 'No pude generar una respuesta. Intenta con otra pregunta.')
+    } catch {
+      setAiAnswer('Error al consultar. Intenta de nuevo.')
+    } finally {
+      setLoadingAiAnswer(false)
+    }
+  }
 
   if (answers.length === 0) {
     return (
@@ -177,7 +224,6 @@ export default function Review() {
 
       <main className="review-content">
         <div className="review-container">
-          {/* Question context */}
           <div className="review-q-card" tabIndex={0} role="region" aria-label={`Pregunta: ${currentAnswer.question}. Tu respuesta: ${currentAnswer.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : 'No respondiste'}. Respuesta correcta: ${currentAnswer.options[currentAnswer.correct]}`}>
             <div aria-hidden="true">
               <h3 className="rq-title">Pregunta original</h3>
@@ -198,20 +244,12 @@ export default function Review() {
             </div>
           </div>
 
-          {/* AI Analysis */}
           <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentAiExplanation || 'Revisa el material de clase'}`}>
             <div aria-hidden="true">
               <div className="ai-header">
                 <Mascot type="owl" size="sm" mood="normal" />
                 <div>
-                  <h3 className="ai-title">Análisis IA</h3>
-                  {currentAiExplanation && (
-                    <span className="ai-concept">
-                      {currentAnswer.selected >= 0
-                        ? `Confundiste "${currentAnswer.options[currentAnswer.selected]}" con "${currentAnswer.options[currentAnswer.correct]}"`
-                        : 'No respondiste a tiempo'}
-                    </span>
-                  )}
+                  <h3 className="ai-title">Análisis de tu error</h3>
                 </div>
               </div>
               <div className="ai-body">
@@ -220,11 +258,27 @@ export default function Review() {
                     <LoaderCircle size={16} className="animate-spin" /> Analizando tu respuesta...
                   </div>
                 ) : (
-                  <p>{currentAiExplanation || 'Revisa el material de clase para entender mejor este concepto. La IA no pudo generar una explicación detallada.'}</p>
+                  <div>
+                    {currentAiExplanation && (
+                      <p style={{ marginBottom: 12 }}>{currentAiExplanation}</p>
+                    )}
+                    <div style={{
+                      background: 'rgba(108,99,255,0.06)',
+                      border: '1px solid rgba(108,99,255,0.12)',
+                      borderRadius: 'var(--radius)',
+                      padding: 12,
+                      fontSize: '0.83rem',
+                      color: 'var(--text-muted)',
+                      lineHeight: 1.5,
+                    }}>
+                      <strong style={{ color: 'var(--success)' }}>Respuesta correcta:</strong>{' '}
+                      {currentAnswer.options[currentAnswer.correct]}
+                      <br />
+                      <strong style={{ color: 'var(--error)' }}>Tu respuesta fue:</strong>{' '}
+                      {currentAnswer.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : 'Sin responder'}
+                    </div>
+                  </div>
                 )}
-              </div>
-              <div className="ai-source">
-                <BookOpen size={14} /> Fuente: Análisis IA basado en el material del curso
               </div>
             </div>
           </div>
@@ -243,40 +297,57 @@ export default function Review() {
               <h2 className="hub-title">Refuerzo</h2>
 
               <div className="hub-section">
-                <h4 className="hub-sub"><MessageSquare size={16}/> 1. Analogía</h4>
-                <select
-                  className="input-field"
-                  value={analogyType}
-                  onChange={(e) => setAnalogyType(e.target.value)}
-                  aria-label="Analogía. Tipo de analogía"
-                  style={{marginBottom: 12}}
-                >
-                  <option>Explicación estándar</option>
-                  <option>Como si tuviera 5 años</option>
-                  <option>Con videojuegos</option>
-                  <option>Con cocina</option>
-                </select>
-                <div className="analogy-box" aria-live="polite" aria-atomic="true">
-                  {analogyType === 'Como si tuviera 5 años'
-                    ? "Imagina que la célula es una ciudad. La mitocondria es la planta de energía que da electricidad a todas las casas. El núcleo es la oficina del alcalde, donde se guardan las reglas de la ciudad."
-                    : analogyType === 'Con videojuegos'
-                      ? "Piensa en tu consola. La mitocondria es la fuente de poder enchufada a la pared, dando energía. El núcleo es el disco duro con todos los juegos guardados."
-                      : analogyType === 'Con cocina'
-                        ? "La célula es como una cocina. La mitocondria es la estufa que produce el calor para cocinar (energía). El núcleo es el libro de recetas con las instrucciones."
-                        : "La mitocondria es el orgánulo encargado de la respiración celular y producción de ATP. El núcleo contiene el material genético pero no produce energía."}
-                </div>
+                <h4 className="hub-sub"><MessageSquare size={16}/> 1. Pregunta a la IA</h4>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 10 }}>
+                  Escribe una pregunta sobre este tema y la IA te explicará.
+                </p>
+                <form onSubmit={handleAskAI} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <input
+                    className="input-field"
+                    placeholder={`Ej: ¿Por qué "${currentAnswer.options[currentAnswer.correct]}" es la respuesta correcta?`}
+                    value={userQuestion}
+                    onChange={e => setUserQuestion(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={loadingAiAnswer || !userQuestion.trim()}
+                    style={{ flexShrink: 0 }}
+                  >
+                    {loadingAiAnswer ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </form>
+                {aiAnswer && (
+                  <div className="analogy-box" aria-live="polite" aria-atomic="true">
+                    {aiAnswer}
+                  </div>
+                )}
               </div>
 
               <div className="hub-section">
                 <h4 className="hub-sub"><Play size={16}/> 2. Video Recomendado</h4>
-                <div className="video-card" tabIndex={0} role="link" aria-label={`Video recomendado. Presiona Enter para buscar`} onClick={() => window.open('https://youtube.com', '_blank')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open('https://youtube.com', '_blank') } }}>
-                  <div className="video-thumb">▶</div>
-                  <div className="video-info">
-                    <div className="v-title">Busca un video relacionado en YouTube</div>
-                    <div className="v-time">Aprende con video</div>
+                {videoUrl ? (
+                  <div
+                    className="video-card"
+                    tabIndex={0}
+                    role="link"
+                    aria-label="Buscar video relacionado en YouTube"
+                    onClick={() => window.open(videoUrl, '_blank')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.open(videoUrl, '_blank') } }}
+                  >
+                    <div className="video-thumb"><Search size={20} /></div>
+                    <div className="video-info">
+                      <div className="v-title">Buscar video sobre este tema</div>
+                      <div className="v-time">Abre YouTube con resultados relacionados</div>
+                    </div>
+                    <ExternalLink size={16} color="var(--text-muted)"/>
                   </div>
-                  <ExternalLink size={16} color="var(--text-muted)"/>
-                </div>
+                ) : (
+                  <div style={{ color: 'var(--text-dim)', fontSize: '0.83rem' }}>
+                    <LoaderCircle size={14} className="animate-spin" /> Buscando video...
+                  </div>
+                )}
               </div>
 
               <button className="btn btn-primary full-w" onClick={handleNext}>

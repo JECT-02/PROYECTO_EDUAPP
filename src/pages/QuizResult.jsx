@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateWarning } from '../utils/vibration'
-import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, updateProfileXP, isSupabaseConfigured } from '../lib/api'
+import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, getCourseNodesAllStatus, isSupabaseConfigured, updateProfileXP } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { checkAchievements } from '../lib/achievements'
+import { notifyQuizCompleted } from '../lib/notifications'
 import { useVoice } from '../context/VoiceContext'
 import './QuizResult.css'
 
@@ -62,13 +63,21 @@ export default function QuizResult() {
           completed: true,
         })
         if (error) console.warn('[quiz] markNodeProgress error:', error.message)
-
-        // Award XP based on score: 10 XP base + up to 20 XP for perfect score
-        try {
+        else if (passed) {
+          const xpBonus = dbNode.type === 'boss' ? 80 : (percentage === 100 ? 50 : 30)
           const currentXp = user?.fullProfile?.pet_xp || 0
-          const xpBonus = 10 + Math.round(percentage / 100 * 20) // 10-30 XP per quiz
-          await updateProfileXP(studentId, currentXp + xpBonus)
-        } catch {}
+          updateProfileXP(studentId, currentXp + xpBonus).catch(() => {})
+        }
+
+        // Create notification for quiz result
+        if (dbNode?.title) {
+          const { data: courseData } = await getCourseNodesAllStatus(courseId)
+          const courses = await getStudentEnrollments(studentId)
+          const courseTitle = (courses?.data || courses || []).find(
+            e => e.course_id === courseId || String(e.course_id) === String(courseId)
+          )?.courses?.title || 'tu curso'
+          notifyQuizCompleted(studentId, score, total, dbNode.title, courseTitle).catch(() => {})
+        }
 
         // Check achievements
         const { data: progress } = await getProgressForEnrollment(enrollment.id)
