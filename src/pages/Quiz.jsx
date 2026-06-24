@@ -208,9 +208,7 @@ export default function Quiz() {
       setStatus('incorrect')
       setAnalyzingError(true)
       triggerAnalysis(index).finally(() => setAnalyzingError(false))
-      setTimeout(() => {
-        if (status === 'incorrect') nextQuestion()
-      }, 4000)
+      setTimeout(nextQuestion, 4000)
     }
   }
 
