@@ -278,17 +278,26 @@ export async function getUnderstandingData(studentId, courseId) {
 
   const [{ data: nodes }, { data: progress }] = await Promise.all([
     supabase.from('nodes').select('id, type').eq('course_id', courseId).eq('status', 'published'),
-    supabase.from('progress').select('state, score').eq('enrollment_id', enrollment.id),
+    supabase.from('progress').select('state, score, node_id').eq('enrollment_id', enrollment.id),
   ])
   const totalNodes = (nodes || []).length
   const completed = (progress || []).filter(p => p.state === 'completed').length
-  const scores = (progress || []).filter(p => p.score != null && p.state === 'completed').map(p => Number(p.score))
+  const quizNodes = (nodes || []).filter(n => n.type === 'quiz' || n.type === 'boss')
+  const quizProgress = (progress || []).filter(p => {
+    const node = (nodes || []).find(n => n.id === p.node_id)
+    return node && (node.type === 'quiz' || node.type === 'boss') && p.state === 'completed' && p.score != null
+  })
+  const scores = quizProgress.map(p => Number(p.score))
   const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+  const totalCorrect = scores.filter(s => s >= 60).length
+  const totalWrong = scores.filter(s => s < 60).length
   return {
     data: {
       completedNodes: completed,
       totalNodes,
       avgScore,
+      totalCorrect,
+      totalWrong,
       aiInteractions: enrollment.ai_interactions || 0,
       studyTimeMin: Math.round((enrollment.study_time_sec || 0) / 60),
     },
@@ -335,6 +344,19 @@ export async function requestParentLink({ parentId, studentEmail }) {
     .eq('role', 'student')
     .single()
   if (sErr || !student) return { data: null, error: new Error('No se encontró un estudiante con ese correo. Verifica e intenta de nuevo.') }
+  // Check if already linked
+  const { data: existingLink } = await supabase
+    .from('parent_links')
+    .select('id, status')
+    .eq('parent_id', parentId)
+    .eq('student_id', student.id)
+    .maybeSingle()
+  if (existingLink) {
+    const msg = existingLink.status === 'accepted'
+      ? 'Este estudiante ya está vinculado a tu cuenta.'
+      : 'Ya enviaste una solicitud a este estudiante. Espera a que la acepte.'
+    return { data: null, error: new Error(msg) }
+  }
   const { data, error } = await supabase
     .from('parent_links')
     .insert({ parent_id: parentId, student_id: student.id, status: 'pending' })
