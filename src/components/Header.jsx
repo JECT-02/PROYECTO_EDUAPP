@@ -45,7 +45,6 @@ export default function Header({ onToggleSidebar }) {
   const [dbNotifs, setDbNotifs] = useState([])
   const mobileNavRef = useRef(null)
   const notifFirstFocusableRef = useRef(null)
-  const pollRef = useRef(null)
 
   const prefsEnabled = useCallback(() => {
     try {
@@ -69,19 +68,31 @@ export default function Header({ onToggleSidebar }) {
       return
     }
     loadNotifications()
-    pollRef.current = setInterval(loadNotifications, 30000)
-    return () => { clearInterval(pollRef.current) }
   }, [user?.id, loadNotifications])
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user?.id) return
+
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel(`notifs-${user.id}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         () => { loadNotifications() }
       )
-      .subscribe()
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => { loadNotifications() }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        () => { loadNotifications() }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[notifications] realtime channel error, recargando')
+          loadNotifications()
+        }
+      })
 
     const handlePrefsChange = (e) => {
       if (e.detail?.key === 'notifications') loadNotifications()
