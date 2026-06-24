@@ -381,10 +381,25 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
     return { data: null, error: new Error('Este estudiante ya está vinculado a otro padre. Solo un padre por estudiante.') }
   }
 
-  // Direct accept: upsert with status accepted (no notification/approval needed)
+  // Check if this parent already has a link (any status) to this student
+  const { data: existingLink } = await supabase
+    .from('parent_links')
+    .select('id, status')
+    .eq('parent_id', parentId)
+    .eq('student_id', student.id)
+    .maybeSingle()
+
+  if (existingLink) {
+    if (existingLink.status === 'accepted') {
+      return { data: existingLink, error: null }
+    }
+    // Delete the old non-accepted link and re-insert as accepted
+    await supabase.from('parent_links').delete().eq('id', existingLink.id)
+  }
+
   const { data, error } = await supabase
     .from('parent_links')
-    .upsert({ parent_id: parentId, student_id: student.id, status: 'accepted' }, { onConflict: 'parent_id,student_id' })
+    .insert({ parent_id: parentId, student_id: student.id, status: 'accepted' })
     .select()
     .single()
 
