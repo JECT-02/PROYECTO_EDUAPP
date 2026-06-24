@@ -28,14 +28,15 @@ function getGreeting() {
 }
 
 function buildDailyChallenges(enrollments, progressMap) {
-  const withProgress = enrollments.filter(e => (progressMap[e.courseId] || 0) > 0)
-  if (withProgress.length === 0) return []
+  if (enrollments.length === 0) return []
 
   const challenges = []
-  const shuffledCourses = [...withProgress].sort(() => Math.random() - 0.5)
+  const withProgress = enrollments.filter(e => (progressMap[e.courseId] || 0) > 0)
+  const pool = withProgress.length > 0 ? withProgress : enrollments
+  const shuffled = [...pool].sort(() => Math.random() - 0.5)
 
-  const coliseoCourse = shuffledCourses[0]
-  if (coliseoCourse && coliseoCourse.courseId) {
+  const coliseoCourse = shuffled[0]
+  if (coliseoCourse?.courseId) {
     challenges.push({
       id: 'coliseo-daily',
       title: 'Coliseo de Retos',
@@ -48,8 +49,8 @@ function buildDailyChallenges(enrollments, progressMap) {
     })
   }
 
-  const reviewCourse = shuffledCourses.length > 1 ? shuffledCourses[1] : shuffledCourses[0]
-  if (reviewCourse && reviewCourse.courseId) {
+  const reviewCourse = shuffled.length > 1 ? shuffled[1] : shuffled[0]
+  if (reviewCourse?.courseId && reviewCourse.courseId !== coliseoCourse?.courseId) {
     const pct = progressMap[reviewCourse.courseId] || 0
     challenges.push({
       id: `review-${reviewCourse.courseId}`,

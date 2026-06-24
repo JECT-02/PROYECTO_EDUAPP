@@ -64,11 +64,13 @@ export async function analyzeError({ question, userAnswer, correctAnswer, course
 
 export async function reinforceConcept({ concept, style = 'simple', courseId, question, courses, studentAnswer, correctAnswer, studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
-  return callFunction({
+  const res = await callFunction({
     name: 'reinforce',
     body: { concept, style, courseId, question, courses, studentAnswer, correctAnswer, studentLevel },
     accessToken,
   })
+  if (res?.error) throw new Error(res.error)
+  return { explanation: res?.text || res?.explanation || res?.delta || '', raw: res }
 }
 
 export async function fetchYoutubeTranscript({ url }) {

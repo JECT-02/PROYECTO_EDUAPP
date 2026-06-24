@@ -13,7 +13,7 @@ import './QuizResult.css'
 export default function QuizResult() {
   const { state } = useLocation()
   const navigate = useNavigate()
-  const { studentId, user } = useAuth()
+  const { studentId, user, refreshProfile } = useAuth()
   const { setPageContext, registerHandler } = useVoice()
   const {
     score = 0,
@@ -67,6 +67,7 @@ export default function QuizResult() {
           const xpBonus = dbNode.type === 'boss' ? 80 : (percentage === 100 ? 50 : 30)
           const currentXp = user?.fullProfile?.pet_xp || 0
           updateProfileXP(studentId, currentXp + xpBonus).catch(() => {})
+          refreshProfile().catch(() => {})
         }
 
         // Create notification for quiz result

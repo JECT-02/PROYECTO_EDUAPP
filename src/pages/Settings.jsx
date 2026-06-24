@@ -52,6 +52,10 @@ export default function Settings() {
       }
       updateProfileData({ accessibility_settings: merged }).catch(() => {})
     }
+    // Notify Header to refresh notifications
+    if (key === 'notifications') {
+      window.dispatchEvent(new CustomEvent('eduapp-prefs-changed', { detail: { key, value: nextVal } }))
+    }
     // Apply body classes
     if (key === 'contrast') document.body.classList.toggle('high-contrast', nextVal)
     if (key === 'reduced') document.body.classList.toggle('reduce-motion', nextVal)

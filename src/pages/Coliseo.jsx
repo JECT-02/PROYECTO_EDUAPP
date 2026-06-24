@@ -16,7 +16,7 @@ import './Coliseo.css'
 export default function Coliseo() {
   const navigate = useNavigate()
   const { courseId } = useParams()
-  const { studentId, user } = useAuth()
+  const { studentId, user, refreshProfile } = useAuth()
   const { registerHandler, setPageContext } = useVoice()
   const [questions, setQuestions] = useState([])
   const [courseTitle, setCourseTitle] = useState('')
@@ -31,6 +31,7 @@ export default function Coliseo() {
   const [timeLeft, setTimeLeft] = useState(1800)
   const [xpEarned, setXpEarned] = useState(0)
   const [score, setScore] = useState(0)
+  const [refreshKey, setRefreshKey] = useState(0)
   const timerRef = useRef(null)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
@@ -130,7 +131,7 @@ export default function Coliseo() {
     }
     load()
     return () => { cancelled = true }
-  }, [courseId, studentId])
+  }, [courseId, studentId, refreshKey])
 
   const currentQ = questions[qIndex]
 
@@ -199,6 +200,7 @@ export default function Coliseo() {
       try {
         const currentXp = user?.fullProfile?.pet_xp || 0
         await updateProfileXP(studentId, currentXp + xpBonus)
+        await refreshProfile()
       } catch {}
 
       const perfect = lives === 3 && score === questions.length
@@ -265,7 +267,7 @@ export default function Coliseo() {
             Has perdido todas tus vidas. {score}/{questions.length} correctas.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-accent btn-lg" onClick={() => { setDefeat(false); setStarted(false); setLives(3); setQIndex(0); setScore(0); setTimeLeft(1800) }}>
+            <button className="btn btn-accent btn-lg" onClick={() => { setDefeat(false); setVictory(false); setStarted(false); setLives(3); setQIndex(0); setScore(0); setTimeLeft(1800); setStatus('idle'); setSelected(null); setXpEarned(0); setRefreshKey(k => k + 1) }}>
               <RotateCcw size={18} /> Reintentar
             </button>
             <button className="btn btn-ghost btn-lg" onClick={() => navigate('/dashboard')}>

@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, Users, AlertTriangle, TrendingUp, Clock,
   BrainCircuit, Search, Plus, Check, Hash,
-  UserPlus, Mail, IdCard, LoaderCircle, Trash2, Eye
+  UserPlus, Mail, IdCard, LoaderCircle, Trash2, Eye, UserMinus
 } from 'lucide-react'
-import { searchStudents, getCourseEnrollmentsWithProgress, addStudentToCourse } from '../lib/api'
+import { searchStudents, getCourseEnrollmentsWithProgress, addStudentToCourse, removeStudentFromCourse } from '../lib/api'
 
 export default function CourseDetailModal({ isOpen, onClose, course, onDelete }) {
   const navigate = useNavigate()
@@ -490,6 +490,19 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                                 style={{ flex: '0 0 auto', marginLeft: 8 }}
                               >
                                 <Eye size={14} />
+                              </button>
+                              <button
+                                className="btn btn-ghost btn-sm"
+                                title="Eliminar estudiante del curso"
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  if (!confirm(`¿Eliminar a ${p.fullName} del curso?`)) return
+                                  await removeStudentFromCourse({ courseId: course.id, studentId: p.studentId })
+                                  setRefreshTick(t => t + 1)
+                                }}
+                                style={{ flex: '0 0 auto', marginLeft: 4, color: 'var(--error)' }}
+                              >
+                                <UserMinus size={14} />
                               </button>
                             </motion.div>
                           )

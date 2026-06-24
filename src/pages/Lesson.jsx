@@ -17,7 +17,7 @@ import './Lesson.css'
 export default function Lesson() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
-  const { role, studentId, user } = useAuth()
+  const { role, studentId, user, refreshProfile } = useAuth()
   const { registerHandler, setPageContext } = useVoice()
   const isTeacher = role === 'teacher'
   const [dbNode, setDbNode] = useState(null)
@@ -414,6 +414,7 @@ export default function Lesson() {
             const xpBonus = 20
             const currentXp = user?.fullProfile?.pet_xp || 0
             updateProfileXP(studentId, currentXp + xpBonus).catch(() => {})
+            refreshProfile().catch(() => {})
 
             const { data: progress } = await getProgressForEnrollment(enrollment.id)
             const theoryCompleted = (progress || []).filter(p => p.state === 'completed').length

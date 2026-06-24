@@ -166,7 +166,7 @@ export default function Quiz() {
           isError: true,
         })
       }
-    } catch { /* silent */ }
+    } catch (e) { console.warn('[quiz] analyzeError failed:', e.message) }
   }
 
   function sanitizeExplanation(text) {

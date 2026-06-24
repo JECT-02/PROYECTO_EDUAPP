@@ -120,7 +120,7 @@ export default function Review() {
     const currentAnswer = incorrectAnswers[currentIndex]
     if (!currentAnswer) return
     const query = encodeURIComponent(
-      currentAnswer.question?.split(' ').slice(0, 6).join(' ') || ''
+      (currentAnswer.question || '') + ' ' + (currentAnswer.options?.[currentAnswer.correct] || '')
     )
     setVideoUrl(`https://www.youtube.com/results?search_query=${query}`)
   }, [hubOpen, currentIndex, incorrectAnswers])

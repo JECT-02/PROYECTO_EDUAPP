@@ -430,6 +430,20 @@ export async function deleteCourseNode(nodeId) {
   return { data, error }
 }
 
+export async function removeStudentFromCourse({ courseId, studentId }) {
+  if (!isSupabaseConfigured) return FALLBACK(null)
+  const { data: enrollment } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('course_id', courseId)
+    .eq('student_id', studentId)
+    .maybeSingle()
+  if (!enrollment) return { data: null, error: new Error('Estudiante no encontrado en este curso') }
+  await supabase.from('progress').delete().eq('enrollment_id', enrollment.id)
+  const { data, error } = await supabase.from('enrollments').delete().eq('id', enrollment.id).select().single()
+  return { data, error }
+}
+
 export async function approveAllNodes(courseId, updatedNodes = []) {
   if (!isSupabaseConfigured) return FALLBACK(null)
   // Delete all existing nodes and re-insert with final state

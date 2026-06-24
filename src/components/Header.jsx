@@ -79,7 +79,16 @@ export default function Header({ onToggleSidebar }) {
         () => { loadNotifications() }
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    const handlePrefsChange = (e) => {
+      if (e.detail?.key === 'notifications') loadNotifications()
+    }
+    window.addEventListener('eduapp-prefs-changed', handlePrefsChange)
+
+    return () => {
+      supabase.removeChannel(channel)
+      window.removeEventListener('eduapp-prefs-changed', handlePrefsChange)
+    }
   }, [user?.id, loadNotifications])
 
   // Close mobile nav on click outside
