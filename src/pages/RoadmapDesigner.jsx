@@ -4,8 +4,8 @@ import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Send, Bot, LoaderCircle
 import PageWrapper from '../components/PageWrapper'
 import Header from '../components/Header'
 import { useAuth } from '../context/AuthContext'
-import { getCourseNodesAllStatus, approveAllNodes, isSupabaseConfigured } from '../lib/api'
-import { generateRoadmap } from '../lib/llm'
+import { getCourseWithNodes, getCourseNodesAllStatus, approveAllNodes, isSupabaseConfigured } from '../lib/api'
+import { generateRoadmapAI } from '../lib/ai-client'
 import { getAccessToken } from '../lib/supabase'
 import '../pages/Roadmap.css'
 
@@ -79,21 +79,25 @@ export default function RoadmapDesigner() {
     setError('')
     setMessages(prev => [...prev, { role: 'user', text: 'Genera el roadmap inicial del curso basado en los archivos subidos.' }])
     try {
-      const res = await generateRoadmap({ courseId, files: [], rigor: 3 })
+      // Load course data first
+      const { data: courseData } = await getCourseWithNodes(courseId)
+      if (!courseData) throw new Error('No se pudo cargar el curso')
+
+      const res = await generateRoadmapAI({
+        title: courseData.title || 'Curso sin titulo',
+        description: courseData.description || '',
+        category: courseData.category || '',
+        level: courseData.level || 'general',
+        rigor: 3,
+        fileTexts: [],
+      })
       if (res?.error) throw new Error(res.error)
       let generatedNodes = []
       if (res?.nodes) {
         generatedNodes = res.nodes.sort((a, b) => a.position - b.position)
         setMessages(prev => [...prev, { role: 'ai', text: `Roadmap generado con ${generatedNodes.length} nodos y contenido completo. Puedes revisar cada nodo o pedirme cambios.` }])
       } else {
-        const { data, error: err } = await getCourseNodesAllStatus(courseId)
-        if (err) throw err
-        if (data && data.length > 0) {
-          generatedNodes = data.sort((a, b) => a.position - b.position)
-          setMessages(prev => [...prev, { role: 'ai', text: `Roadmap cargado con ${generatedNodes.length} nodos.` }])
-        } else {
-          throw new Error('No se generaron nodos')
-        }
+        throw new Error('No se generaron nodos')
       }
       setNodes(generatedNodes)
     } catch (err) {

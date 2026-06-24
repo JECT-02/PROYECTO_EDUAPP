@@ -175,8 +175,8 @@ export default function App() {
           <Route path="/quiz/result" element={<ProtectedRoute allowedRoles={['student','teacher']}><QuizResult /></ProtectedRoute>} />
           <Route path="/coliseo" element={<ProtectedRoute allowedRoles={['student','teacher']}><Coliseo /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute allowedRoles={['student']}><Achievements /></ProtectedRoute>} />
-          <Route path="/review/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
-          <Route path="/review" element={<ProtectedRoute allowedRoles={['student']}><Review /></ProtectedRoute>} />
+          <Route path="/review/:courseId/:nodeId" element={<ProtectedRoute allowedRoles={['student','teacher']}><Review /></ProtectedRoute>} />
+          <Route path="/review" element={<ProtectedRoute allowedRoles={['student','teacher']}><Review /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute allowedRoles={['student','teacher','parent']}><Settings /></ProtectedRoute>} />
         </Routes>

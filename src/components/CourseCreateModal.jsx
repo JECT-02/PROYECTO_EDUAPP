@@ -6,10 +6,10 @@ import {
   GraduationCap, Type, Hash, LoaderCircle
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { createCourse, uploadSourceFile, approveAllNodes, getCourseNodesAllStatus } from '../lib/api'
-import { generateRoadmapDirect } from '../lib/gemini'
-import { generateRoadmap, triggerEmbedSource } from '../lib/llm'
-import { extractFile, generateRoadmapAI } from '../lib/ai-client'
+import { createCourse, uploadSourceFile, approveAllNodes } from '../lib/api'
+import { extractFileContent } from '../lib/gemini'
+import { generateRoadmapAI } from '../lib/ai-client'
+import { triggerEmbedSource } from '../lib/llm'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 
@@ -57,15 +57,6 @@ const AUTO_GEN_OPTIONS = [
     color: '#3B82F6',
   },
 ]
-
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error('Error reading file'))
-    reader.readAsText(file)
-  })
-}
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return bytes + ' B'
@@ -175,7 +166,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
       if (cErr) throw cErr
       setCreatedCourse(course)
 
-      // Step 2: Upload files (blocking — edge function needs them in storage)
+      // Step 2: Upload files to Storage (for RAG/embeddings later)
       if (files.length > 0) {
         setProgressMsg(`Subiendo ${files.length} archivo(s)...`)
         const uploadPromises = files.map(async (f) => {
@@ -192,26 +183,26 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
         await Promise.all(uploadPromises)
       }
 
-      // Step 3: Generate roadmap with full content
+      // Step 3: Generate roadmap — extract text client-side, call ai-backend (Node.js proxy to NVIDIA)
       if (autoGen.roadmap) {
-        setProgressMsg('Generando roadmap con IA... Esto puede tomar unos segundos.')
+        setProgressMsg('Extrayendo contenido de archivos...')
+        const fileTexts = []
+        for (const f of files) {
+          try {
+            const text = await extractFileContent(f)
+            if (text && text.trim().length > 50) {
+              fileTexts.push({ filename: f.name, text: text.trim() })
+              console.log(`[roadmap] extraido ${f.name}: ${text.length} chars`)
+            }
+          } catch (extractErr) {
+            console.warn('Could not extract file:', f.name, extractErr.message)
+          }
+        }
+
+        setProgressMsg(`Generando roadmap con IA (${fileTexts.length} archivos como contexto)... Esto puede tomar unos minutos.`)
         let roadmapSuccess = false
 
-        // 3a. Try AI Backend (extracts real text from PDFs, proxies NVIDIA calls)
         try {
-          setProgressMsg('Extrayendo contenido de archivos...')
-          const fileTexts = []
-          for (const f of files) {
-            try {
-              const result = await extractFile(f)
-              if (result?.text && result.text.length > 50) {
-                fileTexts.push({ filename: f.name, text: result.text })
-              }
-            } catch (extractErr) {
-              console.warn('Could not extract file:', f.name, extractErr.message)
-            }
-          }
-          setProgressMsg(`Generando roadmap con IA (${fileTexts.length} archivos como contexto)...`)
           const result = await generateRoadmapAI({
             title: courseName.trim(),
             description: courseDesc.trim(),
@@ -220,75 +211,31 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
             rigor: courseRigor,
             fileTexts,
           })
-          setProgressMsg(`Roadmap generado: ${result.count} nodos con contenido completo. Guardando...`)
+
+          if (!result?.nodes || result.nodes.length === 0) {
+            throw new Error('La IA no genero nodos validos.')
+          }
+
+          setProgressMsg(`Roadmap generado: ${result.count} nodos. Guardando...`)
           const { error: saveErr } = await approveAllNodes(course.id, result.nodes)
           if (saveErr) {
             console.error('Error saving roadmap:', saveErr)
-            setProgressMsg('Roadmap generado pero hubo un error al guardar.')
-          } else {
-            setGeneratedCount(result.count)
-            setProgressMsg('¡Listo! Curso publicado con roadmap completo.')
+            throw new Error('Roadmap generado pero no se pudo guardar en la base de datos.')
           }
+
+          setGeneratedCount(result.count)
           roadmapSuccess = true
-        } catch (aiErr) {
-          console.warn('AI Backend failed, trying direct NVIDIA fallback:', aiErr)
+        } catch (roadmapErr) {
+          console.error('[roadmap] generation failed:', roadmapErr)
+          setProgressMsg(`Error al generar roadmap: ${roadmapErr.message}`)
         }
 
-        // 3b. Fallback: direct NVIDIA from frontend
-        if (!roadmapSuccess) {
-          try {
-            setProgressMsg('Generando roadmap con NVIDIA directo...')
-            const fileContents = []
-            for (const f of files) {
-              try {
-                const text = await readFileAsText(f)
-                if (text && text.length > 50) fileContents.push(text)
-              } catch (readErr) {
-                console.warn('Could not read file:', f.name, readErr.message)
-              }
-            }
-            const result = await generateRoadmapDirect({
-              title: courseName.trim(),
-              description: courseDesc.trim(),
-              category: courseSubject.trim(),
-              level: courseLevel,
-              rigor: courseRigor,
-              files: files.map(f => f.name),
-              fileContents,
-            })
-            setProgressMsg(`Roadmap generado: ${result.count} nodos. Guardando...`)
-            const { error: saveErr } = await approveAllNodes(course.id, result.nodes)
-            if (saveErr) console.error('Error saving roadmap:', saveErr)
-            else setGeneratedCount(result.count)
-            roadmapSuccess = true
-          } catch (directErr) {
-            console.warn('Direct NVIDIA failed too:', directErr)
-          }
-        }
-
-        // 3c. Last fallback: Edge Function (may timeout on free plan)
-        if (!roadmapSuccess && isSupabaseConfigured) {
-          try {
-            setProgressMsg('Generando roadmap via Edge Function...')
-            const res = await generateRoadmap({ courseId: course.id, rigor: courseRigor })
-            if (res?.nodes && res.nodes.length > 0) {
-              setGeneratedCount(res.count || res.nodes.length)
-              setProgressMsg(`¡Roadmap generado con ${res.count || res.nodes.length} nodos!`)
-              await supabase?.from('courses').update({ status: 'published' }).eq('id', course.id)
-              roadmapSuccess = true
-            } else {
-              throw new Error('Edge function did not generate nodes')
-            }
-          } catch (efErr) {
-            console.warn('Edge function failed too:', efErr)
-            setProgressMsg(`Curso creado pero no se pudo generar el roadmap: ${efErr.message}`)
-          }
-        }
-
-        // Always publish course
-        await supabase?.from('courses').update({ status: 'published' }).eq('id', course.id)
-        if (!roadmapSuccess) {
-          setProgressMsg('Curso creado y publicado, pero sin roadmap.')
+        // Only publish if roadmap succeeded
+        if (roadmapSuccess) {
+          await supabase?.from('courses').update({ status: 'published' }).eq('id', course.id)
+          setProgressMsg('¡Listo! Curso publicado con roadmap completo.')
+        } else {
+          setProgressMsg('Curso creado pero no se pudo generar el roadmap. Puedes intentar desde el diseñador de roadmaps.')
         }
       } else {
         // No roadmap requested
@@ -595,19 +542,21 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     transition={{ type: 'spring', stiffness: 200, damping: 15 }}
                     style={{
                       width: 64, height: 64, borderRadius: '50%',
-                      background: 'rgba(34,197,94,0.15)',
+                      background: generatedCount > 0 ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#4ADE80',
+                      color: generatedCount > 0 ? '#4ADE80' : '#FBBF24',
                     }}
                   >
-                    <Check size={32} />
+                    {generatedCount > 0 ? <Check size={32} /> : <AlertCircle size={32} />}
                   </motion.div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>Curso creado exitosamente</div>
+                    <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>
+                      {generatedCount > 0 ? 'Curso creado exitosamente' : 'Curso creado'}
+                    </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                       {generatedCount > 0
                         ? `Se generaron ${generatedCount} nodos con contenido completo para "${courseName}".`
-                        : `El curso "${courseName}" ha sido creado.`}
+                        : `El curso "${courseName}" fue creado pero sin roadmap. Puedes generarlo desde el diseñador.`}
                     </div>
                   </div>
 

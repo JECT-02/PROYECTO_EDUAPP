@@ -61,11 +61,29 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
       return
     }
     setAddSearching(true)
+    setAddError('')
     const t = setTimeout(async () => {
-      const { data } = await searchStudents(addQuery.trim())
-      // Excluir a los que ya están inscritos
-      const enrolled = new Set(participants.map((p) => p.studentId))
-      setAddResults((data || []).filter((s) => !enrolled.has(s.id)))
+      try {
+        const { data, error } = await searchStudents(addQuery.trim())
+        if (error) {
+          console.warn('[searchStudents]', error)
+          setAddError(error.message || 'Error al buscar estudiantes.')
+          setAddResults([])
+          setAddSearching(false)
+          return
+        }
+        const enrolled = new Set(participants.map((p) => p.studentId))
+        const results = (data || []).map(s => ({
+          ...s,
+          alreadyEnrolled: enrolled.has(s.id),
+        }))
+        console.log('[CourseDetailModal] search results:', results.length, '| enrolled filter:', enrolled.size, '| query:', addQuery.trim())
+        setAddResults(results)
+      } catch (err) {
+        console.error('[searchStudents] exception:', err)
+        setAddError('Error de conexion al buscar estudiantes.')
+        setAddResults([])
+      }
       setAddSearching(false)
     }, 300)
     return () => clearTimeout(t)
@@ -294,15 +312,15 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                           </div>
                           {addSearching && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                              <LoaderCircle size={14} className="animate-spin" /> Buscando…
+                              <LoaderCircle size={14} className="animate-spin" /> Buscando...
                             </div>
                           )}
                           {addError && (
-                            <div style={{ color: '#FCA5A5', fontSize: '0.85rem' }}>{addError}</div>
+                            <div style={{ color: '#FCA5A5', fontSize: '0.85rem', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: 6 }}>{addError}</div>
                           )}
-                          {!addSearching && addQuery.trim() && addResults.length === 0 && (
+                          {!addSearching && !addError && addQuery.trim() && addResults.length === 0 && (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>
-                              No se encontraron estudiantes nuevos. Si ya está inscrito, aparecerá en la lista de abajo.
+                              No se encontraron estudiantes con ese criterio.
                             </div>
                           )}
                           {addResults.length > 0 && (
@@ -315,8 +333,8 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                                     alignItems: 'center',
                                     gap: 12,
                                     padding: 10,
-                                    background: 'var(--surface)',
-                                    border: '1px solid var(--border-light)',
+                                    background: s.alreadyEnrolled ? 'rgba(34,197,94,0.06)' : 'var(--surface)',
+                                    border: s.alreadyEnrolled ? '1px solid rgba(34,197,94,0.25)' : '1px solid var(--border-light)',
                                     borderRadius: 'var(--radius)',
                                   }}
                                 >
@@ -328,14 +346,29 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                                       {s.dni && <span><IdCard size={10} style={{ display: 'inline', verticalAlign: 'middle' }} /> {s.dni}</span>}
                                     </div>
                                   </div>
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm"
-                                    disabled={adding === s.id}
-                                    onClick={() => handleAddStudent(s)}
-                                  >
-                                    {adding === s.id ? <LoaderCircle size={14} className="animate-spin" /> : <><Plus size={14} /> Agregar</>}
-                                  </button>
+                                  {s.alreadyEnrolled ? (
+                                    <span style={{
+                                      fontSize: '0.75rem',
+                                      color: 'var(--success)',
+                                      fontWeight: 700,
+                                      padding: '4px 10px',
+                                      borderRadius: 999,
+                                      background: 'rgba(34,197,94,0.12)',
+                                      whiteSpace: 'nowrap',
+                                    }}>
+                                      <Check size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                                      Ya inscrito
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="btn btn-primary btn-sm"
+                                      disabled={adding === s.id}
+                                      onClick={() => handleAddStudent(s)}
+                                    >
+                                      {adding === s.id ? <LoaderCircle size={14} className="animate-spin" /> : <><Plus size={14} /> Agregar</>}
+                                    </button>
+                                  )}
                                 </div>
                               ))}
                             </div>

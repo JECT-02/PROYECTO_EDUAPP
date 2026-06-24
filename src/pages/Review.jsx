@@ -1,24 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { analyzeError } from '../lib/llm'
-import { isSupabaseConfigured } from '../lib/api'
+import { isSupabaseConfigured, getCourseNodes } from '../lib/api'
 import './Review.css'
 
 export default function Review() {
   const navigate = useNavigate()
-  const { courseId } = useParams()
+  const { courseId, nodeId } = useParams()
   const { state } = useLocation()
   const [hubOpen, setHubOpen] = useState(false)
   const [analogyType, setAnalogyType] = useState('Como si tuviera 5 años')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [aiExplanations, setAiExplanations] = useState({})
   const [loadingExplanations, setLoadingExplanations] = useState(true)
+  const [nextNodePath, setNextNodePath] = useState(null)
 
   const answers = state?.answers || []
   const incorrectAnswers = answers.filter(a => !a.isCorrect)
+
+  // Find next node path for navigation after review
+  useEffect(() => {
+    let cancelled = false
+    async function loadNext() {
+      if (!courseId || !nodeId) return
+      try {
+        const { data: nodes } = await getCourseNodes(courseId)
+        if (cancelled || !nodes) return
+        const sorted = [...nodes].sort((a, b) => a.position - b.position)
+        const cur = sorted.find(n => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
+        const curPos = cur?.position || parseInt(nodeId) || 0
+        const next = sorted.find(n => n.position === curPos + 1)
+        if (next) {
+          const type = next.type
+          setNextNodePath((type === 'quiz' || type === 'boss') ? `/quiz/${courseId}/${next.position}` : `/lesson/${courseId}/${next.position}`)
+        } else {
+          setNextNodePath(`/roadmap/${courseId}`)
+        }
+      } catch { setNextNodePath(`/roadmap/${courseId}`) }
+    }
+    loadNext()
+    return () => { cancelled = true }
+  }, [courseId, nodeId])
+
+  const goNext = useCallback(() => {
+    if (nextNodePath) navigate(nextNodePath)
+    else navigate(`/roadmap/${courseId}`)
+  }, [nextNodePath, navigate, courseId])
 
   // Load AI explanations for all incorrect answers on mount
   useEffect(() => {
@@ -96,7 +126,7 @@ export default function Review() {
     if (currentIndex < totalIncorrect - 1) {
       setCurrentIndex(currentIndex + 1)
     } else {
-      navigate(`/roadmap/${courseId}`)
+      goNext()
     }
   }
 
@@ -104,7 +134,7 @@ export default function Review() {
     if (currentIndex < totalIncorrect - 1) {
       setCurrentIndex(currentIndex + 1)
     } else {
-      navigate(`/roadmap/${courseId}`)
+      goNext()
     }
   }
 
@@ -121,7 +151,7 @@ export default function Review() {
             <CheckCircle2 size={64} color="var(--success)" style={{ marginBottom: 16 }} />
             <h2 style={{ marginBottom: 12 }}>¡Sin errores!</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>Respondiste todas las preguntas correctamente.</p>
-            <button className="btn btn-primary btn-lg" onClick={() => navigate(`/roadmap/${courseId}`)}>
+            <button className="btn btn-primary btn-lg" onClick={goNext}>
               Continuar camino <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }}/>
             </button>
           </div>

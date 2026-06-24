@@ -11,7 +11,7 @@ import { registerUserSimulated } from '../lib/llm'
 const AuthContext = createContext(null)
 
 const ROLE_ROUTES = {
-  teacher: { allowed: ['/teacher', '/profile', '/settings'], redirect: '/teacher', label: 'Docente' },
+  teacher: { allowed: ['/teacher', '/roadmap', '/lesson', '/quiz', '/review', '/profile', '/settings'], redirect: '/teacher', label: 'Docente' },
   student: {
     allowed: ['/dashboard', '/explore', '/roadmap', '/lesson', '/quiz', '/coliseo', '/achievements', '/review', '/profile', '/settings'],
     redirect: '/dashboard',

@@ -251,14 +251,14 @@ export default function Roadmap() {
                             e.stopPropagation()
                             e.preventDefault()
                             if (node.status !== 'locked') {
-                              const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
+                              const path = (node.type === 'quiz' || node.type === 'boss') ? '/quiz' : '/lesson'
                               navigate(`${path}/${courseId}/${node.position || node.id}`)
                             }
                           }
                         }}
                         onClick={() => {
                           if (node.status !== 'locked') {
-                            const path = node.type === 'quiz' ? '/quiz' : node.type === 'boss' ? '/coliseo' : '/lesson'
+                            const path = (node.type === 'quiz' || node.type === 'boss') ? '/quiz' : '/lesson'
                             navigate(`${path}/${courseId}/${node.position || node.id}`)
                           } else {
                             vibrateLocked()

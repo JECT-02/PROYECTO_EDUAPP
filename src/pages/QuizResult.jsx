@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
-import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateWarning } from '../utils/vibration'
+import { getCourseNodes } from '../lib/api'
 import './QuizResult.css'
 
 export default function QuizResult() {
@@ -13,12 +14,39 @@ export default function QuizResult() {
     total = 0,
     courseId = '1',
     nodeId = '1',
-    answers = []
+    answers = [],
+    congratulations = ''
   } = state || {}
 
   const percentage = total > 0 ? Math.round((score / total) * 100) : 0
   const passed = percentage >= 60
   const incorrectCount = answers.filter(a => !a.isCorrect).length
+  const [nextNodePath, setNextNodePath] = useState(null)
+  const [loadingNext, setLoadingNext] = useState(true)
+
+  // Find next node for navigation
+  useEffect(() => {
+    let cancelled = false
+    async function loadNext() {
+      try {
+        const { data: nodes } = await getCourseNodes(courseId)
+        if (cancelled || !nodes) return
+        const sorted = [...nodes].sort((a, b) => a.position - b.position)
+        const cur = sorted.find(n => String(n.position) === String(nodeId) || String(n.id) === String(nodeId))
+        const curPos = cur?.position || parseInt(nodeId) || 0
+        const next = sorted.find(n => n.position === curPos + 1)
+        if (next) {
+          const type = next.type
+          setNextNodePath((type === 'quiz' || type === 'boss') ? `/quiz/${courseId}/${next.position}` : `/lesson/${courseId}/${next.position}`)
+        } else {
+          setNextNodePath(`/roadmap/${courseId}`)
+        }
+      } catch { setNextNodePath(`/roadmap/${courseId}`) }
+      if (!cancelled) setLoadingNext(false)
+    }
+    loadNext()
+    return () => { cancelled = true }
+  }, [courseId, nodeId])
 
   // Vibrate warning if score < 40% (desempeño bajo — ee2.md CU-02)
   useEffect(() => {
@@ -41,8 +69,15 @@ export default function QuizResult() {
 
         {/* Title */}
         <h1 className="result-title">
-          {passed ? '¡Bien hecho!' : 'Necesitas repasar'}
+          {passed ? (congratulations || '¡Bien hecho!') : 'Necesitas repasar'}
         </h1>
+
+        {/* Congratulations message for boss */}
+        {passed && congratulations && (
+          <p className="result-congratulations" style={{ color: 'var(--success)', textAlign: 'center', marginBottom: 16 }}>
+            {congratulations}
+          </p>
+        )}
 
         {/* Score */}
         <p className="result-sub">
@@ -73,9 +108,13 @@ export default function QuizResult() {
 
         {/* Actions */}
         <div className="result-actions">
-          {passed ? (
-            <button className="btn btn-primary btn-lg" onClick={() => navigate(`/roadmap/${courseId}`)}>
-              Continuar camino <ArrowRight size={18}/>
+          {loadingNext ? (
+            <div className="btn btn-primary btn-lg" style={{ opacity: 0.6, cursor: 'default', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <LoaderCircle size={18} className="animate-spin" /> Cargando...
+            </div>
+          ) : passed ? (
+            <button className="btn btn-primary btn-lg" onClick={() => nextNodePath && navigate(nextNodePath)}>
+              Siguiente nodo <ArrowRight size={18}/>
             </button>
           ) : (
             <>

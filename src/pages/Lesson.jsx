@@ -171,26 +171,8 @@ export default function Lesson() {
   useEffect(() => {
     if (showChat || isDesktop) {
       chatMessagesRef.current?.focus()
-      if (courseSources.length === 0 && isSupabaseConfigured) {
-        ; (async () => {
-          try {
-            const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
-            const token = await getAccessToken()
-            const res = await fetch(`${AI_BACKEND_URL}/api/course-sources`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ courseId }),
-            })
-            const data = await res.json()
-            if (data?.files?.length > 0) {
-              setCourseSources(data.files)
-              console.log(`[chat] ${data.files.length} archivos cargados como contexto`)
-            }
-          } catch (e) {
-            console.warn('[chat] no se pudieron cargar fuentes del curso:', e.message)
-          }
-        })()
-      }
+      // Course sources now loaded client-side via Supabase when available
+      // The chat uses current lesson content as fallback context
     }
   }, [showChat, isDesktop])
 

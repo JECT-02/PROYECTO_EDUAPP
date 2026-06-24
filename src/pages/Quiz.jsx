@@ -24,6 +24,7 @@ export default function Quiz() {
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
+  const [congratulations, setCongratulations] = useState('')
   const answersRef = useRef([])
   const optionsRef = useRef(null)
 
@@ -44,6 +45,7 @@ export default function Quiz() {
             const parsed = typeof found.content === 'string' ? JSON.parse(found.content) : found.content
             if (parsed?.questions?.length > 0) {
               setQuestions(parsed.questions)
+              if (parsed.congratulations) setCongratulations(parsed.congratulations)
               setLoading(false)
               return
             }
@@ -188,7 +190,8 @@ export default function Quiz() {
           total: questions?.length || 0,
           courseId,
           nodeId,
-          answers: answersRef.current
+          answers: answersRef.current,
+          congratulations: congratulations || ''
         }
       })
     }
@@ -243,6 +246,7 @@ export default function Quiz() {
 
           <div ref={optionsRef} className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`} role="radiogroup" aria-label="Opciones de respuesta">
             {q.options.map((opt, i) => {
+              const cleanOpt = typeof opt === 'string' ? opt.replace(/^[A-Da-d][).\]]\s*/, '') : opt
               let btnClass = 'quiz-opt-btn card '
               if (status !== 'idle') {
                 if (i === q.correct) btnClass += 'correct '
@@ -260,10 +264,10 @@ export default function Quiz() {
                   disabled={status !== 'idle'}
                   role="radio"
                   aria-checked={i === selected}
-                  aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}
+                  aria-label={`Opción ${String.fromCharCode(65 + i)}: ${cleanOpt}`}
                 >
                   <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
-                  <span className="opt-text">{opt}</span>
+                  <span className="opt-text">{cleanOpt}</span>
                   {status !== 'idle' && i === q.correct && <span className="opt-icon" aria-hidden="true">✓</span>}
                   {status !== 'idle' && i === selected && i !== q.correct && <span className="opt-icon" aria-hidden="true">✗</span>}
                 </button>
