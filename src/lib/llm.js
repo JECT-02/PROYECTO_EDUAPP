@@ -114,6 +114,26 @@ export async function analyzeErrorStream({ question, userAnswer, correctAnswer, 
   return acc
 }
 
+export async function analyzeErrorsBatch({ errors, studentLevel = 'intermediate' }) {
+  const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
+  const accessToken = await getAccessToken()
+  const res = await fetch(`${AI_BACKEND_URL}/api/analyze-errors-batch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ errors, studentLevel }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`analyze-errors-batch error ${res.status}: ${text}`)
+  }
+  const data = await res.json()
+  if (data?.error) throw new Error(data.error)
+  return data?.explanations || []
+}
+
 export async function reinforceConcept({ concept, style = 'simple', courseId, question, courses, studentAnswer, correctAnswer, studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
   const res = await callFunction({

@@ -3,8 +3,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle, Send, Search } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { analyzeErrorStream, reinforceConcept, getStudentLevel } from '../lib/llm'
+import { getStudentLevel } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
+import { getAccessToken } from '../lib/supabase'
+import { renderMarkdown } from '../lib/markdown'
 import { useVoice } from '../context/VoiceContext'
 import { useAuth } from '../context/AuthContext'
 import './Review.css'
@@ -18,8 +20,6 @@ export default function Review() {
   const [studentLevel, setStudentLevel] = useState('intermediate')
   const [hubOpen, setHubOpen] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [aiExplanations, setAiExplanations] = useState({})
-  const [loadingExplanations, setLoadingExplanations] = useState(true)
   const [nextNodePath, setNextNodePath] = useState(null)
   const [userQuestion, setUserQuestion] = useState('')
   const [aiAnswer, setAiAnswer] = useState('')
@@ -70,90 +70,6 @@ export default function Review() {
   }, [nextNodePath, navigate, courseId])
 
   useEffect(() => {
-    if (incorrectAnswers.length === 0) {
-      setLoadingExplanations(false)
-      return
-    }
-    if (!isSupabaseConfigured) {
-      setLoadingExplanations(false)
-      return
-    }
-
-    let cancelled = false
-    const abortControllers = []
-
-    async function loadExplanations() {
-      setLoadingExplanations(true)
-      const explanations = {}
-
-      for (let i = 0; i < incorrectAnswers.length; i++) {
-        if (cancelled) break
-        const answer = incorrectAnswers[i]
-        const controller = new AbortController()
-        abortControllers.push(controller)
-
-        let acc = ''
-        const concept = answer.question?.split(' ').slice(0, 4).join(' ') || ''
-
-        try {
-          await analyzeErrorStream({
-            question: answer.question,
-            userAnswer: answer.selected >= 0 ? answer.options[answer.selected] : 'No respondiste',
-            correctAnswer: answer.options[answer.correct],
-            courseId,
-            concept,
-            studentLevel,
-            signal: controller.signal,
-            onChunk: (text) => {
-              if (cancelled) return
-              acc += text
-              setAiExplanations(prev => ({ ...prev, [i]: acc }))
-            },
-            onDone: (finalText) => {
-              if (cancelled) return
-              const clean = sanitizeExplanation(finalText)
-              explanations[i] = clean || 'La IA analizó tu error. Revisa el concepto nuevamente.'
-              setAiExplanations(prev => ({ ...prev, [i]: explanations[i] }))
-            },
-            onError: (err) => {
-              if (cancelled) return
-              console.warn('[review] analyzeError error:', err.message)
-              explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
-            },
-          })
-        } catch (e) {
-          if (e.name !== 'AbortError' && !cancelled) {
-            console.warn('[review] analyzeError timeout/fail:', e.message)
-            explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
-          }
-        }
-
-        if (!cancelled) setAiExplanations(prev => ({ ...prev, [i]: explanations[i] || acc || 'Analizando...' }))
-      }
-
-      if (!cancelled) setLoadingExplanations(false)
-    }
-
-    loadExplanations()
-
-    return () => {
-      cancelled = true
-      abortControllers.forEach(c => c.abort())
-    }
-  }, [incorrectAnswers, courseId, studentLevel])
-
-  function sanitizeExplanation(text) {
-    if (!text || text.length < 10) return ''
-    const cleaned = text.replace(/["{}[\]\\]/g, '').replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
-    if (cleaned.length < 10) return ''
-    const repeated = /(\b\w+\b)(\s+\1){2,}/.test(cleaned)
-    if (repeated) return ''
-    const hasLetters = /[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(cleaned)
-    if (!hasLetters) return ''
-    return cleaned.length > 300 ? cleaned.slice(0, 300) : cleaned
-  }
-
-  useEffect(() => {
     if (!hubOpen) {
       setAiAnswer('')
       setUserQuestion('')
@@ -175,16 +91,27 @@ export default function Review() {
     setAiAnswer('')
     try {
       const currentAnswer = incorrectAnswers[currentIndex]
-      const result = await reinforceConcept({
-        concept: currentAnswer?.question?.split(' ').slice(0, 4).join(' ') || 'este tema',
-        question: userQuestion.trim(),
-        courses: [courseId],
-      studentAnswer: currentAnswer?.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : '',
-      correctAnswer: currentAnswer?.options[currentAnswer.correct] || '',
-      studentLevel,
-    })
-      const raw = result?.explanation || result?.reinforcement || result?.text || ''
-      const clean = sanitizeExplanation(raw)
+      const concept = currentAnswer?.question?.split(' ').slice(0, 4).join(' ') || 'este tema'
+      const studentAns = currentAnswer?.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : 'No respondiste'
+      const correctAns = currentAnswer?.options[currentAnswer.correct] || ''
+
+      const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
+      const accessToken = await getAccessToken()
+      const res = await fetch(`${AI_BACKEND_URL}/api/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          question: `Concepto: ${concept}\nRespuesta correcta: ${correctAns}\nRespuesta del estudiante: ${studentAns}\n\nPregunta del estudiante: ${userQuestion.trim()}`,
+          context: `El estudiante se equivocó en una pregunta sobre "${concept}". La respuesta correcta era: ${correctAns}.`,
+        }),
+      })
+      if (!res.ok) throw new Error(`Error ${res.status}`)
+      const data = await res.json()
+      const raw = data?.answer || ''
+      const clean = raw.length > 300 ? raw.slice(0, 300) : raw
       setAiAnswer(clean || 'No pude generar una respuesta. Intenta con otra pregunta.')
     } catch {
       setAiAnswer('Error al consultar. Intenta de nuevo.')
@@ -215,7 +142,7 @@ export default function Review() {
 
   const currentAnswer = incorrectAnswers[currentIndex] || answers.find(a => !a.isCorrect) || answers[0]
   const totalIncorrect = incorrectAnswers.length
-  const currentAiExplanation = aiExplanations[currentIndex] || currentAnswer?.explanation || ''
+  const currentExplanation = currentAnswer?.explanation || 'Revisa el material de clase para entender mejor este concepto.'
 
   function handleNext() {
     setHubOpen(false)
@@ -288,7 +215,7 @@ export default function Review() {
             </div>
           </div>
 
-          <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentAiExplanation || 'Revisa el material de clase'}`}>
+          <div className="ai-analysis-card" tabIndex={0} role="region" aria-label={`Análisis: ${currentExplanation}`}>
             <div aria-hidden="true">
               <div className="ai-header">
                 <Mascot type="owl" size="sm" mood="normal" />
@@ -297,31 +224,8 @@ export default function Review() {
                 </div>
               </div>
               <div className="ai-body">
-                {loadingExplanations ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
-                    <LoaderCircle size={16} className="animate-spin" /> Analizando tu respuesta...
-                  </div>
-                ) : (
-                  <div>
-                    {currentAiExplanation && (
-                      <p style={{ marginBottom: 12 }}>{currentAiExplanation}</p>
-                    )}
-                    <div style={{
-                      background: 'rgba(108,99,255,0.06)',
-                      border: '1px solid rgba(108,99,255,0.12)',
-                      borderRadius: 'var(--radius)',
-                      padding: 12,
-                      fontSize: '0.83rem',
-                      color: 'var(--text-muted)',
-                      lineHeight: 1.5,
-                    }}>
-                      <strong style={{ color: 'var(--success)' }}>Respuesta correcta:</strong>{' '}
-                      {currentAnswer.options[currentAnswer.correct]}
-                      <br />
-                      <strong style={{ color: 'var(--error)' }}>Tu respuesta fue:</strong>{' '}
-                      {currentAnswer.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : 'Sin responder'}
-                    </div>
-                  </div>
+                {currentExplanation && (
+                  <p>{currentExplanation}</p>
                 )}
               </div>
             </div>
@@ -363,9 +267,7 @@ export default function Review() {
                   </button>
                 </form>
                 {aiAnswer && (
-                  <div className="analogy-box" aria-live="polite" aria-atomic="true">
-                    {aiAnswer}
-                  </div>
+                  <div className="analogy-box" aria-live="polite" aria-atomic="true" dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAnswer) }} />
                 )}
               </div>
 

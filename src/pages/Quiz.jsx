@@ -5,8 +5,8 @@ import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
-import { analyzeErrorStream, generateQuiz, getStudentLevel } from '../lib/llm'
-import { recordWeakness, isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
+import { generateQuiz, getStudentLevel } from '../lib/llm'
+import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
 import './Quiz.css'
@@ -21,8 +21,6 @@ export default function Quiz() {
   const [timeLeft, setTimeLeft] = useState(30)
   const [selected, setSelected] = useState(null)
   const [status, setStatus] = useState('idle')
-  const [errorHint, setErrorHint] = useState('')
-  const [analyzingError, setAnalyzingError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
@@ -150,56 +148,7 @@ export default function Quiz() {
     vibrateTimeout()
     recordAnswer(-1)
     setStatus('incorrect')
-    setAnalyzingError(true)
-    triggerAnalysis(null).finally(() => setAnalyzingError(false))
-    setTimeout(nextQuestion, 5000)
-  }
-
-  async function triggerAnalysis(selectedIndex) {
-    if (!q) return
-    if (!isSupabaseConfigured) return
-
-    try {
-      let acc = ''
-      await analyzeErrorStream({
-        question: q.text,
-        userAnswer: selectedIndex == null ? 'Sin respuesta' : q.options[selectedIndex],
-        correctAnswer: q.options[q.correct],
-        courseId,
-        concept: q.text.split(' ').slice(0, 3).join(' '),
-        studentLevel,
-        onChunk: (text) => {
-          acc += text
-          setErrorHint(acc)
-        },
-        onDone: (finalText) => {
-          const clean = sanitizeExplanation(finalText)
-          if (clean) setErrorHint(clean)
-        },
-        onError: (err) => {
-          console.warn('[quiz] analyzeError error:', err.message)
-        },
-      })
-      if (studentId) {
-        await recordWeakness({
-          studentId,
-          courseId,
-          concept: q.text.split(' ').slice(0, 3).join(' '),
-          isError: true,
-        })
-      }
-    } catch (e) { console.warn('[quiz] analyzeError failed:', e.message) }
-  }
-
-  function sanitizeExplanation(text) {
-    if (!text || text.length < 10) return ''
-    const cleaned = text.replace(/["{}[\]\\]/g, '').replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
-    if (cleaned.length < 10) return ''
-    const repeated = /(\b\w+\b)(\s+\1){2,}/.test(cleaned)
-    if (repeated) return ''
-    const hasLetters = /[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(cleaned)
-    if (!hasLetters) return ''
-    return cleaned.length > 300 ? cleaned.slice(0, 300) : cleaned
+    setTimeout(nextQuestion, 3000)
   }
 
   function handleSelect(index) {
@@ -215,9 +164,7 @@ export default function Quiz() {
       playIncorrect()
       vibrateIncorrect()
       setStatus('incorrect')
-      setAnalyzingError(true)
-      triggerAnalysis(index).finally(() => setAnalyzingError(false))
-      setTimeout(nextQuestion, 5000)
+      setTimeout(nextQuestion, 3000)
     }
   }
 
@@ -227,7 +174,6 @@ export default function Quiz() {
       setTimeLeft(30)
       setSelected(null)
       setStatus('idle')
-      setErrorHint('')
     } else {
       const finalScore = answersRef.current.filter(a => a.isCorrect).length
       navigate('/quiz/result', {
@@ -333,11 +279,7 @@ export default function Quiz() {
           <Mascot type="robot" size="sm" mood="sad" />
           <div className="toast-text">
             <strong>¡Cuidado!</strong> La respuesta correcta era la {String.fromCharCode(65 + q.correct)}.
-            {analyzingError
-              ? <span style={{ display: 'block', marginTop: 4, opacity: 0.7, fontSize: '0.82rem' }}>Analizando tu error...</span>
-              : errorHint
-                ? <span style={{ display: 'block', marginTop: 4 }}>{errorHint}</span>
-                : ' Vamos a revisarlo luego.'}
+            <span style={{ display: 'block', marginTop: 4, opacity: 0.7, fontSize: '0.82rem' }}>Revisaremos esto al final del quiz.</span>
           </div>
         </div>
       )}

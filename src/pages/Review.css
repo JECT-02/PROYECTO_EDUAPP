@@ -247,6 +247,13 @@
   position: relative;
   z-index: 1;
 }
+.analogy-box ul, .analogy-box ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.analogy-box li {
+  margin: 4px 0;
+}
 .video-card {
   display: flex;
   align-items: center;

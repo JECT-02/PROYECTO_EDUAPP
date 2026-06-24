@@ -478,7 +478,7 @@ Reglas ESTRICTAS:
 
     log('ANALYZE-ERROR', `Analizando: "${question.slice(0, 50)}..." nivel=${studentLevel}`)
 
-    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 256, studentLevel, retries: 5 })
+    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 256, studentLevel, retries: 3 })
 
     const words = answer.split(' ')
     for (let i = 0; i < words.length; i++) {
@@ -495,6 +495,104 @@ Reglas ESTRICTAS:
       res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`)
       res.end()
     }
+  }
+})
+
+// ─── Batch analyze errors (multiple questions, single LLM call) ──
+const batchCache = new Map()
+const pendingBatch = new Map()
+
+async function processBatch(errors, studentLevel) {
+  const formalityHint = studentLevel === 'beginner'
+    ? 'El estudiante tiene nivel principiante. Usa lenguaje MUY SIMPLE, como si explicaras a un niño de 10 años.'
+    : studentLevel === 'advanced'
+      ? 'El estudiante tiene nivel avanzado. Usa lenguaje TÉCNICO y PRECISO.'
+      : 'Usa un lenguaje claro con ejemplos prácticos.'
+
+  const errorsBlock = errors.map((e, i) => {
+    const concept = e.question?.split(' ').slice(0, 4).join(' ') || 'general'
+    return `--- Error ${i + 1} ---
+Concepto: ${concept}
+Pregunta: ${e.question}
+Respuesta del estudiante: ${e.userAnswer || '(sin respuesta)'}
+Respuesta correcta: ${e.correctAnswer}`
+  }).join('\n\n')
+
+  const systemPrompt = `Eres un tutor paciente que habla EXCLUSIVAMENTE en español. Analiza por qué el estudiante se equivocó en cada pregunta.
+Reglas ESTRICTAS:
+- Para CADA error, escribe UNA sola frase (máximo 30 palabras).
+- Identifica el concepto y compara la respuesta del estudiante con la correcta.
+- En español latinoamericano, sin tecnicismos innecesarios.
+- NUNCA respondas en chino, inglés u otro idioma. SOLO español.
+- ${formalityHint}
+
+Devuelve SOLO un array JSON con las explicaciones, una por cada error, en orden. Ejemplo: ["Explicación 1", "Explicación 2"]
+NO incluyas texto fuera del array. NO uses markdown. SOLO el array JSON.`
+
+  const userMsg = `El estudiante cometió ${errors.length} error(es):\n\n${errorsBlock}\n\nDevuelve el array JSON con las explicaciones.`
+
+  log('ANALYZE-ERRORS-BATCH', `Analizando ${errors.length} errores nivel=${studentLevel}`)
+
+  const raw = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 1024, studentLevel, retries: 3 })
+
+  const cleaned = raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```$/im, '').trim()
+  let explanations
+  try {
+    explanations = JSON.parse(cleaned)
+    if (!Array.isArray(explanations)) explanations = [cleaned]
+  } catch {
+    explanations = errors.map(() => cleaned || 'Revisa el material de clase para entender mejor este concepto.')
+  }
+
+  while (explanations.length < errors.length) {
+    explanations.push('La IA analizó tu error. Revisa el concepto nuevamente.')
+  }
+
+  log('ANALYZE-ERRORS-BATCH', `${explanations.length} explicaciones generadas`)
+  return explanations.slice(0, errors.length)
+}
+
+app.post('/api/analyze-errors-batch', authenticate, async (req, res) => {
+  try {
+    const { errors, studentLevel = 'intermediate' } = req.body
+    if (!Array.isArray(errors) || errors.length === 0) return res.status(400).json({ error: 'Falta array errors' })
+
+    const cacheKey = JSON.stringify(errors.map(e => e.question).sort()) + '|' + studentLevel
+
+    // 1. Si ya está completado y es reciente → retorna cache
+    const cached = batchCache.get(cacheKey)
+    if (cached && Date.now() - cached.ts < 15000) {
+      log('ANALYZE-ERRORS-BATCH', `Cache hit, reusing ${cached.data.length} explicaciones`)
+      return res.json({ explanations: cached.data })
+    }
+
+    // 2. Si ya hay una petición igual en vuelo → ESPERA su resultado
+    if (pendingBatch.has(cacheKey)) {
+      log('ANALYZE-ERRORS-BATCH', 'Waiting for pending request')
+      const result = await pendingBatch.get(cacheKey)
+      return res.json({ explanations: result })
+    }
+
+    // 3. Primera petición → ejecuta y guarda en pending
+    const promise = processBatch(errors, studentLevel)
+      .then(result => {
+        batchCache.set(cacheKey, { data: result, ts: Date.now() })
+        if (batchCache.size > 50) {
+          const oldest = batchCache.keys().next().value
+          batchCache.delete(oldest)
+        }
+        return result
+      })
+      .finally(() => {
+        pendingBatch.delete(cacheKey)
+      })
+
+    pendingBatch.set(cacheKey, promise)
+    const result = await promise
+    res.json({ explanations: result })
+  } catch (err) {
+    warn('ANALYZE-ERRORS-BATCH', 'Error', err)
+    res.status(500).json({ error: err.message })
   }
 })
 
