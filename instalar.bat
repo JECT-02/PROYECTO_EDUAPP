@@ -8,7 +8,7 @@ echo ========================================================
 echo.
 
 rem 1. Check Node.js
-echo [1/5] Checking Node.js...
+echo [1/6] Checking Node.js...
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Node.js not found. Install it from https://nodejs.org/
@@ -20,7 +20,7 @@ for /f "delims=" %%v in ('npm -v') do echo       npm:  %%v
 echo.
 
 rem 2. Check / install Supabase CLI
-echo [2/5] Checking Supabase CLI...
+echo [2/6] Checking Supabase CLI...
 where supabase >nul 2>&1
 if %errorlevel% neq 0 (
     echo       Installing Supabase CLI globally...
@@ -35,18 +35,36 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-rem 3. Install project dependencies
-echo [3/5] Installing project dependencies...
+rem 3. Install frontend dependencies
+echo [3/6] Installing frontend dependencies...
 call npm install
 if %errorlevel% neq 0 (
     echo [ERROR] npm install failed.
     pause
     exit /b 1
 )
+echo       OK.
 echo.
 
-rem 4. Verify .env
-echo [4/5] Checking .env...
+rem 4. Install AI Backend dependencies
+echo [4/6] Installing AI Backend dependencies...
+if not exist "ai-backend\node_modules" (
+    pushd ai-backend
+    call npm install
+    popd
+    if %errorlevel% neq 0 (
+        echo [ERROR] ai-backend npm install failed.
+        pause
+        exit /b 1
+    )
+    echo       OK.
+) else (
+    echo       Already installed.
+)
+echo.
+
+rem 5. Verify .env
+echo [5/6] Checking .env...
 if not exist ".env" (
     echo [ERROR] .env is missing. Copy .env.example to .env and fill in the keys.
     pause
@@ -56,9 +74,9 @@ findstr /C:"VITE_SUPABASE_URL" .env >nul
 if %errorlevel% neq 0 (
     echo [WARN] .env is missing VITE_SUPABASE_URL.
 )
-findstr /C:"GEMINI_API_KEY" .env >nul
+findstr /C:"NVIDIA_API_KEY" .env >nul
 if %errorlevel% neq 0 (
-    echo [WARN] .env is missing GEMINI_API_KEY. AI features will not work.
+    echo [WARN] .env is missing NVIDIA_API_KEY. AI features will not work.
 )
 findstr /C:"SUPABASE_ACCESS_TOKEN" .env >nul
 if %errorlevel% neq 0 (
@@ -67,8 +85,8 @@ if %errorlevel% neq 0 (
 echo       .env OK.
 echo.
 
-rem 5. Link Supabase project + seed users
-echo [5/5] Linking project and seeding test users...
+rem 6. Link Supabase project + seed users
+echo [6/6] Linking project and seeding test users...
 for /f "delims=" %%t in ('node -e "const fs=require('fs');const e=fs.readFileSync('.env','utf8');const m=e.match(/^SUPABASE_ACCESS_TOKEN=(.*)$/m);if(m)process.stdout.write(m[1].trim());"') do set "SUPABASE_TOKEN=%%t"
 if defined SUPABASE_TOKEN (
     set SUPABASE_ACCESS_TOKEN=!SUPABASE_TOKEN!

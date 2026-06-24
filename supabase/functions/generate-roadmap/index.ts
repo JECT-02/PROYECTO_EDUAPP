@@ -4,67 +4,93 @@ import { callLlm, extractLlmText } from '../_shared/llm.ts'
 import { ROADMAP_SYSTEM } from '../_shared/prompts/roadmap.ts'
 
 type GenNode = { title: string; type: string; description: string; position: number; content?: string }
-const ALLOWED_TYPES = new Set(['theory', 'practice', 'quiz', 'boss', 'reward'])
-
-const DEFAULT_BOSS_CONTENT = JSON.stringify({
-  title: 'Examen final',
-  questions: [
-    { id: 1, text: '¿Cuál es el concepto principal abordado en este curso?', options: ['A) Concepto A', 'B) Concepto B', 'C) Concepto C', 'D) Concepto D'], correct: 0, explanation: 'Revisa el material del curso para confirmar.' },
-    { id: 2, text: '¿Qué aplicación práctica tiene lo aprendido?', options: ['A) Aplicación 1', 'B) Aplicación 2', 'C) Aplicación 3', 'D) Aplicación 4'], correct: 1, explanation: 'La aplicación correcta se describe en las lecciones.' },
-    { id: 3, text: '¿Cómo se relacionan los conceptos clave?', options: ['A) Relación A', 'B) Relación B', 'C) Relación C', 'D) Relación D'], correct: 2, explanation: 'La relación se explica en la teoría del curso.' },
-    { id: 4, text: '¿Cuál de los siguientes es un ejemplo práctico?', options: ['A) Ejemplo 1', 'B) Ejemplo 2', 'C) Ejemplo 3', 'D) Ejemplo 4'], correct: 3, explanation: 'Este ejemplo se cubre en la sección práctica.' },
-    { id: 5, text: '¿Qué habilidad desarrolla este módulo?', options: ['A) Habilidad 1', 'B) Habilidad 2', 'C) Habilidad 3', 'D) Habilidad 4'], correct: 0, explanation: 'La habilidad se desarrolla a lo largo del curso.' },
-    { id: 6, text: '¿Cuál es la mejor estrategia para aplicar este conocimiento?', options: ['A) Estrategia 1', 'B) Estrategia 2', 'C) Estrategia 3', 'D) Estrategia 4'], correct: 1, explanation: 'La estrategia se detalla en las lecciones avanzadas.' },
-    { id: 7, text: '¿Qué error común se debe evitar?', options: ['A) Error 1', 'B) Error 2', 'C) Error 3', 'D) Error 4'], correct: 2, explanation: 'Este error se menciona en las advertencias del curso.' },
-    { id: 8, text: '¿Cómo se mide el éxito en este tema?', options: ['A) Métrica 1', 'B) Métrica 2', 'C) Métrica 3', 'D) Métrica 4'], correct: 3, explanation: 'La métrica se define en los objetivos del curso.' },
-    { id: 9, text: '¿Qué recurso complementario recomiendas?', options: ['A) Recurso 1', 'B) Recurso 2', 'C) Recurso 3', 'D) Recurso 4'], correct: 0, explanation: 'El recurso se menciona en las referencias.' },
-    { id: 10, text: '¿Cuál es el siguiente paso después de este curso?', options: ['A) Siguiente curso', 'B) Práctica avanzada', 'C) Proyecto final', 'D) Repaso general'], correct: 2, explanation: 'El proyecto final integra todos los conceptos aprendidos.' },
-  ],
-})
+const ALLOWED_TYPES = new Set(['theory', 'quiz', 'boss'])
 
 function enforceRegulation(nodes: GenNode[]): GenNode[] {
   if (!Array.isArray(nodes) || nodes.length === 0) return nodes
   const sorted = [...nodes].sort((a, b) => (a.position || 0) - (b.position || 0))
-  for (const n of sorted) {
-    if (!ALLOWED_TYPES.has(n.type)) n.type = 'theory'
-  }
+
+  // Convert non-allowed types to theory
+  for (const n of sorted) { if (!ALLOWED_TYPES.has(n.type)) n.type = 'theory' }
+
+  // First node must be theory
   if (sorted[0].type !== 'theory') {
-    sorted[0] = { ...sorted[0], type: 'theory', title: sorted[0].title || 'Bienvenida', content: sorted[0].content || `<h2>Bienvenida</h2><p>Comienza tu viaje de aprendizaje en este curso.</p>` }
+    sorted[0] = { ...sorted[0], type: 'theory', title: sorted[0].title || 'Introduccion',
+      content: sorted[0].content || '<h2>Introduccion</h2><p>Contenido de introduccion al tema.</p>' }
   }
+
+  // Last node must be boss
   const lastIdx = sorted.length - 1
   if (sorted[lastIdx].type !== 'boss') {
-    sorted.push({
-      title: 'Examen final', type: 'boss',
-      description: 'Desafío final integrador del curso.',
-      position: lastIdx + 2,
-      content: DEFAULT_BOSS_CONTENT,
-    })
+    sorted.push({ title: 'Examen Final', type: 'boss', description: 'Examen final integrador.',
+      position: lastIdx + 2, content: null })
   } else {
     sorted[lastIdx].type = 'boss'
-    if (!sorted[lastIdx].content) {
-      sorted[lastIdx].content = DEFAULT_BOSS_CONTENT
-    }
   }
-  let lastQuizPos = -10
+
+  // Enforce quiz every 2 theory nodes (not before boss)
+  const result: GenNode[] = []
+  let consecutiveTheory = 0
   for (let i = 0; i < sorted.length; i++) {
-    if (sorted[i].type === 'quiz') {
-      if (i - lastQuizPos < 3) {
-        sorted[i] = { ...sorted[i], type: 'practice' }
-      } else {
-        lastQuizPos = i
+    const node = sorted[i]
+    if (node.type === 'theory') {
+      consecutiveTheory++
+      result.push(node)
+      if (consecutiveTheory >= 2) {
+        const nextNode = sorted[i + 1]
+        if (!nextNode || (nextNode.type !== 'quiz' && nextNode.type !== 'boss')) {
+          const theoryTitles = result.filter(n => n.type === 'theory').slice(-consecutiveTheory).map(n => n.title).join(', ')
+          result.push({ title: 'Quiz: ' + theoryTitles.slice(0, 50), type: 'quiz',
+            description: 'Evaluacion sobre: ' + theoryTitles, content: null, position: 0 })
+          consecutiveTheory = 0
+        }
       }
-    }
-    // Ensure each node has at least minimal content
-    if (!sorted[i].content && sorted[i].type !== 'reward') {
-      sorted[i] = {
-        ...sorted[i],
-        content: sorted[i].type === 'quiz'
-          ? JSON.stringify({ questions: [{ id: 1, text: '¿Pregunta de ejemplo?', options: ['A) Opción A', 'B) Opción B', 'C) Opción C', 'D) Opción D'], correct: 0, explanation: 'Explicación' }] })
-          : `<h2>${sorted[i].title}</h2><p>${sorted[i].description || 'Contenido de esta lección.'}</p><p>El contenido detallado será generado automáticamente. Puedes editarlo o regenerarlo usando el asistente IA.</p>`,
-      }
+    } else {
+      result.push(node)
+      consecutiveTheory = 0
     }
   }
-  return sorted.map((n, i) => ({ ...n, position: i + 1 }))
+
+  // Ensure boss is last
+  const bossIdx = result.findIndex(n => n.type === 'boss')
+  if (bossIdx !== -1 && bossIdx !== result.length - 1) {
+    const [boss] = result.splice(bossIdx, 1)
+    result.push(boss)
+  }
+
+  // Ensure minimum 8 nodes
+  if (result.length < 8) {
+    while (result.length < 8 && result[result.length - 1]?.type !== 'boss') {
+      result.splice(result.length - 1, 0, { title: 'Contenido adicional ' + result.length,
+        type: 'theory', description: 'Contenido complementario.', content: null, position: 0 })
+    }
+  }
+
+  // Reassign positions and fill missing content
+  return result.map((n, i) => {
+    const node = { ...n, position: i + 1 }
+    if (!node.content || (typeof node.content === 'string' && node.content.trim().length === 0)) {
+      if (node.type === 'quiz') {
+        node.content = JSON.stringify({ questions: [
+          { id: 1, text: 'Pregunta de ejemplo', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 0, explanation: 'Explicacion' },
+          { id: 2, text: 'Segunda pregunta', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 1, explanation: 'Explicacion' },
+          { id: 3, text: 'Tercera pregunta', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 2, explanation: 'Explicacion' },
+          { id: 4, text: 'Cuarta pregunta', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 3, explanation: 'Explicacion' }
+        ] })
+      } else if (node.type === 'boss') {
+        node.content = JSON.stringify({ questions: [
+          { id: 1, text: 'Pregunta final 1', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 0, explanation: 'Explicacion' },
+          { id: 2, text: 'Pregunta final 2', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 1, explanation: 'Explicacion' },
+          { id: 3, text: 'Pregunta final 3', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 2, explanation: 'Explicacion' },
+          { id: 4, text: 'Pregunta final 4', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 3, explanation: 'Explicacion' },
+          { id: 5, text: 'Pregunta final 5', options: ['A) A', 'B) B', 'C) C', 'D) D'], correct: 0, explanation: 'Explicacion' }
+        ], congratulations: 'Felicitaciones! Has completado exitosamente el curso. Demuestras un dominio solido de los temas tratados.' })
+      } else {
+        node.content = '<h2>' + node.title + '</h2><p>' + (node.description || 'Contenido de esta leccion.') + '</p>'
+      }
+    }
+    return node
+  })
 }
 
 async function extractFileText(admin: ReturnType<typeof getAdminClient>, sourceId: string): Promise<string> {
@@ -132,30 +158,44 @@ Deno.serve(async (req) => {
 
     let materialText = ''
     if (sources && sources.length > 0) {
-      // Only extract text from the first file to save time (free tier limit)
-      const src = sources[0]
-      const text = await extractFileText(admin, src.id)
-      if (text.length > 0) {
-        materialText = `\n\n--- ${src.filename} ---\n\n${text.slice(0, 3000)}`
+      // Extract text from up to 3 files
+      for (const src of sources.slice(0, 3)) {
+        const text = await extractFileText(admin, src.id)
+        if (text.length > 0) {
+          materialText += `\n\n--- ${src.filename} ---\n\n${text.slice(0, 8000)}`
+        }
       }
     }
     console.log(`[generate-roadmap] material: ${materialText.length} chars`)
 
-    const userMsg = `Curso: ${course.title}
-Descripción: ${course.description || 'Sin descripción'}
-Categoría: ${course.category || 'general'}
-Nivel: ${level}/5, rigor: ${rigor}/5.
-${materialText
-  ? `Material de referencia:\n${materialText}`
-  : '(Sin archivos de referencia. Usa el nombre y descripción del curso.)'}
+    // Dynamic node count based on material size
+    const nodeCount = materialText.length > 12000 ? 10 : 8
 
-Genera 5-10 nodos con contenido completo. SOLO JSON, sin markdown.`
+    const userMsg = `Curso: ${course.title}
+Descripcion: ${course.description || ''}
+Material:
+${materialText || '(Sin material. Usa el nombre del curso.)'}
+
+Genera un roadmap de ${nodeCount} nodos (minimo 8, maximo 12) en este patron:
+theory -> theory -> quiz -> theory -> theory -> quiz -> ... -> boss
+
+IMPORTANTE sobre las preguntas:
+- Cada quiz: 4 preguntas ESPECIFICAS basadas en el material
+- Cada boss: 6 preguntas ESPECIFICAS basadas en TODO el material
+- NUNCA preguntas genericas
+- Explicaciones de MINIMO 40 caracteres
+
+El JSON DEBE tener esta estructura:
+{"title":"Nombre del curso","nodes":[...]}
+NO uses {"roadmap":[...]}. Usa {"title":"...","nodes":[...]}.
+SOLO JSON valido. Sin markdown, sin texto extra.`
+SOLO JSON valido. Sin markdown, sin texto extra.`
 
     const llmRes = await callLlm({
       system: ROADMAP_SYSTEM,
       messages: [{ role: 'user', parts: [{ text: userMsg }] }],
       temperature: 0.6,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 16384,
     })
     if (!llmRes.ok) {
       const errBody = await llmRes.text().catch(() => 'unknown')
@@ -170,8 +210,28 @@ Genera 5-10 nodos con contenido completo. SOLO JSON, sin markdown.`
     try {
       parsed = safeParseJson(raw)
     } catch (e) {
-      console.error('[generate-roadmap] JSON parse error:', raw.slice(0, 500))
-      return jsonError(500, `Error al parsear respuesta de la IA: ${e?.message}`)
+      console.warn('[generate-roadmap] Primer parse fallo, reintentando con prompt simplificado...')
+      // Retry with simpler prompt
+      const simpleMsg = `Curso: ${course.title}\nMaterial: ${(materialText || '').slice(0, 3000)}\n\nGenera 8 nodos: theory, theory, quiz, theory, theory, quiz, theory, boss.\nTheory: 250-400 palabras HTML. Quiz: 4 preguntas. Boss: 6 preguntas + congratulations.\nSOLO JSON.`
+      const retryRes = await callLlm({
+        system: ROADMAP_SYSTEM,
+        messages: [{ role: 'user', parts: [{ text: simpleMsg }] }],
+        temperature: 0.5,
+        maxOutputTokens: 16384,
+      })
+      if (!retryRes.ok) {
+        const errBody = await retryRes.text().catch(() => 'unknown')
+        return jsonError(500, `LLM error en reintento: ${errBody.slice(0, 200)}`)
+      }
+      const retryJson = await retryRes.json()
+      const retryRaw = extractLlmText(retryJson) || ''
+      console.log('[generate-roadmap] reintento respuesta:', retryRaw.slice(0, 300))
+      try {
+        parsed = safeParseJson(retryRaw)
+      } catch (e2) {
+        console.error('[generate-roadmap] Ambos parseos fallaron')
+        return jsonError(500, `La IA no pudo generar el roadmap: ${e2?.message}`)
+      }
     }
 
     const generated = enforceRegulation(parsed.nodes ?? [])
@@ -212,79 +272,69 @@ Genera 5-10 nodos con contenido completo. SOLO JSON, sin markdown.`
  * directo (con doble parseo) → eliminar comas finales (en bucle hasta estabilizar) →
  * intentar de nuevo.
  */
+function normalizeRoadmap(obj: any): { title?: string; nodes: GenNode[] } {
+  if (!obj) return { title: '', nodes: [] }
+  if (obj.nodes && Array.isArray(obj.nodes)) return obj
+  if (Array.isArray(obj.roadmap)) return { title: obj.title || '', nodes: obj.roadmap }
+  if (obj.roadmap?.nodes && Array.isArray(obj.roadmap.nodes)) return obj.roadmap
+  if (obj.data?.nodes && Array.isArray(obj.data.nodes)) return obj.data
+  if (Array.isArray(obj)) return { title: '', nodes: obj }
+  return { title: '', nodes: [] }
+}
+
 function safeParseJson(raw: string): { nodes?: GenNode[] } {
-  if (!raw || raw === '{}') throw new Error('Respuesta vacía')
+  if (!raw || raw === '{}') throw new Error('Respuesta vacia')
 
-  // 1. Normalizar escapes literales que a veces mete Gemini
+  // Attempt 1: direct parse
+  try { const r = JSON.parse(raw); return normalizeRoadmap(r) } catch {}
+
+  // Attempt 2: strip markdown fences and common prefixes
   let s = raw
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
+    .replace(/^```(?:json)?\s*/im, '')
+    .replace(/\s*```$/im, '')
+    .replace(/^Here['']s?\s+(?:the\s+)?(?:JSON|roadmap)[^.:]*[:.]?\s*/im, '')
+    .trim()
+  try { const r = JSON.parse(s); return normalizeRoadmap(r) } catch {}
 
-  // 2. Quitar bloques markdown ```json ... ```
-  s = s.replace(/^```(?:json)?\s*/im, '').replace(/\s*```$/im, '').trim()
+  // Attempt 3: extract first { ... last } (greedy)
+  const i1 = s.indexOf('{')
+  const i2 = s.lastIndexOf('}')
+  if (i1 !== -1 && i2 > i1) {
+    const core = s.slice(i1, i2 + 1)
+    try { const r = JSON.parse(core); return normalizeRoadmap(r) } catch {}
 
-  // 3. Extraer solo el objeto JSON más externo { ... }
-  const firstBrace = s.indexOf('{')
-  const lastBrace = s.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    s = s.slice(firstBrace, lastBrace + 1)
-  }
-
-  // Helper: intenta parsear + doble parse si es string
-  function attempt(text: string): { nodes?: GenNode[] } | null {
-    try {
-      const r = JSON.parse(text)
-      if (typeof r === 'string' && r.trim().startsWith('{')) {
-        try { return JSON.parse(r) } catch {}
-      }
-      return r
-    } catch { return null }
-  }
-
-  // 4. Intento directo
-  const d1 = attempt(s)
-  if (d1) {
-    // NVIDIA sometimes wraps in {"roadmap":{...}}
-    if (d1.roadmap && Array.isArray(d1.roadmap.nodes)) return d1.roadmap
-    return d1
-  }
-
-  // 5. Eliminar comas finales en bucle hasta que no cambie más
-  //    (cubre comas antes de ] o } con cualquier whitespace)
-  let prev = ''
-  let cleaned = s
-  while (cleaned !== prev) {
-    prev = cleaned
-    cleaned = cleaned
-      .replace(/,\s*([}\]])/g, '$1')   // , } → }  y  , ] → ]
-      .replace(/,\s*$/gm, '')           // coma al final de línea (multiline)
-  }
-
-  const d2 = attempt(cleaned)
-  if (d2) return d2
-
-  // 6. Si aún falla, intentar con el texto original pero quitando solo comas
-  //    (por si la normalización introdujo problemas con contenido HTML)
-  try {
-    const fallback = raw
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r')
-      .replace(/\\t/g, '\t')
-      .replace(/\\"/g, '"')
-      .replace(/^```(?:json)?\s*/im, '')
-      .replace(/\s*```$/im, '')
-    const fb = fallback.trim()
-    const f1 = fb.indexOf('{')
-    const f2 = fb.lastIndexOf('}')
-    const core = f1 !== -1 && f2 > f1 ? fb.slice(f1, f2 + 1) : fb
+    // Attempt 4: fix trailing commas
     const fixed = core.replace(/,\s*([}\]])/g, '$1').replace(/,\s*$/gm, '')
-    const r3 = attempt(fixed)
-    if (r3) return r3
-  } catch {}
+    try { const r = JSON.parse(fixed); return normalizeRoadmap(r) } catch {}
+  }
 
-  throw new Error(`No se pudo extraer JSON. Inicio: ${raw.slice(0, 200)}`)
+  // Attempt 5: greedy match outermost { ... } and try to fix truncated JSON
+  const greedy = raw.match(/\{[\s\S]*\}/)
+  if (greedy) {
+    let g = greedy[0].replace(/,\s*([}\]])/g, '$1').replace(/,\s*$/gm, '')
+    try { const r = JSON.parse(g); return normalizeRoadmap(r) } catch {}
+
+    // Try to fix truncated JSON by closing open brackets/braces
+    const openBraces = (g.match(/{/g) || []).length
+    const closeBraces = (g.match(/}/g) || []).length
+    const openBrackets = (g.match(/\[/g) || []).length
+    const closeBrackets = (g.match(/]/g) || []).length
+    if (openBraces > closeBraces || openBrackets > closeBrackets) {
+      let repaired = g
+      for (let i = 0; i < openBrackets - closeBrackets; i++) repaired += ']'
+      for (let i = 0; i < openBraces - closeBraces; i++) repaired += '}'
+      try { const r = JSON.parse(repaired); return normalizeRoadmap(r) } catch {}
+    }
+  }
+
+  // Attempt 6: extract just the nodes array
+  const nodesMatch = raw.match(/"nodes"\s*:\s*\[[\s\S]*\]/)
+  if (nodesMatch) {
+    const wrapped = `{${nodesMatch[0]}}`
+    try { const r = JSON.parse(wrapped); return r } catch {}
+  }
+
+  throw new Error('No se pudo extraer JSON de la respuesta de IA')
 }
 
 function jsonOk(data: unknown) {
