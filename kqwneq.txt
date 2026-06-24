@@ -1,0 +1,54 @@
+quizz no muestra la pregunta solo las alternativas
+
+el boton de revisar errores no esta funcionando. deberia la IA explicar los errores del quizz pero solo redirige al dashboard del docente
+
+funciona la generacion del roadmap
+
+----- PENDIENTE LOGIN -------
+
+- Cuando se logee, no se deberia dirigir al onboarding #########
+- Quitar "Estudiante", "Docente", "Padre" ########
+
+----- PENDIENTE ALUMNO ------
+
+- Roadmap
+	- Quitar boton de "saltar" y barra de completado. Probar con hacer más extenso el contenido ####################
+	- El asistente no funciona ("Lo siento, hubo un error al consultar al tutor. Failed to fetch. Intenta de nuevo.") ############################ 
+	- El botóm de "terminar nodo" no funciona, no se marca el nodo como completado. Al darle al botón de "terminar nodo" se deberia volver a la pantalla del roadmap, donde un nuevo nodo se ha desbloqueado. ####################
+	- El nivel de entendimiento no está implementado. --- Necesita IA
+	- El contenido deberia ser escrito en formato similar a markdown con titulos, subtitulos, resatlado de texto, codigo, etc. ############
+- Quizz
+	- La ventana emergente muestra un caracter extraño al mencionar cual es la respuesta correcta
+	- No hay preguntas
+	- Corrección:
+		- En el panel de respuesta no se muestra "Respuesta correcta"
+		- Nunca se proporciona el análisis (tal vez quitar lo de la fuente)
+		- La pestaña de refuerzo solo muestra un harcodeo de la analogia y video recomendado. Replantear esto (realmente deberia limitarse a "analogia"?, la IA deberia buscar videos relacionados en youtube, comparar con planificacion).
+	- No hay forma correcta de responder la pregunta. 
+	- El hover sobreescribe el coloreo de borde que se hace si es incorrecta (rojo)
+- Logros
+	- Debe existir una descripción para los logros. Es mejor tener mapeados todos los logros posibles (en un JSON tal vez) y resaltar los que se vayan consiguiendo
+- Configuración
+	- Notificaciones no implementadas
+	- Navegación por voz no implementada (se activa en cualquier acción, hasta en quizzes y coliseos)
+- Coliseo de retos
+	- No se ha implementado nada.
+	- Aparecen mensajes de error al responde alguna pregunta
+	- Mensaje al "aprobar" es demasiado genérico. El XP deberia aumentar.
+	- Unica forma de aparecer es en "retos del dia"?
+- Los retos del dia deberian aumentar más el XP de lo que lo harian los quizzes y examenes normalmente.
+- Avatar no sincronizado
+
+-------- PENDIENTE PADRE ---------
+- No está sincronizado con los datos del hijo
+- Al no poder vincular en lugar de mostrar de que hay una clave duplicada, se deberia mostrar que no se pudo porque ya se encuentra vinculado.
+
+-------- PENDIENTE PROFESOR -------
+
+- Generando roadmap via "Edge function"? no se debe mencionar ningun detalle que no le interese al usuario. 
+- No sirve el boton de copiar codigo de invitacion. No deberia aparecer ningun codigo. Solo el docente puede agregar al alumno. El alumno actualmente no se puede "enrollar" a ningun curso.
+- "Detalles"
+	- La barra de busqueda está bugueada, hay dos barras de busqueda (una que aparece ahi desde el inicio y otra que aparece luego de "agregar nuevo estudiante")
+	- Cuando se quiere agregar un nuevo alumno, desde el panel de detalles docente, no se puede "new row violates row-level security policy for table "enrollments"".
+	-
+

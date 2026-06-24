@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle, Send, Search } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { analyzeError, reinforceConcept, getStudentLevel } from '../lib/llm'
+import { analyzeErrorStream, reinforceConcept, getStudentLevel } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { useVoice } from '../context/VoiceContext'
 import { useAuth } from '../context/AuthContext'
@@ -69,13 +69,6 @@ export default function Review() {
     else navigate(`/roadmap/${courseId}`)
   }, [nextNodePath, navigate, courseId])
 
-  function promiseWithTimeout(promise, ms) {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-    ])
-  }
-
   useEffect(() => {
     if (incorrectAnswers.length === 0) {
       setLoadingExplanations(false)
@@ -87,6 +80,8 @@ export default function Review() {
     }
 
     let cancelled = false
+    const abortControllers = []
+
     async function loadExplanations() {
       setLoadingExplanations(true)
       const explanations = {}
@@ -94,34 +89,58 @@ export default function Review() {
       for (let i = 0; i < incorrectAnswers.length; i++) {
         if (cancelled) break
         const answer = incorrectAnswers[i]
+        const controller = new AbortController()
+        abortControllers.push(controller)
+
+        let acc = ''
+        const concept = answer.question?.split(' ').slice(0, 4).join(' ') || ''
+
         try {
-          const concept = answer.question?.split(' ').slice(0, 4).join(' ') || ''
-          const result = await promiseWithTimeout(
-            analyzeError({
-              question: answer.question,
-              userAnswer: answer.selected >= 0 ? answer.options[answer.selected] : 'No respondiste',
-              correctAnswer: answer.options[answer.correct],
-              courseId,
-              concept,
-            }),
-            20000
-          )
-          const raw = result?.explanation || ''
-          const clean = sanitizeExplanation(raw)
-          explanations[i] = clean || 'La IA analizó tu error. Revisa el concepto nuevamente.'
+          await analyzeErrorStream({
+            question: answer.question,
+            userAnswer: answer.selected >= 0 ? answer.options[answer.selected] : 'No respondiste',
+            correctAnswer: answer.options[answer.correct],
+            courseId,
+            concept,
+            studentLevel,
+            signal: controller.signal,
+            onChunk: (text) => {
+              if (cancelled) return
+              acc += text
+              setAiExplanations(prev => ({ ...prev, [i]: acc }))
+            },
+            onDone: (finalText) => {
+              if (cancelled) return
+              const clean = sanitizeExplanation(finalText)
+              explanations[i] = clean || 'La IA analizó tu error. Revisa el concepto nuevamente.'
+              setAiExplanations(prev => ({ ...prev, [i]: explanations[i] }))
+            },
+            onError: (err) => {
+              if (cancelled) return
+              console.warn('[review] analyzeError error:', err.message)
+              explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
+            },
+          })
         } catch (e) {
-          console.warn('[review] analyzeError timeout/fail:', e.message)
-          explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
+          if (e.name !== 'AbortError' && !cancelled) {
+            console.warn('[review] analyzeError timeout/fail:', e.message)
+            explanations[i] = answer.explanation || 'Revisa el material de clase para entender mejor este concepto.'
+          }
         }
-        // Update progressively so user sees each analysis as it arrives
-        if (!cancelled) setAiExplanations({ ...explanations })
+
+        if (!cancelled) setAiExplanations(prev => ({ ...prev, [i]: explanations[i] || acc || 'Analizando...' }))
       }
 
       if (!cancelled) setLoadingExplanations(false)
     }
+
     loadExplanations()
-    return () => { cancelled = true }
-  }, [incorrectAnswers, courseId])
+
+    return () => {
+      cancelled = true
+      abortControllers.forEach(c => c.abort())
+    }
+  }, [incorrectAnswers, courseId, studentLevel])
 
   function sanitizeExplanation(text) {
     if (!text || text.length < 10) return ''

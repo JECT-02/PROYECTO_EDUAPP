@@ -62,6 +62,58 @@ export async function analyzeError({ question, userAnswer, correctAnswer, course
   })
 }
 
+export async function analyzeErrorStream({ question, userAnswer, correctAnswer, concept, studentLevel = 'intermediate', onChunk, onDone, onError, signal }) {
+  const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:3001'
+  const accessToken = await getAccessToken()
+  const res = await fetch(`${AI_BACKEND_URL}/api/analyze-error`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify({ question, userAnswer, correctAnswer, concept, studentLevel }),
+    signal,
+  })
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`analyze-error error ${res.status}: ${text}`)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  let acc = ''
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split('\n\n')
+    buffer = events.pop() || ''
+    for (const evt of events) {
+      const line = evt.split('\n').find((l) => l.startsWith('data:'))
+      if (!line) continue
+      const payload = line.replace(/^data:\s*/, '')
+      if (payload === '[DONE]') continue
+      try {
+        const parsed = JSON.parse(payload)
+        if (parsed.done) break
+        if (parsed.error) {
+          onError?.(new Error(parsed.error))
+          return
+        }
+        if (typeof parsed.text === 'string') {
+          acc += parsed.text
+          onChunk?.(parsed.text)
+        }
+      } catch {
+        if (payload) onChunk?.(payload)
+      }
+    }
+  }
+  onDone?.(acc)
+  return acc
+}
+
 export async function reinforceConcept({ concept, style = 'simple', courseId, question, courses, studentAnswer, correctAnswer, studentLevel = 'intermediate' }) {
   const accessToken = await getAccessToken()
   const res = await callFunction({

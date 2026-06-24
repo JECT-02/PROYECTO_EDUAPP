@@ -115,24 +115,37 @@ echo       Puertos liberados.
 echo.
 
 rem 7. Start AI Backend in background
-echo [7/8] Iniciando AI Backend en http://localhost:%AI_PORT% ...
-start "EduApp AI Backend" cmd /c "cd /d ai-backend && node --watch server.js"
+echo [7/9] Iniciando AI Backend en http://localhost:%AI_PORT% ...
+start "EduApp AI Backend" cmd /c "cd /d ai-backend && node server.js"
 rem Wait for AI backend to be ready
 set /a RETRIES=0
+set "HTTPCODE="
 :wait_ai
-ping -n 2 127.0.0.1 >nul 2>&1
+ping -n 3 127.0.0.1 >nul 2>&1
 set /a RETRIES+=1
-for /f "tokens=*" %%h in ('node -e "fetch('http://localhost:%AI_PORT%/api/health').then(r=>process.stdout.write('ok')).catch(()=>process.exit(1))" 2^>nul') do (
-    echo       AI Backend listo.
-    goto ai_ready
-)
-if %RETRIES% lss 20 goto wait_ai
-echo [WARN] AI Backend no respondio despues de 40s. Continuando de todos modos.
+for /f "tokens=*" %%r in ('curl -s -o nul -w "%{http_code}" "http://localhost:%AI_PORT%/api/health" --max-time 3 2^>nul') do set "HTTPCODE=%%r"
+if "!HTTPCODE!"=="200" goto ai_ready
+if %RETRIES% lss 15 goto wait_ai
+echo [WARN] AI Backend no respondio. Verifica ai-backend\server.js manualmente.
+goto ai_done
 :ai_ready
+echo       AI Backend listo.
+:ai_done
+set "HTTPCODE="
 echo.
 
-rem 8. Start Vite dev server (this blocks until Ctrl+C)
-echo [8/8] Iniciando servidor de desarrollo en http://localhost:%VITE_PORT% ...
+rem 8. Run quiz review API test
+echo [8/9] Verificando APIs de quiz review...
+call node scripts/test-quiz-review-api.mjs
+if %errorlevel% neq 0 (
+    echo [WARN] Algunos tests fallaron. El quiz review puede no funcionar correctamente.
+) else (
+    echo       Tests de quiz review: OK
+)
+echo.
+
+rem 9. Start Vite dev server (this blocks until Ctrl+C)
+echo [9/9] Iniciando servidor de desarrollo en http://localhost:%VITE_PORT% ...
 echo.
 echo   Cuentas de prueba:
 echo     Estudiante - default_student@eduapp.test / student123
@@ -141,6 +154,10 @@ echo     Padre      - default_parent@eduapp.test / parent123
 echo.
 echo   AI Backend:  http://localhost:%AI_PORT%
 echo   Frontend:    http://localhost:%VITE_PORT%
+echo.
+echo   Si AI Backend no responde, verifica:
+echo     - cd ai-backend ^&^& node server.js (ver errores en consola)
+echo     - .env tiene NVIDIA_API_KEY configurado
 echo.
 
 start http://localhost:%VITE_PORT%

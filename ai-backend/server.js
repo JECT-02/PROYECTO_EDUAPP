@@ -52,7 +52,7 @@ function authenticate(req, res, next) {
 }
 
 // ─── NVIDIA helper ──────────────────────────────────────
-async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false, studentLevel = 'intermediate' }) {
+async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false, studentLevel = 'intermediate', retries = 3 }) {
   const levelTemp = studentLevel === 'beginner' ? 0.7 : studentLevel === 'advanced' ? 0.3 : 0.5
   const effectiveTemp = temperature ?? levelTemp
 
@@ -69,14 +69,51 @@ async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 
   if (jsonOnly) messages.push({ role: 'system', content: `Eres un asistente que SOLO responde con JSON valido. NUNCA incluyas texto fuera del JSON. NUNCA uses markdown ni bloques \`\`\`` })
   if (finalSystem) messages.push({ role: 'system', content: finalSystem })
   messages.push({ role: 'user', content: userMessage })
-  const res = await fetch(LLM_URL, {
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(LLM_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
+      body: JSON.stringify({ model: LLM_MODEL, messages, temperature: effectiveTemp, max_tokens: maxTokens }),
+    })
+    if (res.ok) {
+      const json = await res.json()
+      return json?.choices?.[0]?.message?.content || ''
+    }
+    if (res.status === 429) {
+      if (attempt < retries) {
+        const waitMs = (attempt + 1) * 2000
+        warn('NVIDIA', `Rate limited. Reintentando en ${waitMs}ms...`)
+        await new Promise(r => setTimeout(r, waitMs))
+        continue
+      }
+      // Si se agotan los retries de NVIDIA, intentar con Groq como fallback
+      if (GROQ_API_KEY) {
+        warn('NVIDIA', 'NVIDIA agotado. Intentando con Groq...')
+        return await callGroq({ messages, temperature: effectiveTemp, maxTokens })
+      }
+    }
+    const errBody = await res.text().catch(() => 'unknown')
+    throw new Error(`NVIDIA error ${res.status}: ${errBody.slice(0, 300)}`)
+  }
+  throw new Error('NVIDIA error: Max retries exceeded')
+}
+
+// ─── Groq helper (fallback cuando NVIDIA tiene rate limit) ─
+async function callGroq({ messages, temperature = 0.6, maxTokens = 2048, model = 'llama-3.3-70b-versatile' }) {
+  if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY no configurada')
+
+  const res = await fetch(`${GROQ_URL}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
-    body: JSON.stringify({ model: LLM_MODEL, messages, temperature: effectiveTemp, max_tokens: maxTokens }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
   })
   if (!res.ok) {
     const errBody = await res.text().catch(() => 'unknown')
-    throw new Error(`NVIDIA error ${res.status}: ${errBody.slice(0, 300)}`)
+    throw new Error(`Groq error ${res.status}: ${errBody.slice(0, 300)}`)
   }
   const json = await res.json()
   return json?.choices?.[0]?.message?.content || ''
@@ -410,6 +447,55 @@ Cada pregunta sobre el material. NUNCA inventes. Explicacion 40+ caracteres.`
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', model: LLM_MODEL, hasKey: !!NVIDIA_API_KEY, groqConfigured: !!GROQ_API_KEY })
+})
+
+// ─── Analyze quiz error (for Review.jsx quiz review) ────
+app.post('/api/analyze-error', authenticate, async (req, res) => {
+  try {
+    const { question, userAnswer, correctAnswer, concept, studentLevel = 'intermediate' } = req.body
+    if (!question || !correctAnswer) return res.status(400).json({ error: 'Falta question o correctAnswer' })
+
+    const systemPrompt = `Eres un tutor paciente que habla EXCLUSIVAMENTE en español. Analiza por qué el estudiante se equivocó.
+Reglas ESTRICTAS:
+- Identifica el concepto detrás de la pregunta.
+- Compara la respuesta del estudiante con la correcta.
+- Explica en UNA sola frase (máximo 30 palabras), en español latinoamericano, sin tecnicismos innecesarios.
+- NUNCA respondas en chino, inglés u otro idioma. SOLO español.
+- Devuelve SOLO la frase, sin comillas, sin formato JSON, sin markdown.`
+
+    const formalityHint = studentLevel === 'beginner'
+      ? '\n\nINSTRUCCIÓN ADICIONAL: El estudiante tiene nivel principiante. Usa lenguaje MUY SIMPLE, como si explicaras a un niño de 10 años.'
+      : studentLevel === 'advanced'
+        ? '\n\nINSTRUCCIÓN ADICIONAL: El estudiante tiene nivel avanzado. Usa lenguaje TÉCNICO y PRECISO.'
+        : ''
+
+    const userMsg = `Concepto: ${concept || 'general'}\nPregunta: ${question}\nRespuesta del estudiante: ${userAnswer || '(sin respuesta)'}\nRespuesta correcta: ${correctAnswer}${formalityHint}`
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    log('ANALYZE-ERROR', `Analizando: "${question.slice(0, 50)}..." nivel=${studentLevel}`)
+
+    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 256, studentLevel, retries: 5 })
+
+    const words = answer.split(' ')
+    for (let i = 0; i < words.length; i++) {
+      res.write(`data: ${JSON.stringify({ text: words[i] + (i < words.length - 1 ? ' ' : '') })}\n\n`)
+      await new Promise(r => setTimeout(r, 20))
+    }
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
+    res.end()
+  } catch (err) {
+    warn('ANALYZE-ERROR', 'Error', err)
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message })
+    } else {
+      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`)
+      res.end()
+    }
+  }
 })
 
 // ─── Voice endpoints (Groq STT + categorization) ────────

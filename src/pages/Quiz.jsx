@@ -5,7 +5,7 @@ import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
-import { analyzeError, generateQuiz, getStudentLevel } from '../lib/llm'
+import { analyzeErrorStream, generateQuiz, getStudentLevel } from '../lib/llm'
 import { recordWeakness, isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
@@ -158,19 +158,28 @@ export default function Quiz() {
   async function triggerAnalysis(selectedIndex) {
     if (!q) return
     if (!isSupabaseConfigured) return
+
     try {
-      const { explanation } = await analyzeError({
+      let acc = ''
+      await analyzeErrorStream({
         question: q.text,
         userAnswer: selectedIndex == null ? 'Sin respuesta' : q.options[selectedIndex],
         correctAnswer: q.options[q.correct],
         courseId,
         concept: q.text.split(' ').slice(0, 3).join(' '),
         studentLevel,
+        onChunk: (text) => {
+          acc += text
+          setErrorHint(acc)
+        },
+        onDone: (finalText) => {
+          const clean = sanitizeExplanation(finalText)
+          if (clean) setErrorHint(clean)
+        },
+        onError: (err) => {
+          console.warn('[quiz] analyzeError error:', err.message)
+        },
       })
-      if (explanation) {
-        const clean = sanitizeExplanation(explanation)
-        if (clean) setErrorHint(clean)
-      }
       if (studentId) {
         await recordWeakness({
           studentId,
