@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
+const multer = require('multer')
 
 // ─── Logger ──────────────────────────────────────────────
 function log(tag, msg) { console.log(`[${new Date().toISOString().slice(11, 19)}][${tag}] ${msg}`) }
@@ -24,12 +25,15 @@ if (fs.existsSync(envPath)) {
 const PORT = process.env.AI_BACKEND_PORT || 3001
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY
 if (!NVIDIA_API_KEY) { warn('INIT', 'Falta NVIDIA_API_KEY en .env'); process.exit(1) }
+const GROQ_API_KEY = process.env.GROQ_API_KEY
 
 const LLM_MODEL = 'moonshotai/kimi-k2.6'
 const LLM_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
+const GROQ_URL = 'https://api.groq.com/openai/v1'
 
 // ─── Express setup ──────────────────────────────────────
 const app = express()
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 app.use(cors({ origin: true }))
 app.use(express.json({ limit: '50mb' }))
 
@@ -393,7 +397,152 @@ Cada pregunta sobre el material. NUNCA inventes. Explicacion 40+ caracteres.`
 })
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', model: LLM_MODEL, hasKey: !!NVIDIA_API_KEY })
+  res.json({ status: 'ok', model: LLM_MODEL, hasKey: !!NVIDIA_API_KEY, groqConfigured: !!GROQ_API_KEY })
+})
+
+// ─── Voice endpoints (Groq STT + categorization) ────────
+app.post('/api/voice/transcribe', authenticate, upload.single('audio'), async (req, res) => {
+  try {
+    if (!GROQ_API_KEY) return res.status(503).json({ error: 'Groq API no configurada' })
+    if (!req.file) return res.status(400).json({ error: 'No se recibió audio' })
+    const formData = new FormData()
+    formData.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), 'audio.webm')
+    formData.append('model', 'whisper-large-v3')
+    formData.append('language', 'es')
+    const groqRes = await fetch(`${GROQ_URL}/audio/transcriptions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+      body: formData,
+    })
+    if (!groqRes.ok) {
+      const err = await groqRes.text().catch(() => 'unknown')
+      throw new Error(`Groq STT error ${groqRes.status}: ${err.slice(0, 200)}`)
+    }
+    const data = await groqRes.json()
+    log('VOICE', `Transcripcion: "${data.text?.slice(0, 80)}"`)
+    res.json({ text: data.text || '', language: data.language || 'es' })
+  } catch (err) {
+    warn('VOICE-STT', 'Error', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/voice/categorize', authenticate, async (req, res) => {
+  try {
+    const { transcript, context = {} } = req.body
+    if (!transcript) return res.status(400).json({ error: 'Falta transcript' })
+    if (!GROQ_API_KEY) return res.status(503).json({ error: 'Groq API no configurada' })
+
+    const systemPrompt = `Eres un clasificador de comandos de voz para una plataforma educativa en español. El usuario es un estudiante con discapacidad visual. Clasifica en UNA categoría y acción.
+
+CATEGORÍAS Y ACCIONES DISPONIBLES:
+
+1. "navigate" - Navegación:
+   goToDashboard, goToAchievements, goToExplore, goToProfile, goToSettings, goToColiseo, goBack,
+   goToCourseRoadmap (params.courseName), goToLastNode (params.courseName),
+   goToLastAvailableNode (params.courseName - ir al último nodo pendiente de un curso),
+   goToNextNode, goToPrevNode
+   Ej: "llévame a configuración"->goToSettings, "último nodo pendiente de Python"->goToLastAvailableNode
+
+2. "quiz_answer" - Seleccionar respuesta en quiz:
+   selectOptionA, selectOptionB, selectOptionC, selectOptionD
+   Ej: "opción B", "la A", "seleccionar C"
+
+3. "quiz_action" - Acciones dentro del quiz (no seleccionar, solo leer/informar):
+   readQuestion (leer la pregunta actual), readOptions (leer alternativas), markAnswer (marcar una respuesta, params.answer: "A"/"B"/"C"/"D"/"primera"/"segunda")
+   Ej: "leer la pregunta"->readQuestion, "alternativas"->readOptions, "marco la B"->markAnswer
+
+4. "lesson_action" - Acciones en lección:
+   finishNode, openChat, closeChat, readContent (leer el contenido de la lección)
+   Ej: "terminar nodo"->finishNode, "leer la lección"->readContent
+
+5. "result_action" - Resultados de quiz:
+   nextNode, reviewErrors, retryQuiz
+
+6. "review_action" - Revisión de errores:
+   understood, dontUnderstand
+
+7. "coliseo_action" - Coliseo:
+   enterArena, exitColiseo, retryColiseo
+
+8. "system_action" - Sistema:
+   readScreen, repeat, help, whereAmI, listCourses,
+   readNotifications (leer notificaciones en voz alta),
+   listAchievements (decir qué logros tengo, NO redirigir),
+   nodeCount (cuántos nodos completados/totales),
+   nodeProgress (en qué nodo voy)
+   Ej: "leer notificaciones"->readNotifications, "qué logros tengo"->listAchievements, "cuántos nodos tengo"->nodeCount
+
+9. "question" - Pregunta académica (no es acción):
+   answerQuestion
+
+CONTEXTO:
+Pantalla: ${context.page || '?'}
+${context.courseTitle ? 'Curso: ' + context.courseTitle : ''}
+${context.nodeTitle ? 'Nodo: ' + context.nodeTitle : ''}
+${context.courses?.length ? 'Cursos: ' + context.courses.join(', ') : ''}
+${context.options?.length ? 'Opciones: ' + context.options.join(', ') : ''}
+${context.nodePosition != null ? 'Progreso: nodo ' + context.nodePosition + '/' + (context.totalNodes || '?') : ''}
+
+REGLAS CRÍTICAS:
+- "leer notificaciones" SIEMPRE es readNotifications (system_action)
+- "qué logros tengo" / "mis medallas" SIEMPRE es listAchievements (system_action)
+- "cuántos nodos tengo" / "progreso del curso" SIEMPRE es nodeCount (system_action)
+- "último nodo disponible" / "último nodo pendiente" / "continuar" SIEMPRE es goToLastAvailableNode (navigate)
+- "qué opciones tengo" / "qué puedo hacer" / "qué acciones hay aquí" / "opciones disponibles":
+  SI en quiz (página=quiz) -> readOptions (quiz_action)
+  SI en otra página -> help (system_action)
+- "qué dice la pregunta" / "lee la pregunta" -> readQuestion (quiz_action)
+- "alternativas" en quiz -> readOptions (quiz_action)
+- "marco la X" / "creo que es la X" -> markAnswer (quiz_action) con params.answer
+- NO uses navigate cuando el usuario pregunta por información (notificaciones, logros, progreso)
+- responseText: 1 frase breve en español, tono amable
+
+Responde SOLO JSON: {"category":"...","action":"...","params":{},"responseText":"..."}`
+
+    const userMsg = `Transcript: "${transcript}"\n\nClasifica esta intencion. SOLO JSON.`
+
+    const groqRes = await fetch(`${GROQ_URL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMsg }], temperature: 0.1, max_tokens: 512 }),
+    })
+    if (!groqRes.ok) {
+      const err = await groqRes.text().catch(() => 'unknown')
+      throw new Error(`Groq categorize error ${groqRes.status}: ${err.slice(0, 200)}`)
+    }
+    const data = await groqRes.json()
+    const raw = data?.choices?.[0]?.message?.content || '{}'
+    let parsed
+    try {
+      parsed = JSON.parse(raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```$/im, '').trim())
+    } catch {
+      parsed = { category: 'question', action: 'answerQuestion', params: {}, responseText: 'No entendi bien. Puedes repetir?' }
+    }
+    log('VOICE', `Categoria: ${parsed.category} | Accion: ${parsed.action}`)
+    res.json(parsed)
+  } catch (err) {
+    warn('VOICE-CAT', 'Error', err)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+app.post('/api/voice/ask', authenticate, async (req, res) => {
+  try {
+    const { question, context = '' } = req.body
+    if (!question) return res.status(400).json({ error: 'Falta question' })
+
+    const system = `Eres un tutor educativo. Responde de forma CONCISA (max 3 oraciones) en español.
+Basate en el contexto si existe. Habla claro, como si le explicaras a alguien que no puede ver la pantalla.
+NO uses markdown, NO uses emojis, NO uses formato especial. Solo texto plano hablado.`
+
+    const userMsg = context ? `Contexto: ${context.slice(0, 2000)}\n\nPregunta: ${question}` : `Pregunta: ${question}`
+    const answer = await callNvidia({ system, userMessage: userMsg, temperature: 0.3, maxTokens: 512 })
+    res.json({ answer })
+  } catch (err) {
+    warn('VOICE-ASK', 'Error', err)
+    res.status(500).json({ error: err.message })
+  }
 })
 
 app.listen(PORT, () => {
