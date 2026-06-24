@@ -52,7 +52,7 @@ async function main() {
   })
 
   const { data: course } = await teacherClient.from('courses').insert({
-    teacher_id: teacher.id,
+    teacher_id: authTeacher.session.user.id,
     title: 'Test Quiz Flow',
     description: 'Curso de prueba para validar flujo quiz.',
     category: 'Test',
@@ -78,7 +78,7 @@ async function main() {
 
   // Enroll student
   const { data: enrollment } = await client.from('enrollments').insert({
-    student_id: student.id, course_id: course.id,
+    student_id: authData.session.user.id, course_id: course.id,
   }).select().single()
   check('Enrollment creado', !!enrollment)
 
@@ -114,7 +114,7 @@ async function main() {
   check('Notificación quiz_result visible', !!quizNotif, quizNotif?.payload?.title)
 
   // 8. Cleanup
-  await admin.from('notifications').delete().eq('user_id', student.id)
+  await admin.from('notifications').delete().eq('user_id', authData.session.user.id)
   await admin.from('progress').delete().eq('enrollment_id', enrollment.id)
   await admin.from('enrollments').delete().eq('id', enrollment.id)
   await admin.from('nodes').delete().eq('course_id', course.id)

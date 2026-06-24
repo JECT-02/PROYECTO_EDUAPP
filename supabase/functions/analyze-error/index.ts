@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       system: ANALYZE_ERROR_SYSTEM + formalityHint,
       messages: [{ role: 'user', parts: [{ text: userMsg }] }],
       temperature: temp,
-      maxOutputTokens: 120,
+      maxOutputTokens: 300,
     })
     if (!llmRes.ok) return jsonError(500, 'LLM error')
     const llmJson = await llmRes.json()

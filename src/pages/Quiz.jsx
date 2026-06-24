@@ -183,14 +183,14 @@ export default function Quiz() {
   }
 
   function sanitizeExplanation(text) {
-    if (!text || text.length < 2) return ''
-    const cleaned = text.replace(/["{}[\]\\]/g, '').trim()
-    if (cleaned.length > 200) return cleaned.slice(0, 200)
-    const hasCJK = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]/.test(cleaned)
-    const hasSpanish = /[áéíóúüñÁÉÍÓÚÜÑ]/.test(cleaned)
-    if (hasCJK && !hasSpanish) return ''
-    if (hasCJK) return cleaned.replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
-    return cleaned
+    if (!text || text.length < 10) return ''
+    const cleaned = text.replace(/["{}[\]\\]/g, '').replace(/[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]+/g, '').trim()
+    if (cleaned.length < 10) return ''
+    const repeated = /(\b\w+\b)(\s+\1){2,}/.test(cleaned)
+    if (repeated) return ''
+    const hasLetters = /[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(cleaned)
+    if (!hasLetters) return ''
+    return cleaned.length > 300 ? cleaned.slice(0, 300) : cleaned
   }
 
   function handleSelect(index) {
