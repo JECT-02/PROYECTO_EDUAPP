@@ -152,7 +152,7 @@ export default function Quiz() {
     setStatus('incorrect')
     setAnalyzingError(true)
     triggerAnalysis(null).finally(() => setAnalyzingError(false))
-    setTimeout(nextQuestion, 3500)
+    setTimeout(nextQuestion, 5000)
   }
 
   async function triggerAnalysis(selectedIndex) {
@@ -208,7 +208,7 @@ export default function Quiz() {
       setStatus('incorrect')
       setAnalyzingError(true)
       triggerAnalysis(index).finally(() => setAnalyzingError(false))
-      setTimeout(nextQuestion, 4000)
+      setTimeout(nextQuestion, 5000)
     }
   }
 

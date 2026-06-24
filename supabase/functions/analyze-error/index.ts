@@ -35,7 +35,10 @@ Deno.serve(async (req) => {
       temperature: temp,
       maxOutputTokens: 300,
     })
-    if (!llmRes.ok) return jsonError(500, 'LLM error')
+    if (!llmRes.ok) {
+      const errBody = await llmRes.json().catch(() => ({ error: 'LLM error' }))
+      return jsonError(502, (errBody as any).error || 'LLM error')
+    }
     const llmJson = await llmRes.json()
     const explanation = (extractLlmText(llmJson) || '').trim()
     return jsonOk({ explanation })
