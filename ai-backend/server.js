@@ -52,15 +52,27 @@ function authenticate(req, res, next) {
 }
 
 // ─── NVIDIA helper ──────────────────────────────────────
-async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false }) {
+async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false, studentLevel = 'intermediate' }) {
+  const levelTemp = studentLevel === 'beginner' ? 0.7 : studentLevel === 'advanced' ? 0.3 : 0.5
+  const effectiveTemp = temperature ?? levelTemp
+
+  let formalityHint = ''
+  if (studentLevel === 'beginner') {
+    formalityHint = '\n\nINSTRUCCIÓN ADICIONAL: El estudiante tiene nivel principiante. Usa lenguaje MUY SIMPLE, como si explicaras a un niño de 10 años. Evita tecnicismos. Usa analogías cotidianas (comida, deportes, videojuegos).'
+  } else if (studentLevel === 'advanced') {
+    formalityHint = '\n\nINSTRUCCIÓN ADICIONAL: El estudiante tiene nivel avanzado. Usa lenguaje TÉCNICO y PRECISO. Puedes usar terminología especializada del tema.'
+  }
+
+  const finalSystem = system + formalityHint
+
   const messages = []
   if (jsonOnly) messages.push({ role: 'system', content: `Eres un asistente que SOLO responde con JSON valido. NUNCA incluyas texto fuera del JSON. NUNCA uses markdown ni bloques \`\`\`` })
-  if (system) messages.push({ role: 'system', content: system })
+  if (finalSystem) messages.push({ role: 'system', content: finalSystem })
   messages.push({ role: 'user', content: userMessage })
   const res = await fetch(LLM_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${NVIDIA_API_KEY}` },
-    body: JSON.stringify({ model: LLM_MODEL, messages, temperature, max_tokens: maxTokens }),
+    body: JSON.stringify({ model: LLM_MODEL, messages, temperature: effectiveTemp, max_tokens: maxTokens }),
   })
   if (!res.ok) {
     const errBody = await res.text().catch(() => 'unknown')
@@ -330,7 +342,7 @@ app.post('/api/ask', authenticate, async (req, res) => {
 // ─── Stream answer (for Lesson.jsx chat UX) ─────────────
 app.post('/api/ask-stream', authenticate, async (req, res) => {
   try {
-    const { question, courseTitle, fileTexts = [], history = [], contentMode = false } = req.body
+    const { question, courseTitle, fileTexts = [], history = [], contentMode = false, studentLevel = 'intermediate' } = req.body
     if (!question) return res.status(400).json({ error: 'Falta question' })
 
     const joined = fileTexts.map(f => (typeof f === 'object' && f.text) ? f.text : (typeof f === 'string' ? f : '')).filter(Boolean)
@@ -349,7 +361,7 @@ app.post('/api/ask-stream', authenticate, async (req, res) => {
     const suffix = contentMode ? '\n\nGenera una versión alternativa completa de esta lección en markdown.' : ''
     const userMsg = `${context}${historyText}\n\nPregunta: ${question}${suffix}\n\nResponde basándote ESTRICTAMENTE en el material. Sé conciso y educativo.`
 
-    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.4, maxTokens: contentMode ? 4096 : 2048 })
+    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.4, maxTokens: contentMode ? 4096 : 2048, studentLevel })
 
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')

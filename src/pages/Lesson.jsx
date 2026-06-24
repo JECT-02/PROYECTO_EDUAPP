@@ -12,6 +12,7 @@ import { useVoice } from '../context/VoiceContext'
 import { notifyNodeCompleted } from '../lib/notifications'
 import { checkAchievements } from '../lib/achievements'
 import { getUnderstandingData } from '../lib/api'
+import { getStudentLevel } from '../lib/llm'
 import './Lesson.css'
 
 export default function Lesson() {
@@ -97,6 +98,15 @@ export default function Lesson() {
     return () => { cancelled = true }
   }, [courseId, nodeId])
 
+  useEffect(() => {
+    if (!isSupabaseConfigured || !studentId || !courseId) return
+    getUnderstandingData(studentId, courseId).then(({ data }) => {
+      if (data) setStudentLevel(getStudentLevel(
+        data.avgScore != null ? data.avgScore : (data.completedNodes / Math.max(data.totalNodes, 1)) * 100
+      ))
+    }).catch(() => {})
+  }, [courseId, studentId])
+
   const lessonData = dbNode
     ? {
       title: dbNode.title || 'Lección',
@@ -121,6 +131,7 @@ export default function Lesson() {
   ])
   const [inputText, setInputText] = useState('')
   const [chatStreaming, setChatStreaming] = useState(false)
+  const [studentLevel, setStudentLevel] = useState('intermediate')
   const [courseSources, setCourseSources] = useState([])
   const courseTitle = lessonData?.title || 'Curso'
   const chatEndRef = useRef(null)
@@ -260,6 +271,7 @@ export default function Lesson() {
             fileTexts,
             history: historyPayload,
             contentMode: true,
+            studentLevel,
           }),
           signal: controller.signal,
         })
@@ -315,6 +327,7 @@ export default function Lesson() {
             courseTitle: courseTitle,
             fileTexts,
             history: historyPayload,
+            studentLevel,
           }),
           signal: controller.signal,
         })

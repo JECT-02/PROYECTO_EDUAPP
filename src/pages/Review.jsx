@@ -3,9 +3,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, MessageSquare, ExternalLink, Play, CheckCircle2, XCircle, LoaderCircle, Send, Search } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
-import { analyzeError, reinforceConcept } from '../lib/llm'
-import { isSupabaseConfigured, getCourseNodes } from '../lib/api'
+import { analyzeError, reinforceConcept, getStudentLevel } from '../lib/llm'
+import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { useVoice } from '../context/VoiceContext'
+import { useAuth } from '../context/AuthContext'
 import './Review.css'
 
 export default function Review() {
@@ -13,6 +14,8 @@ export default function Review() {
   const { courseId, nodeId } = useParams()
   const { state } = useLocation()
   const { setPageContext, registerHandler } = useVoice()
+  const { studentId } = useAuth()
+  const [studentLevel, setStudentLevel] = useState('intermediate')
   const [hubOpen, setHubOpen] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [aiExplanations, setAiExplanations] = useState({})
@@ -25,6 +28,15 @@ export default function Review() {
 
   useEffect(() => { setPageContext({ page: 'review' }) }, [setPageContext])
   useEffect(() => { return registerHandler('understood', () => handleEntendido()) }, [registerHandler])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !studentId || !courseId) return
+    getUnderstandingData(studentId, courseId).then(({ data }) => {
+      if (data) setStudentLevel(getStudentLevel(
+        data.avgScore != null ? data.avgScore : (data.completedNodes / Math.max(data.totalNodes, 1)) * 100
+      ))
+    }).catch(() => {})
+  }, [courseId, studentId])
 
   const answers = state?.answers || []
   const incorrectAnswers = answers.filter(a => !a.isCorrect)
@@ -136,9 +148,10 @@ export default function Review() {
         concept: currentAnswer?.question?.split(' ').slice(0, 4).join(' ') || 'este tema',
         question: userQuestion.trim(),
         courses: [courseId],
-        studentAnswer: currentAnswer?.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : '',
-        correctAnswer: currentAnswer?.options[currentAnswer.correct] || '',
-      })
+      studentAnswer: currentAnswer?.selected >= 0 ? currentAnswer.options[currentAnswer.selected] : '',
+      correctAnswer: currentAnswer?.options[currentAnswer.correct] || '',
+      studentLevel,
+    })
       const raw = result?.explanation || result?.reinforcement || result?.text || ''
       const clean = sanitizeExplanation(raw)
       setAiAnswer(clean || 'No pude generar una respuesta. Intenta con otra pregunta.')

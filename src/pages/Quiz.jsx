@@ -5,8 +5,8 @@ import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
-import { analyzeError, generateQuiz } from '../lib/llm'
-import { recordWeakness, isSupabaseConfigured, getCourseNodes } from '../lib/api'
+import { analyzeError, generateQuiz, getStudentLevel } from '../lib/llm'
+import { recordWeakness, isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
 import './Quiz.css'
@@ -27,6 +27,7 @@ export default function Quiz() {
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
   const [congratulations, setCongratulations] = useState('')
+  const [studentLevel, setStudentLevel] = useState('intermediate')
   const answersRef = useRef([])
   const optionsRef = useRef(null)
 
@@ -68,6 +69,15 @@ export default function Quiz() {
     load()
     return () => { cancelled = true }
   }, [courseId, nodeId])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !studentId || !courseId) return
+    getUnderstandingData(studentId, courseId).then(({ data }) => {
+      if (data) setStudentLevel(getStudentLevel(
+        data.avgScore != null ? data.avgScore : (data.completedNodes / Math.max(data.totalNodes, 1)) * 100
+      ))
+    }).catch(() => {})
+  }, [courseId, studentId])
 
   const q = questions?.[qIndex]
 
@@ -153,6 +163,7 @@ export default function Quiz() {
         correctAnswer: q.options[q.correct],
         courseId,
         concept: q.text.split(' ').slice(0, 3).join(' '),
+        studentLevel,
       })
       if (explanation) {
         const clean = sanitizeExplanation(explanation)
