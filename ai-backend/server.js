@@ -52,7 +52,7 @@ function authenticate(req, res, next) {
 }
 
 // ─── NVIDIA helper ──────────────────────────────────────
-async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false, studentLevel = 'intermediate', retries = 3 }) {
+async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 16384, jsonOnly = false, studentLevel = 'intermediate', retries = 1 }) {
   const levelTemp = studentLevel === 'beginner' ? 0.7 : studentLevel === 'advanced' ? 0.3 : 0.5
   const effectiveTemp = temperature ?? levelTemp
 
@@ -70,6 +70,17 @@ async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 
   if (finalSystem) messages.push({ role: 'system', content: finalSystem })
   messages.push({ role: 'user', content: userMessage })
 
+  // 1. Intentar Groq primero (más rápido, sin rate limits agresivos)
+  if (GROQ_API_KEY) {
+    try {
+      log('LLM', 'Intentando con Groq...')
+      return await callGroq({ messages, temperature: effectiveTemp, maxTokens })
+    } catch (e) {
+      warn('LLM', 'Groq falló, intentando con NVIDIA...', e)
+    }
+  }
+
+  // 2. Fallback a NVIDIA
   for (let attempt = 0; attempt <= retries; attempt++) {
     const res = await fetch(LLM_URL, {
       method: 'POST',
@@ -80,18 +91,11 @@ async function callNvidia({ system, userMessage, temperature = 0.6, maxTokens = 
       const json = await res.json()
       return json?.choices?.[0]?.message?.content || ''
     }
-    if (res.status === 429) {
-      if (attempt < retries) {
-        const waitMs = (attempt + 1) * 2000
-        warn('NVIDIA', `Rate limited. Reintentando en ${waitMs}ms...`)
-        await new Promise(r => setTimeout(r, waitMs))
-        continue
-      }
-      // Si se agotan los retries de NVIDIA, intentar con Groq como fallback
-      if (GROQ_API_KEY) {
-        warn('NVIDIA', 'NVIDIA agotado. Intentando con Groq...')
-        return await callGroq({ messages, temperature: effectiveTemp, maxTokens })
-      }
+    if (res.status === 429 && attempt < retries) {
+      const waitMs = (attempt + 1) * 1000
+      warn('LLM', `NVIDIA rate limited. Reintentando en ${waitMs}ms...`)
+      await new Promise(r => setTimeout(r, waitMs))
+      continue
     }
     const errBody = await res.text().catch(() => 'unknown')
     throw new Error(`NVIDIA error ${res.status}: ${errBody.slice(0, 300)}`)
@@ -478,7 +482,7 @@ Reglas ESTRICTAS:
 
     log('ANALYZE-ERROR', `Analizando: "${question.slice(0, 50)}..." nivel=${studentLevel}`)
 
-    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 256, studentLevel, retries: 3 })
+    const answer = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 256, studentLevel, retries: 1 })
 
     const words = answer.split(' ')
     for (let i = 0; i < words.length; i++) {
@@ -533,7 +537,7 @@ NO incluyas texto fuera del array. NO uses markdown. SOLO el array JSON.`
 
   log('ANALYZE-ERRORS-BATCH', `Analizando ${errors.length} errores nivel=${studentLevel}`)
 
-  const raw = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 1024, studentLevel, retries: 3 })
+  const raw = await callNvidia({ system: systemPrompt, userMessage: userMsg, temperature: 0.5, maxTokens: 1024, studentLevel, retries: 1 })
 
   const cleaned = raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```$/im, '').trim()
   let explanations
