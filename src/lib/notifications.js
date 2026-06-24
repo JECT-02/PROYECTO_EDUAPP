@@ -2,11 +2,12 @@ import { supabase, isSupabaseConfigured } from './supabase'
 
 export async function createNotification(userId, type, payload = {}) {
   if (!isSupabaseConfigured || !userId) return null
-  const { data, error } = await supabase.from('notifications').insert({
-    user_id: userId,
-    type,
-    payload,
-  }).select().single()
+  // Use RPC to bypass RLS — allows cross-user notifications (parent→student, teacher→student, etc.)
+  const { data, error } = await supabase.rpc('insert_notification', {
+    p_user_id: userId,
+    p_type: type,
+    p_payload: payload,
+  })
   if (error) {
     console.warn('[notifications] create error:', error.message)
     return null

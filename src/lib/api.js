@@ -405,10 +405,10 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
     .single()
 
   if (!error && data) {
-    await supabase.from('notifications').insert({
-      user_id: student.id,
-      type: 'parent_linked',
-      payload: {
+    await supabase.rpc('insert_notification', {
+      p_user_id: student.id,
+      p_type: 'parent_linked',
+      p_payload: {
         title: 'Padre vinculado',
         desc: `${data.parent?.full_name || 'Tu padre'} se ha vinculado a tu cuenta y ahora puede ver tu progreso.`,
         parent_name: data.parent?.full_name || 'Tu padre',
