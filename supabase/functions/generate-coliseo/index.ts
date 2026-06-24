@@ -26,15 +26,22 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser(token)
     if (!user) return jsonError(401, 'Invalid session')
 
-    const { courseId, count = 10, level = 5 } = reqBody
+    const { courseId, count = 10, level = 5, completedNodes = [] } = reqBody
     if (!courseId) return jsonError(400, 'courseId required')
 
     const admin = getAdminClient()
     const { data: course } = await admin.from('courses').select('title,description').eq('id', courseId).single()
-    const { data: nodes } = await admin.from('nodes').select('title').eq('course_id', courseId).order('position')
-    const syllabus = (nodes ?? []).map((n: { title: string }) => n.title).join('; ')
 
-    const userMsg = `Examen final del curso "${course?.title}":\n${course?.description}\n\nTemario completo: ${syllabus}\n\nGenera ${count} preguntas difíciles nivel ${level}/5. Devuelve SOLO el JSON.`
+    let topicFocus = ''
+    if (Array.isArray(completedNodes) && completedNodes.length > 0) {
+      topicFocus = `El estudiante ya completó estos temas: ${completedNodes.join(', ')}. Genera preguntas SOLO sobre estos temas.`
+    } else {
+      const { data: nodes } = await admin.from('nodes').select('title').eq('course_id', courseId).order('position')
+      const syllabus = (nodes ?? []).map((n: { title: string }) => n.title).join('; ')
+      topicFocus = `Temario completo: ${syllabus}`
+    }
+
+    const userMsg = `Examen final del curso "${course?.title}":\n${course?.description}\n\n${topicFocus}\n\nGenera ${count} preguntas difíciles nivel ${level}/5. Devuelve SOLO el JSON.`
 
     const llmRes = await callLlm({
       system: QUIZ_SYSTEM,

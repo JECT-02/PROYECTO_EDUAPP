@@ -7,8 +7,10 @@ import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibra
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
-import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, getProgressForEnrollment, updateProfileXP, updateProfile } from '../lib/api'
+import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, getProgressForEnrollment, updateProfileXP } from '../lib/api'
 import { checkAchievements } from '../lib/achievements'
+import { notifyColiseoResult } from '../lib/notifications'
+import { generateColiseo } from '../lib/llm'
 import './Coliseo.css'
 
 export default function Coliseo() {
@@ -29,7 +31,6 @@ export default function Coliseo() {
   const [timeLeft, setTimeLeft] = useState(1800)
   const [xpEarned, setXpEarned] = useState(0)
   const [score, setScore] = useState(0)
-  const [errorHint, setErrorHint] = useState('')
   const timerRef = useRef(null)
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
@@ -50,48 +51,77 @@ export default function Coliseo() {
         if (cancelled) return
 
         const enrollmentData = await getStudentEnrollments(studentId)
-        const enrollment = (enrollmentData?.data || []).find(
-          e => e.course_id === courseId || String(e.course_id) === String(courseId)
-        )
-        const progressData = enrollment ? (await getProgressForEnrollment(enrollment.id)).data || [] : []
+        const enrollment = (enrollmentData?.data || [])
+          .find(e => e.course_id === courseId || String(e.course_id) === String(courseId))
+        const progressData = enrollment
+          ? (await getProgressForEnrollment(enrollment.id)).data || []
+          : []
         const completedNodeIds = new Set(
           progressData.filter(p => p.state === 'completed').map(p => p.node_id)
         )
 
-        const sortedNodes = (nodes || []).sort((a, b) => a.position - b.position)
-        const lastCompletedIdx = sortedNodes.reduce((max, n, i) =>
-          completedNodeIds.has(n.id) ? i : max, 0
+        const sortedNodes = (nodes || []).sort((a, b) => (a.position || 0) - (b.position || 0))
+        const lastCompletedIdx = sortedNodes.reduce(
+          (max, n, i) => completedNodeIds.has(n.id) ? i : max, 0
         )
-
-        if (!cancelled) setCourseTitle(sortedNodes[0]?.title || sortedNodes[0]?.courses?.title || 'Curso')
-
         const relevantNodes = sortedNodes.slice(0, lastCompletedIdx + 1)
-        const collectedQuestions = []
 
-        for (const node of relevantNodes) {
-          if (node.content) {
-            try {
-              const parsed = typeof node.content === 'string' ? JSON.parse(node.content) : node.content
-              if (parsed?.questions) {
-                for (const q of parsed.questions) {
-                  collectedQuestions.push({
-                    q: q.text,
-                    a: q.options?.[q.correct] || q.options?.[0] || '',
-                    options: (q.options || []).slice(0, 4).filter(Boolean),
-                  })
-                }
-              }
-            } catch {}
+        const courseTitleFromNodes = sortedNodes[0]?.title || sortedNodes[0]?.courses?.title || ''
+        if (!cancelled) setCourseTitle(courseTitleFromNodes || 'Curso')
+
+        let generatedQuestions = null
+
+        // 1) Try AI generation via generate-coliseo Edge Function (Kimi LLM)
+        if (courseId && isSupabaseConfigured) {
+          try {
+            const completedTitles = relevantNodes.map(n => n.title || n.description || '').filter(Boolean)
+            const result = await generateColiseo({
+              courseId,
+              count: 10,
+              completedNodes: completedTitles,
+            })
+            if (!cancelled && result?.questions?.length > 0) {
+              generatedQuestions = result.questions.map(q => ({
+                q: q.text || q.question || '',
+                a: q.options?.[q.correct ?? 0] || q.correct_answer || q.options?.[0] || '',
+                options: (q.options || []).slice(0, 4).filter(Boolean),
+              }))
+            }
+          } catch (e) {
+            console.warn('[coliseo] IA generation failed, falling back to node questions:', e.message)
           }
         }
 
-        if (collectedQuestions.length >= 5) {
-          const shuffled = collectedQuestions.sort(() => Math.random() - 0.5).slice(0, 10)
-          if (!cancelled) setQuestions(shuffled)
-        } else if (collectedQuestions.length > 0) {
-          if (!cancelled) setQuestions(collectedQuestions.sort(() => Math.random() - 0.5))
+        if (cancelled) return
+
+        if (generatedQuestions && generatedQuestions.length >= 3) {
+          setQuestions(generatedQuestions)
         } else {
-          if (!cancelled) setQuestions(GENERIC_QUESTIONS)
+          // 2) Fallback: collect questions from completed nodes
+          const collectedQuestions = []
+          for (const node of relevantNodes) {
+            if (node.content) {
+              try {
+                const parsed = typeof node.content === 'string' ? JSON.parse(node.content) : node.content
+                if (parsed?.questions) {
+                  for (const q of parsed.questions) {
+                    collectedQuestions.push({
+                      q: q.text,
+                      a: q.options?.[q.correct] || q.options?.[0] || '',
+                      options: (q.options || []).slice(0, 4).filter(Boolean),
+                    })
+                  }
+                }
+              } catch {}
+            }
+          }
+          if (collectedQuestions.length >= 5) {
+            setQuestions(collectedQuestions.sort(() => Math.random() - 0.5).slice(0, 10))
+          } else if (collectedQuestions.length > 0) {
+            setQuestions(collectedQuestions.sort(() => Math.random() - 0.5))
+          } else {
+            setQuestions(GENERIC_QUESTIONS)
+          }
         }
       } catch {
         if (!cancelled) setQuestions(GENERIC_QUESTIONS)
@@ -140,7 +170,7 @@ export default function Coliseo() {
       setFeedbackAnnouncement('¡Correcto!')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
-          setQIndex(qIndex + 1); setSelected(null); setStatus('idle'); setErrorHint('')
+          setQIndex(qIndex + 1); setSelected(null); setStatus('idle')
         } else {
           handleVictory()
         }
@@ -154,23 +184,28 @@ export default function Coliseo() {
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()
-        else { setQIndex(qIndex + 1); setSelected(null); setStatus('idle'); setErrorHint('') }
+        else { setQIndex(qIndex + 1); setSelected(null); setStatus('idle') }
       }, 800)
     }
   }
 
   async function handleVictory() {
     playVictory(); vibrateVictory()
-    const isDailyChallenge = !courseId || window.location.hash.includes('coliseo') && new URLSearchParams(window.location.hash.split('?')[1] || '').get('daily') === '1'
-    const xpBonus = isDailyChallenge ? 200 + score * 40 : 100 + score * 20
+    const xpBonus = 150 + score * 30
     setXpEarned(xpBonus)
     setVictory(true)
+
     if (studentId && isSupabaseConfigured) {
       try {
         const currentXp = user?.fullProfile?.pet_xp || 0
         await updateProfileXP(studentId, currentXp + xpBonus)
       } catch {}
+
       const perfect = lives === 3 && score === questions.length
+      const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0
+
+      notifyColiseoResult(studentId, pct >= 70, pct, courseTitle || 'Curso').catch(() => {})
+
       checkAchievements(studentId, {
         coliseo_won: true,
         coliseo_perfect: perfect,
@@ -183,7 +218,7 @@ export default function Coliseo() {
       <PageWrapper className="coliseo-page center-all">
         <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
           <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} />
-          <p>Preparando retos...</p>
+          <p>Generando desafío con IA...</p>
         </div>
       </PageWrapper>
     )
@@ -246,7 +281,7 @@ export default function Coliseo() {
           <h1 className="gradient-text" style={{ textAlign: 'center', marginBottom: 12 }}>Coliseo de Retos</h1>
           {courseTitle && <p style={{ textAlign: 'center', color: 'var(--primary-light)', fontWeight: 700, marginBottom: 8 }}>{courseTitle}</p>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-            <span>⚔️ {questions.length} preguntas</span>
+            <span>⚔️ {questions.length} preguntas generadas por IA</span>
             <span>⏱️ 30 minutos</span>
             <span>❤️ 3 vidas</span>
             <span>⭐ XP por victoria</span>

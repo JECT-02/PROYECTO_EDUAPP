@@ -33,8 +33,8 @@ export async function markAllAsRead(userId) {
 
 export async function notifyAchievement(studentId, medalName, medalRarity) {
   return createNotification(studentId, 'medal', {
-    title: 'Medalla desbloqueada',
-    desc: `Has ganado "${medalName}" (${medalRarity})`,
+    title: `Nuevo logro: ${medalName}`,
+    desc: `Has desbloqueado el logro "${medalName}" de rareza ${medalRarity}`,
     medal_name: medalName,
     rarity: medalRarity,
   })

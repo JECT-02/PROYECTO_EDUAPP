@@ -38,9 +38,9 @@ export async function generateTest({ courseId, count = 10 }) {
   return callFunction({ name: 'generate-test', body: { courseId, count }, accessToken })
 }
 
-export async function generateColiseo({ courseId, count = 20 }) {
+export async function generateColiseo({ courseId, count = 10, completedNodes = [] }) {
   const accessToken = await getAccessToken()
-  return callFunction({ name: 'generate-coliseo', body: { courseId, count }, accessToken })
+  return callFunction({ name: 'generate-coliseo', body: { courseId, count, completedNodes }, accessToken })
 }
 
 export async function generateRoadmap({ courseId, files = [], rigor = 3 }) {

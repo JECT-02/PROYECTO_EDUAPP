@@ -10,6 +10,8 @@ import { getAccessToken } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
 import { notifyNodeCompleted } from '../lib/notifications'
+import { checkAchievements } from '../lib/achievements'
+import { getUnderstandingData } from '../lib/api'
 import './Lesson.css'
 
 export default function Lesson() {
@@ -412,6 +414,15 @@ export default function Lesson() {
             const xpBonus = 20
             const currentXp = user?.fullProfile?.pet_xp || 0
             updateProfileXP(studentId, currentXp + xpBonus).catch(() => {})
+
+            const { data: progress } = await getProgressForEnrollment(enrollment.id)
+            const theoryCompleted = (progress || []).filter(p => p.state === 'completed').length
+            const { data: nodes } = await getCourseNodesAllStatus(courseId)
+            const allCompleted = nodes && theoryCompleted >= nodes.length
+            checkAchievements(studentId, {
+              theory_completed: theoryCompleted,
+              course_completed: allCompleted ? 1 : 0,
+            }).catch(() => {})
           }
         } else {
           console.warn('[lesson] no enrollment found for student', studentId, 'course', courseId)
