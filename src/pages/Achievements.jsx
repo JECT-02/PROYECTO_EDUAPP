@@ -24,7 +24,12 @@ export default function Achievements() {
       if (!isSupabaseConfigured || !studentId) { setLoading(false); return }
       const { data } = await listStudentMedals(studentId)
       if (!cancelled) {
-        setEarnedIds(new Set((data || []).map(m => m.achievement || m.name)))
+        const ids = new Set()
+        for (const m of (data || [])) {
+          if (m.achievement) ids.add(m.achievement.toLowerCase())
+          if (m.name) ids.add(m.name.toLowerCase())
+        }
+        setEarnedIds(ids)
         setLoading(false)
       }
     }
@@ -35,7 +40,7 @@ export default function Achievements() {
   useEffect(() => { setPageContext({ page: 'achievements' }) }, [setPageContext])
 
   const catalog = getAllAchievements()
-  const earnedCount = catalog.filter(a => earnedIds.has(a.id) || earnedIds.has(a.name)).length
+  const earnedCount = catalog.filter(a => earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())).length
 
   return (
     <PageWrapper className="achievements-page">
@@ -52,7 +57,7 @@ export default function Achievements() {
       ) : (
         <div className="achievements-grid" role="list" aria-label="Lista de medallas">
           {catalog.map(a => {
-            const unlocked = earnedIds.has(a.id) || earnedIds.has(a.name)
+            const unlocked = earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())
             return (
               <div key={a.id} className={`achievement-card ${unlocked ? '' : 'locked'}`} role="listitem" style={{
                 borderColor: unlocked ? `${RARITY_COLOR[a.rarity]}55` : 'var(--border-light)'

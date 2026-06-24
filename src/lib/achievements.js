@@ -8,7 +8,12 @@ export const RARITY_ICON = { mastery: '👑', behavior: '🔥', secret: '🌟' }
 
 async function getEarnedIds(studentId) {
   const { data } = await listStudentMedals(studentId)
-  return new Set((data || []).map(m => m.achievement || m.name))
+  const ids = new Set()
+  for (const m of (data || [])) {
+    if (m.achievement) ids.add(m.achievement.toLowerCase())
+    if (m.name) ids.add(m.name.toLowerCase())
+  }
+  return ids
 }
 
 function evaluateRule(rule, context) {
@@ -50,7 +55,7 @@ export async function checkAchievements(studentId, context = {}) {
   const earnedIds = await getEarnedIds(studentId)
   const unlocked = []
   for (const def of CATALOG) {
-    if (earnedIds.has(def.id) || earnedIds.has(def.name)) continue
+    if (earnedIds.has(def.id?.toLowerCase()) || earnedIds.has(def.name?.toLowerCase())) continue
     if (evaluateRule(def.rule, context)) {
       const ok = await awardMedal(studentId, def)
       if (ok) unlocked.push(def)

@@ -270,7 +270,7 @@ export async function listStudentMedals(studentId) {
   if (!isSupabaseConfigured) return FALLBACK([])
   const { data, error } = await supabase
     .from('medals')
-    .select('id, medal_type, name, rarity, svg_url, unlocked_at')
+    .select('id, medal_type, name, achievement, rarity, svg_url, unlocked_at')
     .eq('student_id', studentId)
     .order('unlocked_at', { ascending: false })
   return { data: data || [], error }
