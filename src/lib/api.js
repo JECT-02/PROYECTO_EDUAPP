@@ -364,13 +364,13 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
       .eq('email', studentEmail)
       .eq('role', 'student')
       .single()
-    if (sErr || !s) return { data: null, error: new Error('No se encontró un estudiante con ese correo. Verifica e intenta de nuevo.') }
+    if (sErr || !s) return { data: null, error: new Error('No se encontró un estudiante con ese correo.') }
     student = s
   } else {
-    return { data: null, error: new Error('Debe proporcionar email o DNI del estudiante.') }
+    return { data: null, error: new Error('Debe proporcionar DNI del estudiante.') }
   }
 
-  // Check if student already has an accepted parent (one parent per student rule)
+  // One parent per student rule
   const { data: existingAccepted } = await supabase
     .from('parent_links')
     .select('id')
@@ -381,31 +381,13 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
     return { data: null, error: new Error('Este estudiante ya está vinculado a otro padre. Solo un padre por estudiante.') }
   }
 
-  // Check if THIS parent already linked to this student
-  const { data: existingLink } = await supabase
-    .from('parent_links')
-    .select('id, status')
-    .eq('parent_id', parentId)
-    .eq('student_id', student.id)
-    .maybeSingle()
-  if (existingLink) {
-    const msg = existingLink.status === 'accepted'
-      ? 'Este estudiante ya está vinculado a tu cuenta.'
-      : 'Ya enviaste una solicitud a este estudiante. Espera a que la acepte.'
-    return { data: null, error: new Error(msg) }
-  }
+  // Direct accept: upsert with status accepted (no notification/approval needed)
   const { data, error } = await supabase
     .from('parent_links')
-    .insert({ parent_id: parentId, student_id: student.id, status: 'pending' })
+    .upsert({ parent_id: parentId, student_id: student.id, status: 'accepted' }, { onConflict: 'parent_id,student_id' })
     .select()
     .single()
-  if (!error) {
-    await supabase.from('notifications').insert({
-      user_id: student.id,
-      type: 'parent_request',
-      payload: { parent_id: parentId, title: 'Solicitud de vinculación', desc: 'Un padre quiere ver tu progreso.' },
-    })
-  }
+
   return { data, error }
 }
 

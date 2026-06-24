@@ -376,7 +376,7 @@ export default function ParentDashboard() {
                           />
                         </div>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 16 }}>
-                          El estudiante recibirá una notificación para aceptar la vinculación. Solo un padre por estudiante.
+                          Ingresa el DNI de tu hijo para vincularlo a tu cuenta. Solo un padre por estudiante.
                         </p>
                         <button className="btn btn-primary full-w" type="submit" disabled={loading || !studentDNI.trim()}>
                           {loading ? <LoaderCircle size={16} className="animate-spin" /> : <><Link2 size={16} /> Vincular</>}
@@ -385,8 +385,8 @@ export default function ParentDashboard() {
                     ) : result.success ? (
                       <div className="parent-link-result">
                         <CheckCircle size={48} color="var(--success)" />
-                        <h3>Solicitud enviada</h3>
-                        <p>El estudiante recibirá una notificación para aceptar la vinculación.</p>
+                        <h3>Vinculación exitosa</h3>
+                        <p>El estudiante ha sido vinculado a tu cuenta. Ya puedes ver su progreso.</p>
                         <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={handleCloseModal}>
                           Entendido
                         </button>
