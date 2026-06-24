@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, LoaderCircle, TrendingUp, BookOpen } from 'lucide-react'
+import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, LoaderCircle, Mail, IdCard, ChevronDown, ChevronUp, BookOpen, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
-import { getStudentEnrollments, getCourseNodes, getProgressForEnrollment, getUnderstandingData, isSupabaseConfigured, listStudentMedals } from '../lib/api'
-import { calculateUnderstanding, understandingColor, understandingLabel } from '../lib/understanding'
+import { getStudentEnrollments, getCourseNodes, getProgressForEnrollment, getUnderstandingData, isSupabaseConfigured, listStudentMedals, searchStudents } from '../lib/api'
+import { calculateUnderstanding, understandingColor } from '../lib/understanding'
 import './ParentDashboard.css'
 
 function ChartTooltip({ active, payload }) {
@@ -27,11 +27,14 @@ function ChartTooltip({ active, payload }) {
 export default function ParentDashboard() {
   const { user, linkStudent, unlinkStudent, linkedStudents: contextLinked } = useAuth()
   const [showModal, setShowModal] = useState(false)
+  const [linkMode, setLinkMode] = useState('email')
   const [studentEmail, setStudentEmail] = useState('')
+  const [studentDNI, setStudentDNI] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [studentsData, setStudentsData] = useState({})
   const [loadingStats, setLoadingStats] = useState(false)
+  const [expandedStudent, setExpandedStudent] = useState(null)
 
   const linkedStudents = contextLinked || []
 
@@ -54,7 +57,8 @@ export default function ParentDashboard() {
           let totalLessons = 0
           let totalProgress = 0
           let lastActive = null
-          let understanding = null
+          let globalUnderstanding = null
+          const courses = []
 
           for (const e of enrollments) {
             const [nodesResult, progResult] = await Promise.all([
@@ -65,10 +69,9 @@ export default function ParentDashboard() {
             const nodes = nodesResult?.data || []
             const prog = progResult?.data || []
             const completed = prog.filter(p => p.state === 'completed').length
+            const courseProgress = nodes.length > 0 ? Math.round((completed / nodes.length) * 100) : 0
             totalLessons += completed
-            totalProgress = nodes.length > 0
-              ? Math.round((completed / nodes.length) * 100)
-              : totalProgress
+            totalProgress = enrollments.length > 0 ? courseProgress : totalProgress
 
             const completedDates = prog.filter(p => p.completed_at).map(p => new Date(p.completed_at))
             if (completedDates.length > 0) {
@@ -76,23 +79,36 @@ export default function ParentDashboard() {
               if (!lastActive || latest > lastActive) lastActive = latest
             }
 
-            if (!understanding) {
-              const { data: ud } = await getUnderstandingData(s.id, e.course_id)
-              if (ud) understanding = calculateUnderstanding(ud)
+            const { data: ud } = await getUnderstandingData(s.id, e.course_id)
+            const courseUnderstanding = ud ? calculateUnderstanding(ud) : null
+
+            if (!globalUnderstanding && courseUnderstanding) {
+              globalUnderstanding = courseUnderstanding
             }
+
+            courses.push({
+              courseId: e.course_id,
+              courseTitle: e.courses?.title || 'Curso',
+              progress: courseProgress,
+              completed,
+              total: nodes.length,
+              understanding: courseUnderstanding?.value || 0,
+              understandingColor: courseUnderstanding ? understandingColor(courseUnderstanding.value) : 'var(--text-dim)',
+            })
           }
           if (cancelled) return
 
           data[s.id] = {
             lessons: totalLessons,
-            progress: enrollments.length > 0 ? totalProgress : 0,
-            understanding: understanding?.value || 0,
+            progress: totalProgress,
+            understanding: globalUnderstanding?.value || 0,
             lastActive,
             medals: medals.length,
+            courses,
             chartData: generatePlaceholderChart(s.id),
           }
         } catch {
-          data[s.id] = { lessons: 0, progress: 0, understanding: 0, lastActive: null, medals: 0, chartData: [] }
+          data[s.id] = { lessons: 0, progress: 0, understanding: 0, lastActive: null, medals: 0, courses: [], chartData: [] }
         }
       }
       if (cancelled) return
@@ -127,12 +143,24 @@ export default function ParentDashboard() {
 
   async function handleLink(e) {
     e.preventDefault()
-    if (!studentEmail.trim()) return
     setLoading(true)
     setResult(null)
     try {
-      const res = await linkStudent(studentEmail.trim().toLowerCase())
-      setResult(res)
+      if (linkMode === 'dni') {
+        if (!studentDNI.trim()) return
+        const { data: students } = await searchStudents(studentDNI.trim())
+        if (!students || students.length === 0) {
+          setResult({ success: false, error: 'No se encontró un estudiante con ese DNI.' })
+          return
+        }
+        const found = students[0]
+        const res = await linkStudent(found.email)
+        setResult(res)
+      } else {
+        if (!studentEmail.trim()) return
+        const res = await linkStudent(studentEmail.trim().toLowerCase())
+        setResult(res)
+      }
     } catch (err) {
       setResult({ success: false, error: err.message || 'Error inesperado' })
     } finally {
@@ -147,7 +175,9 @@ export default function ParentDashboard() {
   function handleCloseModal() {
     setShowModal(false)
     setStudentEmail('')
+    setStudentDNI('')
     setResult(null)
+    setLinkMode('email')
   }
 
   return (
@@ -173,11 +203,12 @@ export default function ParentDashboard() {
           {linkedStudents.length > 0 ? (
             <div className="parent-students-grid">
               {linkedStudents.map((s, idx) => {
-                const stats = studentsData[s.id] || { lessons: 0, progress: 0, understanding: 0, lastActive: null, medals: 0, chartData: [] }
+                const stats = studentsData[s.id] || { lessons: 0, progress: 0, understanding: 0, lastActive: null, medals: 0, courses: [], chartData: [] }
                 const lastActiveInfo = formatLastActive(stats.lastActive)
                 const avgMins = stats.chartData.length > 0
                   ? Math.round(stats.chartData.reduce((sum, d) => sum + d.mins, 0) / stats.chartData.length)
                   : 0
+                const isExpanded = expandedStudent === s.id
 
                 return (
                   <motion.div
@@ -195,13 +226,20 @@ export default function ParentDashboard() {
                           <div className="parent-student-id">ID: {s.id?.slice(0, 8) || '—'}</div>
                         </div>
                       </div>
-                      <button
-                        className="btn-unlink"
-                        onClick={() => handleUnlink(s.linkId || s.id)}
-                      >
-                        <Unlink size={14} />
-                        Desvincular
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setExpandedStudent(isExpanded ? null : s.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          {isExpanded ? 'Ocultar' : 'Cursos'}
+                        </button>
+                        <button className="btn-unlink" onClick={() => handleUnlink(s.linkId || s.id)}>
+                          <Unlink size={14} />
+                          Desvincular
+                        </button>
+                      </div>
                     </div>
 
                     <div className="parent-student-content">
@@ -251,6 +289,53 @@ export default function ParentDashboard() {
                         }} />
                       </div>
                     </div>
+
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          className="parent-courses-detail"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25 }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          <div className="parent-courses-divider" />
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>
+                            <BookOpen size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                            Avance por curso
+                          </h4>
+                          {stats.courses.length === 0 ? (
+                            <p style={{ color: 'var(--text-dim)', fontSize: '0.82rem' }}>Este estudiante aún no está inscrito en cursos.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                              {stats.courses.map(course => (
+                                <div key={course.courseId} className="parent-course-row">
+                                  <div className="parent-course-header">
+                                    <span className="parent-course-title">{course.courseTitle}</span>
+                                    <span className="parent-course-pct" style={{ color: course.understandingColor }}>
+                                      {course.understanding}%
+                                    </span>
+                                  </div>
+                                  <div className="progress-bar" style={{ height: 4, marginBottom: 6 }}>
+                                    <div className="progress-fill" style={{
+                                      width: `${course.progress}%`,
+                                      background: `linear-gradient(90deg, ${course.understandingColor}, ${course.understandingColor}aa)`,
+                                    }} />
+                                  </div>
+                                  <div className="parent-course-meta">
+                                    <span>{course.completed}/{course.total} lecciones</span>
+                                    <span style={{ color: course.understandingColor }}>
+                                      <TrendingUp size={12} style={{ verticalAlign: 'middle' }} /> Nivel de entendimiento
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 )
               })}
@@ -265,7 +350,7 @@ export default function ParentDashboard() {
                 <Users size={40} />
               </div>
               <h3>Aún no hay estudiantes vinculados</h3>
-              <p>Vincula a tu hijo ingresando su correo electrónico de estudiante para seguir su progreso.</p>
+              <p>Vincula a tu hijo ingresando su correo electrónico o DNI de estudiante para seguir su progreso.</p>
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>
                 <Link2 size={16} />
                 Vincular ahora
@@ -276,67 +361,97 @@ export default function ParentDashboard() {
           <AnimatePresence>
             {showModal && (
               <motion.div
-                className="modal-overlay"
+                className="parent-modal-overlay"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={(e) => { if (e.target === e.currentTarget) handleCloseModal() }}
               >
                 <motion.div
-                  className="modal-container"
-                  style={{ maxWidth: 460 }}
+                  className="parent-modal-container"
                   initial={{ opacity: 0, scale: 0.92, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.92, y: 20 }}
                   onClick={e => e.stopPropagation()}
                 >
-                  <div className="modal-header">
+                  <div className="parent-modal-header">
                     <h2>Vincular estudiante</h2>
-                    <button className="modal-close-btn" onClick={handleCloseModal} aria-label="Cerrar">
+                    <button className="parent-modal-close-btn" onClick={handleCloseModal} aria-label="Cerrar">
                       <X size={18} />
                     </button>
                   </div>
 
-                  <div className="modal-body" style={{ padding: '24px 28px' }}>
+                  <div className="parent-modal-body">
                     {!result ? (
                       <form onSubmit={handleLink}>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                          Ingresa el correo electrónico del estudiante. El estudiante recibirá una notificación para aceptar la vinculación.
-                        </p>
-                        <div style={{ position: 'relative', marginBottom: 16 }}>
-                          <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
-                          <input
-                            className="input-field"
-                            style={{ paddingLeft: 40 }}
-                            type="email"
-                            placeholder="Correo del estudiante"
-                            value={studentEmail}
-                            onChange={e => setStudentEmail(e.target.value)}
-                            autoFocus
-                            required
-                          />
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                          <button
+                            type="button"
+                            className={`btn ${linkMode === 'email' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+                            onClick={() => { setLinkMode('email'); setStudentDNI('') }}
+                          >
+                            <Mail size={14} /> Correo
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn ${linkMode === 'dni' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+                            onClick={() => { setLinkMode('dni'); setStudentEmail('') }}
+                          >
+                            <IdCard size={14} /> DNI
+                          </button>
                         </div>
-                        <button className="btn btn-primary full-w" type="submit" disabled={loading || !studentEmail.trim()}>
+
+                        {linkMode === 'email' ? (
+                          <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
+                            <input
+                              className="input-field"
+                              style={{ paddingLeft: 40 }}
+                              type="email"
+                              placeholder="Correo del estudiante"
+                              value={studentEmail}
+                              onChange={e => setStudentEmail(e.target.value)}
+                              autoFocus
+                              required
+                            />
+                          </div>
+                        ) : (
+                          <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <IdCard size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
+                            <input
+                              className="input-field"
+                              style={{ paddingLeft: 40 }}
+                              placeholder="DNI del estudiante"
+                              value={studentDNI}
+                              onChange={e => setStudentDNI(e.target.value)}
+                              autoFocus
+                              required
+                            />
+                          </div>
+                        )}
+
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 16 }}>
+                          El estudiante recibirá una notificación para aceptar la vinculación.
+                        </p>
+                        <button className="btn btn-primary full-w" type="submit" disabled={loading || (!studentEmail.trim() && !studentDNI.trim())}>
                           {loading ? <LoaderCircle size={16} className="animate-spin" /> : <><Link2 size={16} /> Vincular</>}
                         </button>
                       </form>
                     ) : result.success ? (
-                      <div style={{ textAlign: 'center', padding: 20 }}>
-                        <CheckCircle size={48} color="var(--success)" style={{ marginBottom: 16 }} />
+                      <div className="parent-link-result">
+                        <CheckCircle size={48} color="var(--success)" />
                         <h3>Solicitud enviada</h3>
-                        <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>
-                          El estudiante recibirá una notificación para aceptar la vinculación.
-                        </p>
-                        <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={handleCloseModal}>
+                        <p>El estudiante recibirá una notificación para aceptar la vinculación.</p>
+                        <button className="btn btn-primary" style={{ marginTop: 8 }} onClick={handleCloseModal}>
                           Entendido
                         </button>
                       </div>
                     ) : (
-                      <div style={{ textAlign: 'center', padding: 20 }}>
-                        <AlertCircle size={48} color="var(--error)" style={{ marginBottom: 16 }} />
+                      <div className="parent-link-result">
+                        <AlertCircle size={48} color="var(--error)" />
                         <h3>Error</h3>
-                        <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>{result.error}</p>
-                        <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={() => setResult(null)}>
+                        <p>{result.error}</p>
+                        <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={() => setResult(null)}>
                           Intentar de nuevo
                         </button>
                       </div>
