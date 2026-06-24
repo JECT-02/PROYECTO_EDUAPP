@@ -33,12 +33,24 @@ function buildDailyChallenges(enrollments, progressMap) {
   const challenges = []
   const withProgress = enrollments.filter(e => (progressMap[e.courseId] || 0) > 0)
   const pool = withProgress.length > 0 ? withProgress : enrollments
-  const shuffled = [...pool].sort(() => Math.random() - 0.5)
 
-  const coliseoCourse = shuffled[0]
+  const today = new Date().toISOString().slice(0, 10)
+  const daySeed = today.split('-').reduce((sum, part) => sum + parseInt(part, 10), 0)
+
+  function stableSort(arr) {
+    return [...arr].sort((a, b) => {
+      const ha = (daySeed * 31 + (a.courseId || '').length * 7) % 100
+      const hb = (daySeed * 31 + (b.courseId || '').length * 7) % 100
+      return ha - hb
+    })
+  }
+
+  const sorted = stableSort(pool)
+
+  const coliseoCourse = sorted[0]
   if (coliseoCourse?.courseId) {
     challenges.push({
-      id: 'coliseo-daily',
+      id: `coliseo-${today}`,
       title: 'Coliseo de Retos',
       icon: <Trophy size={20} />,
       color: '#F59E0B',
@@ -49,11 +61,11 @@ function buildDailyChallenges(enrollments, progressMap) {
     })
   }
 
-  const reviewCourse = shuffled.length > 1 ? shuffled[1] : shuffled[0]
-  if (reviewCourse?.courseId && reviewCourse.courseId !== coliseoCourse?.courseId) {
+  if (sorted.length > 1) {
+    const reviewCourse = sorted[1]
     const pct = progressMap[reviewCourse.courseId] || 0
     challenges.push({
-      id: `review-${reviewCourse.courseId}`,
+      id: `review-${today}-${reviewCourse.courseId}`,
       title: pct >= 80 ? 'Examen Final' : pct >= 40 ? 'Quiz de Repaso' : 'Repaso Rápido',
       icon: <Zap size={20} />,
       color: '#22C55E',
