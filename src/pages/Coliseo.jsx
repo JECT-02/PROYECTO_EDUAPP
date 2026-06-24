@@ -7,7 +7,7 @@ import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibra
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
 import { useVoice } from '../context/VoiceContext'
-import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, updateProfileXP } from '../lib/api'
+import { isSupabaseConfigured, getStudentEnrollments, getCourseNodes, getProgressForEnrollment, updateProfileXP } from '../lib/api'
 import { checkAchievements } from '../lib/achievements'
 import { generateQuiz } from '../lib/llm'
 import './Coliseo.css'
@@ -36,58 +36,46 @@ export default function Coliseo() {
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
 
-  // Load questions from course or generate
+  // Load questions from course quiz nodes up to student's progress
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoadingQuestions(true)
       try {
-        // Try to load from course nodes (boss content)
         if (courseId && isSupabaseConfigured && studentId) {
-          const { data: nodes } = await getCourseNodes(courseId)
-          if (!cancelled && nodes?.length) {
-            const bossNode = nodes.find(n => n.type === 'boss' && n.content)
-            if (bossNode) {
-              try {
-                const parsed = typeof bossNode.content === 'string' ? JSON.parse(bossNode.content) : bossNode.content
-                if (parsed?.questions?.length > 0) {
-                  const mapped = parsed.questions.map(q => ({
-                    q: q.text,
-                    a: q.options[q.correct] || q.options[0],
-                    options: q.options.slice(0, 4).filter(Boolean),
-                  }))
-                  if (!cancelled) setQuestions(mapped)
-                  setCourseTitle(nodes[0]?.title || 'Curso')
-                  setLoadingQuestions(false)
-                  return
-                }
-              } catch {}
-            }
-            // Fallback: pick quiz questions from nodes
-            const quizNodes = nodes.filter(n => n.type === 'quiz' && n.content)
-            const allQs = []
-            for (const qn of quizNodes) {
-              try {
-                const p = typeof qn.content === 'string' ? JSON.parse(qn.content) : qn.content
-                if (p?.questions) {
-                  p.questions.forEach(q => allQs.push({
-                    q: q.text,
-                    a: q.options[q.correct] || q.options[0],
-                    options: q.options.slice(0, 4).filter(Boolean),
-                  }))
-                }
-              } catch {}
-            }
-            if (allQs.length >= 3) {
-              const shuffled = allQs.sort(() => Math.random() - 0.5).slice(0, 10)
-              if (!cancelled) setQuestions(shuffled)
-              setCourseTitle(nodes[0]?.title || 'Curso')
-              setLoadingQuestions(false)
-              return
-            }
+          const [{ data: nodes }, { data: enrollments }] = await Promise.all([
+            getCourseNodes(courseId),
+            getStudentEnrollments(studentId),
+          ])
+          if (cancelled || !nodes?.length) { setLoadingQuestions(false); return }
+          setCourseTitle(nodes[0]?.title || 'Curso')
+          // Find enrollment to get progress
+          const enrollment = (enrollments || []).find(e => e.course_id === courseId)
+          const progData = enrollment ? (await getProgressForEnrollment(enrollment.id)).data || [] : []
+          const completedNodeIds = new Set(progData.filter(p => p.state === 'completed').map(p => p.node_id))
+          // Collect ALL questions from quiz/boss nodes COMPLETED by student
+          const allQs = []
+          for (const n of nodes) {
+            if (n.type !== 'quiz' && n.type !== 'boss') continue
+            if (!completedNodeIds.has(n.id)) continue // only up to student progress
+            if (!n.content) continue
+            try {
+              const p = typeof n.content === 'string' ? JSON.parse(n.content) : n.content
+              if (p?.questions) {
+                p.questions.forEach(q => {
+                  const opts = (q.options || []).slice(0, 4).filter(Boolean)
+                  if (opts.length >= 2 && q.text) {
+                    allQs.push({ q: q.text, a: opts[q.correct] || opts[0], options: opts })
+                  }
+                })
+              }
+            } catch {}
+          }
+          if (allQs.length >= 3) {
+            const shuffled = allQs.sort(() => Math.random() - 0.5).slice(0, 10)
+            if (!cancelled) { setQuestions(shuffled); setLoadingQuestions(false); return }
           }
         }
-        // Ultimate fallback: hardcoded generic questions
         if (!cancelled) setQuestions(GENERIC_QUESTIONS)
       } catch { if (!cancelled) setQuestions(GENERIC_QUESTIONS) }
       if (!cancelled) setLoadingQuestions(false)
@@ -202,14 +190,14 @@ export default function Coliseo() {
           <Trophy size={80} color="#FACC15" style={{ margin: '0 auto 24px', display: 'block' }} />
           <h1 className="gradient-text" style={{ fontSize: '2.5rem', textAlign: 'center' }}>¡MAESTRÍA LOGRADA!</h1>
           <p style={{ fontSize: '1.2rem', marginBottom: 8, textAlign: 'center' }}>
-            Has superado el Coliseo de Retos
-            {courseTitle ? ` de ${courseTitle}` : ''} con éxito.
+            ¡Has superado el Coliseo de Retos
+            {courseTitle ? ` de ${courseTitle}` : ''}!
           </p>
           <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FACC15', textAlign: 'center', marginBottom: 4 }}>
-            ⭐ +{xpEarned} XP
+            ⭐ +{xpEarned} XP <span style={{fontSize:'0.8rem',color:'var(--text-muted)',fontWeight:400}}>(Reto del día x3)</span>
           </p>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center', marginBottom: 32 }}>
-            {score}/{questions.length} respuestas correctas, {lives} {lives === 1 ? 'vida' : 'vidas'} restantes
+            {score}/{questions.length} correctas — {lives} {lives === 1 ? 'vida restante' : 'vidas restantes'} — {lives === 3 && score === questions.length ? '¡Victoria perfecta!' : score >= questions.length * 0.7 ? '¡Gran desempeño!' : '¡Bien hecho!'}
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn-accent btn-lg" onClick={() => navigate('/dashboard')}>
