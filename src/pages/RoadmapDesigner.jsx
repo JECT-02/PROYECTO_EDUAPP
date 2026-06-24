@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Send, Bot, LoaderCircle, Save, Trash2, Eye } from 'lucide-react'
+import { ArrowLeft, Book, Zap, Puzzle, Trophy, Sparkles, Send, Bot, LoaderCircle, Save, Trash2, Eye, Check } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import Header from '../components/Header'
 import { useAuth } from '../context/AuthContext'
