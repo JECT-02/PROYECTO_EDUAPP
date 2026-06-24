@@ -246,7 +246,7 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
             <div className="modal-body course-detail-body">
               {activeTab === 'participantes' && (
                 <>
-                  {/* Toolbar: search + add */}
+                  {/* Toolbar: filter participants + add button */}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <div style={{ position: 'relative', flex: 1 }}>
                       <Search
@@ -260,7 +260,7 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                       <input
                         className="input-field"
                         style={{ paddingLeft: 40 }}
-                        placeholder="Buscar por nombre, email o DNI..."
+                        placeholder="Filtrar participantes..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                       />
