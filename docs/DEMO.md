@@ -27,18 +27,17 @@ Se crean con `node scripts/seed-test-users.mjs` (cuentas base) y `node scripts/s
 | `diego.vargas@eduapp.test` | `student123` | 99999999 | Diego Vargas | 18+ |
 | `valeria.rios@eduapp.test` | `student123` | 10101010 | Valeria Ríos | 11-14 |
 
-### Padres (4 + 1 base) — Vinculaciones
+### Padres (4 + 1 base) — Sin vincular inicialmente
 
-| Email | Contraseña | DNI | Nombre | Vinculado a |
-|---|---|---|---|---|
-| `default_parent@eduapp.test` | `parent123` | 33333333 | Padre/Madre Demo | Estudiante Demo |
-| `padre.garcia@eduapp.test` | `parent123` | 11000001 | Sr. García | Ana García |
-| `padre.martinez@eduapp.test` | `parent123` | 11000002 | Sr. Martínez | Luis Martínez |
-| `madre.torres@eduapp.test` | `parent123` | 11000003 | Sra. Torres | Sofía Torres |
-| `padre.vargas@eduapp.test` | `parent123` | 11000004 | Sr. Vargas | Diego Vargas |
+| Email | Contraseña | DNI | Nombre |
+|---|---|---|---|
+| `default_parent@eduapp.test` | `parent123` | 33333333 | Padre/Madre Demo |
+| `padre.garcia@eduapp.test` | `parent123` | 11000001 | Sr. García |
+| `padre.martinez@eduapp.test` | `parent123` | 11000002 | Sr. Martínez |
+| `madre.torres@eduapp.test` | `parent123` | 11000003 | Sra. Torres |
+| `padre.vargas@eduapp.test` | `parent123` | 11000004 | Sr. Vargas |
 
-> **Regla:** Un estudiante solo puede tener UN padre vinculado (índice único en BD).
-> Las vinculaciones ya están creadas con estado `accepted`.
+> Los padres y estudiantes se crean **sin vínculos previos**. El padre debe vincular manualmente a su hijo ingresando el DNI desde el Panel Familiar.
 
 ### Login rápido desde la UI
 

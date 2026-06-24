@@ -124,28 +124,12 @@ async function main() {
     await ensureProfile(id, s)
   }
 
-  console.log('\n--- Creando padres y vinculando ---')
-  const parentIds = []
-  for (let i = 0; i < PARENTS.length; i++) {
-    const p = PARENTS[i]
+  console.log('\n--- Creando padres (sin vincular) ---')
+  for (const p of PARENTS) {
     p.role = 'parent'
     const id = await ensureUser(p)
-    parentIds.push(id)
     await ensureProfile(id, p)
-
-    // Vincular cada padre a un estudiante (uno-a-uno)
-    if (i < studentIds.length) {
-      await linkParentToStudent(id, studentIds[i])
-    }
-  }
-
-  // Vincular padre default al estudiante default
-  console.log('\n--- Vinculando padre default a estudiante default ---')
-  const { data: defaultUsers } = await admin.auth.admin.listUsers({ perPage: 200 })
-  const defParent = defaultUsers?.users?.find(u => u.email === 'default_parent@eduapp.test')
-  const defStudent = defaultUsers?.users?.find(u => u.email === 'default_student@eduapp.test')
-  if (defParent && defStudent) {
-    await linkParentToStudent(defParent.id, defStudent.id)
+    console.log(`  ${p.email} — ${p.full_name} (DNI: ${p.dni}) — NO vinculado`)
   }
 
   console.log('\n--- RESUMEN DE CUENTAS ---')

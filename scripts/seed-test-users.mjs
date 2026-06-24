@@ -223,7 +223,6 @@ async function main() {
     ids[u.role] = id
     await ensureProfile(id, u)
   }
-  await linkParentToStudent(ids.parent, ids.student)
   console.log('\n--- Listo ---')
   console.log('Credenciales:')
   console.log('  estudiante → default_student@eduapp.test / student123')
