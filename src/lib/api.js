@@ -155,13 +155,14 @@ export async function addStudentToCourse({ courseId, studentId }) {
 export async function searchStudents(query) {
   if (!isSupabaseConfigured || !query?.trim()) return FALLBACK([])
   const q = query.trim()
-  // Coincidir con email o dni
+  const pattern = `*${q}*`
   const { data, error } = await supabase
     .from('profiles')
     .select('id, full_name, email, dni, role, avatar_id, pet_name, pet_type')
-    .or(`email.ilike.%${q}%,dni.ilike.%${q}%,full_name.ilike.%${q}%`)
+    .or(`email.ilike.${pattern},dni.ilike.${pattern},full_name.ilike.${pattern}`)
     .eq('role', 'student')
     .limit(5)
+  if (error) console.warn('[searchStudents]', error)
   return { data: data || [], error }
 }
 
