@@ -1,83 +1,66 @@
 # EduApp — Datos por defecto (Demo)
 
-> Última actualización: 02/06/2026 — Proyecto `oodijhbtgomlrchrvwzu` (Supabase, West US / Oregon).
-
-Esta guía resume todo lo que necesitas saber para entrar a la app y probar el flujo end-to-end (docente → curso → alumno → roadmap → progreso persistente).
+> Última actualización: 24/06/2026 — Proyecto `oodijhbtgomlrchrvwzu` (Supabase, West US / Oregon).
 
 ---
 
-## 1. Cuentas de prueba (ya creadas en Supabase)
+## 1. Cuentas de prueba
 
-Se crean automáticamente al ejecutar `node scripts/seed-test-users.mjs`.
+Se crean con `node scripts/seed-test-users.mjs` (cuentas base) y `node scripts/seed-test-accounts.mjs` (cuentas adicionales).
 
-| Rol         | Email                              | Contraseña   | DNI        | Nombre             |
-|-------------|------------------------------------|--------------|------------|--------------------|
-| Estudiante  | `default_student@eduapp.test`      | `student123` | 11111111   | Estudiante Demo    |
-| Docente     | `default_teacher@eduapp.test`      | `teacher123` | 22222222   | Docente Demo       |
-| Padre/Madre | `default_parent@eduapp.test`       | `parent123`  | 33333333   | Padre/Madre Demo   |
+### Profesores (2 + 1 base)
 
-> El padre ya está vinculado al estudiante (`parent_links.status = 'accepted'`).
+| Email | Contraseña | DNI | Nombre | Materia |
+|---|---|---|---|---|
+| `default_teacher@eduapp.test` | `teacher123` | 22222222 | Docente Demo | Biología |
+| `maria.lopez@eduapp.test` | `teacher123` | 44444444 | Prof. María López | Matemáticas |
+| `carlos.ruiz@eduapp.test` | `teacher123` | 55555555 | Prof. Carlos Ruiz | Historia |
+
+### Estudiantes (5 + 1 base)
+
+| Email | Contraseña | DNI | Nombre | Edad |
+|---|---|---|---|---|
+| `default_student@eduapp.test` | `student123` | 11111111 | Estudiante Demo | 11-14 |
+| `ana.garcia@eduapp.test` | `student123` | 66666666 | Ana García | 15-17 |
+| `luis.martinez@eduapp.test` | `student123` | 77777777 | Luis Martínez | 11-14 |
+| `sofia.torres@eduapp.test` | `student123` | 88888888 | Sofía Torres | 15-17 |
+| `diego.vargas@eduapp.test` | `student123` | 99999999 | Diego Vargas | 18+ |
+| `valeria.rios@eduapp.test` | `student123` | 10101010 | Valeria Ríos | 11-14 |
+
+### Padres (4 + 1 base) — Vinculaciones
+
+| Email | Contraseña | DNI | Nombre | Vinculado a |
+|---|---|---|---|---|
+| `default_parent@eduapp.test` | `parent123` | 33333333 | Padre/Madre Demo | Estudiante Demo |
+| `padre.garcia@eduapp.test` | `parent123` | 11000001 | Sr. García | Ana García |
+| `padre.martinez@eduapp.test` | `parent123` | 11000002 | Sr. Martínez | Luis Martínez |
+| `madre.torres@eduapp.test` | `parent123` | 11000003 | Sra. Torres | Sofía Torres |
+| `padre.vargas@eduapp.test` | `parent123` | 11000004 | Sr. Vargas | Diego Vargas |
+
+> **Regla:** Un estudiante solo puede tener UN padre vinculado (índice único en BD).
+> Las vinculaciones ya están creadas con estado `accepted`.
 
 ### Login rápido desde la UI
 
-En `src/pages/Login.jsx` hay un `<details>` con **"Cuentas de prueba"** que rellena los campos automáticamente.
+En `src/pages/Login.jsx` hay un `<details>` con **"Cuentas de prueba"** que rellena los campos automáticamente (solo las 3 cuentas base).
 
 ---
 
-## 2. Curso demo
+---
 
-| Campo         | Valor                          |
-|---------------|--------------------------------|
-| Título        | Biología Celular (Demo)        |
-| Materia       | Biología                       |
-| Código        | `DEMO01`                       |
-| Estado        | `published`                    |
-| Nodos         | 12 (auto-generados por IA)     |
-| Progreso      | El estudiante ya está inscrito |
+## 2. Scripts de utilidad
 
-Los nodos se republican automáticamente cada vez que se ejecuta el seed.
+| Script | Qué hace |
+|---|---|
+| `scripts/seed-test-users.mjs` | Crea/actualiza las 3 cuentas base (student/teacher/parent) |
+| `scripts/seed-test-accounts.mjs` | Crea 11 cuentas adicionales (2 prof, 5 est, 4 padres) + vinculaciones |
+| `scripts/test-e2e-teacher-student.mjs` | Verifica flujo docente → alumno → roadmap |
+| `scripts/test-chat.mjs` | Verifica Edge Function `chat` con RAG |
+| `scripts/test-roadmap.mjs` | Verifica Edge Function `generate-roadmap` |
 
 ---
 
-## 3. Flujo end-to-end verificado (manual + automatizado)
-
-### 3.1 Manual
-1. Login como **docente** (`default_teacher@eduapp.test` / `teacher123`).
-2. Ir a "Panel docente" → **Crear nuevo curso**.
-3. Rellenar nombre, materia, descripción, rigor, etc.
-4. (Opcional) Subir un PDF — la IA lo procesa y crea los nodos del roadmap.
-5. Al terminar, el modal muestra el **código de invitación** (ej. `BIOL2026`).
-6. Abrir el curso recién creado desde el listado → **Agregar alumno** (DNI o email).
-7. Login como **estudiante** (`default_student@eduapp.test` / `student123`).
-8. El curso aparece en el dashboard y se puede entrar al roadmap.
-
-### 3.2 Automatizado
-```bash
-node scripts/test-e2e-teacher-student.mjs
-```
-El script:
-1. Login docente.
-2. Crea un curso nuevo vía REST.
-3. Inscribe al estudiante por email (crea fila en `enrollments`).
-4. Login estudiante.
-5. Verifica que el curso aparece en su `enrollments`.
-6. Verifica que el roadmap del curso es accesible (`getCourseNodes`).
-
----
-
-## 4. Scripts de utilidad
-
-| Script                                | Qué hace                                                 |
-|---------------------------------------|----------------------------------------------------------|
-| `scripts/seed-test-users.mjs`         | Crea/actualiza los 3 usuarios + curso DEMO01 + nodos     |
-| `scripts/test-progress-persistence.mjs` | Verifica que el `progress` persiste tras logout/login  |
-| `scripts/test-e2e-teacher-student.mjs` | Verifica flujo docente → alumno → roadmap              |
-| `scripts/test-chat.mjs`               | Verifica Edge Function `chat` con RAG                    |
-| `scripts/test-roadmap.mjs`            | Verifica Edge Function `generate-roadmap` (regulación)   |
-
----
-
-## 5. Estructura de tablas clave
+## 3. Flujo end-to-end
 
 ### `profiles`
 Campos personalizados:
@@ -104,7 +87,7 @@ Campos personalizados:
 
 ---
 
-## 6. Edge Functions desplegadas (12)
+## 4. Edge Functions
 
 Todas en `https://oodijhbtgomlrchrvwzu.supabase.co/functions/v1/<nombre>`.
 
