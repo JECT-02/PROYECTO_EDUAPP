@@ -401,8 +401,20 @@ export async function requestParentLink({ parentId, studentEmail, studentId: dir
   const { data, error } = await supabase
     .from('parent_links')
     .insert({ parent_id: parentId, student_id: student.id, status: 'accepted' })
-    .select()
+    .select('*, parent:parent_id(full_name)')
     .single()
+
+  if (!error && data) {
+    await supabase.from('notifications').insert({
+      user_id: student.id,
+      type: 'parent_linked',
+      payload: {
+        title: 'Padre vinculado',
+        desc: `${data.parent?.full_name || 'Tu padre'} se ha vinculado a tu cuenta y ahora puede ver tu progreso.`,
+        parent_name: data.parent?.full_name || 'Tu padre',
+      },
+    })
+  }
 
   return { data, error }
 }

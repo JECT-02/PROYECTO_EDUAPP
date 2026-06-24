@@ -18,6 +18,7 @@ const ICON_MAP = {
   child_progress: <TrendingUp size={16} />,
   child_medal: <Sparkles size={16} />,
   parent_request: <Users size={16} />,
+  parent_linked: <Heart size={16} />,
   coliseo_result: <Zap size={16} />,
 }
 
@@ -32,6 +33,7 @@ const COLOR_MAP = {
   child_progress: '#22C55E',
   child_medal: '#F59E0B',
   parent_request: '#6C63FF',
+  parent_linked: '#EC4899',
   coliseo_result: '#F59E0B',
 }
 
