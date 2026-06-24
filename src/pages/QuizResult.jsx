@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { ArrowRight, RefreshCcw, BookOpen, CheckCircle2, XCircle, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { vibrateWarning } from '../utils/vibration'
-import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { getCourseNodes, getStudentEnrollments, markNodeProgress, getProgressForEnrollment, updateProfileXP, isSupabaseConfigured } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { checkAchievements } from '../lib/achievements'
 import { useVoice } from '../context/VoiceContext'
@@ -12,7 +12,7 @@ import './QuizResult.css'
 export default function QuizResult() {
   const { state } = useLocation()
   const navigate = useNavigate()
-  const { studentId } = useAuth()
+  const { studentId, user } = useAuth()
   const { setPageContext, registerHandler } = useVoice()
   const {
     score = 0,
@@ -62,6 +62,13 @@ export default function QuizResult() {
           completed: true,
         })
         if (error) console.warn('[quiz] markNodeProgress error:', error.message)
+
+        // Award XP based on score: 10 XP base + up to 20 XP for perfect score
+        try {
+          const currentXp = user?.fullProfile?.pet_xp || 0
+          const xpBonus = 10 + Math.round(percentage / 100 * 20) // 10-30 XP per quiz
+          await updateProfileXP(studentId, currentXp + xpBonus)
+        } catch {}
 
         // Check achievements
         const { data: progress } = await getProgressForEnrollment(enrollment.id)

@@ -1,47 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, Search, Mail } from 'lucide-react'
+import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, Search, Mail, LoaderCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
 import PageWrapper from '../components/PageWrapper'
+import { getStudentEnrollments, getProgressForEnrollment, getCourseNodes, getUnderstandingData } from '../lib/api'
+import { calculateUnderstanding } from '../lib/understanding'
 import './ParentDashboard.css'
-
-// Per-student mock chart data
-const STUDENT_CHART_DATA = {
-  default: [
-    { name: 'Lun', mins: 45 }, { name: 'Mar', mins: 60 }, { name: 'Mié', mins: 30 },
-    { name: 'Jue', mins: 80 }, { name: 'Vie', mins: 40 }, { name: 'Sáb', mins: 120 }, { name: 'Dom', mins: 0 },
-  ],
-}
-
-function getChartData(studentId) {
-  // Generate deterministic-ish data based on DNI for variety
-  if (STUDENT_CHART_DATA[studentId]) return STUDENT_CHART_DATA[studentId]
-  const num = parseInt(studentId.toString().slice(-4), 10) || 500
-  const data = [
-    { name: 'Lun', mins: 20 + (num % 60) },
-    { name: 'Mar', mins: 15 + (num * 2 % 70) },
-    { name: 'Mié', mins: 10 + (num * 3 % 50) },
-    { name: 'Jue', mins: 25 + (num * 4 % 80) },
-    { name: 'Vie', mins: 30 + (num * 5 % 45) },
-    { name: 'Sáb', mins: 40 + (num * 6 % 100) },
-    { name: 'Dom', mins: 5 + (num * 7 % 30) },
-  ]
-  STUDENT_CHART_DATA[studentId] = data
-  return data
-}
-
-function getStudentStats(studentId) {
-  const num = parseInt(studentId.toString().slice(-4), 10) || 500
-  return {
-    understanding: 50 + (num % 45),
-    lessons: 10 + (num % 50),
-    progress: 30 + (num % 65),
-    lastActive: num % 3 === 0 ? 'Hoy' : num % 3 === 1 ? 'Ayer' : 'Hace 3 días',
-    activeColor: num % 3 === 0 ? '#22C55E' : num % 3 === 1 ? '#F59E0B' : '#EF4444',
-  }
-}
 
 function ChartTooltip({ active, payload }) {
   if (active && payload && payload.length) {
@@ -51,7 +17,7 @@ function ChartTooltip({ active, payload }) {
         color: '#fff', padding: '6px 10px', fontSize: '0.75rem',
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
-        {payload[0].value} min
+        {payload[0].value}%
       </div>
     )
   }
@@ -64,8 +30,55 @@ export default function ParentDashboard() {
   const [studentEmail, setStudentEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [studentsData, setStudentsData] = useState({})
+  const [loadingStats, setLoadingStats] = useState(true)
 
   const linkedStudents = contextLinked || []
+
+  // Load real stats for each linked student
+  useEffect(() => {
+    if (!linkedStudents.length) { setLoadingStats(false); return }
+    let cancelled = false
+    async function load() {
+      setLoadingStats(true)
+      const data = {}
+      for (const s of linkedStudents) {
+        try {
+          const { data: enrollments } = await getStudentEnrollments(s.id)
+          let totalCompleted = 0; let totalNodes = 0; let avgScore = null
+          let totalCorrect = 0; let totalWrong = 0; let studyTimeMin = 0
+          const chartData = []
+          for (const e of (enrollments || [])) {
+            const { data: ud } = await getUnderstandingData(s.id, e.course_id)
+            if (ud) {
+              totalCompleted += ud.completedNodes
+              totalNodes += ud.totalNodes
+              totalCorrect += ud.totalCorrect || 0
+              totalWrong += ud.totalWrong || 0
+              studyTimeMin += ud.studyTimeMin || 0
+              const { data: progress } = await getProgressForEnrollment(e.id)
+              const lastCompleted = (progress || []).filter(p => p.completed_at).sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))[0]
+              if (lastCompleted?.completed_at) {
+                chartData.push({ name: e.courses?.title?.slice(0, 8) || 'Curso', value: ud.avgScore != null ? Math.round(ud.avgScore) : (ud.totalNodes > 0 ? Math.round(ud.completedNodes / ud.totalNodes * 100) : 0) })
+              }
+            }
+          }
+          const ud = totalNodes > 0 ? calculateUnderstanding({ completedNodes: totalCompleted, totalNodes, avgScore: totalCorrect + totalWrong > 0 ? Math.round(totalCorrect / (totalCorrect + totalWrong) * 100) : null, totalCorrect, totalWrong, studyTimeMin }) : null
+          data[s.id] = {
+            understanding: ud?.value || 0,
+            completedNodes: totalCompleted,
+            totalNodes,
+            studyTimeMin,
+            chartData: chartData.length > 0 ? chartData : [{ name: 'Sin datos', value: 0 }],
+            lastActive: 'Ver dashboard',
+          }
+        } catch { data[s.id] = null }
+      }
+      if (!cancelled) { setStudentsData(data); setLoadingStats(false) }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [linkedStudents])
 
   async function handleLink(e) {
     e.preventDefault()
@@ -98,214 +111,105 @@ export default function ParentDashboard() {
       <div className="parent-dashboard">
         <div className="parent-dashboard-inner">
           <div className="parent-header">
-            <div>
-              <h1 className="parent-title">Panel Familiar</h1>
-              <p className="parent-subtitle">
-                {linkedStudents.length > 0
-                  ? `${linkedStudents.length} estudiante${linkedStudents.length !== 1 ? 's' : ''} vinculado${linkedStudents.length !== 1 ? 's' : ''}`
-                  : 'Aún no has vinculado estudiantes'}
-              </p>
-            </div>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-              <Link2 size={16} />
-              Vincular estudiante
+            <h1>Panel de Control</h1>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowModal(true)}>
+              <Link2 size={16} /> Vincular estudiante
             </button>
           </div>
 
-          {/* Linked students with per-student charts */}
-          {linkedStudents.length > 0 ? (
-            <div className="parent-students-grid">
-              {linkedStudents.map((s, idx) => {
-                const stats = getStudentStats(s.id)
-                const chartData = getChartData(s.id)
-                const avgMins = Math.round(chartData.reduce((sum, d) => sum + d.mins, 0) / chartData.length)
-
+          {loadingStats ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+              <LoaderCircle size={24} className="animate-spin" /> Cargando datos...
+            </div>
+          ) : linkedStudents.length === 0 ? (
+            <div className="empty-state" style={{ padding: 48, textAlign: 'center' }}>
+              <Users size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
+              <h2>Sin estudiantes vinculados</h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>Vincula un estudiante para ver su progreso académico.</p>
+              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                <Link2 size={16} /> Vincular estudiante
+              </button>
+            </div>
+          ) : (
+            <div className="student-grid">
+              {linkedStudents.map(s => {
+                const stats = studentsData[s.id]
+                const ud = stats?.understanding || 0
+                const udColor = ud >= 80 ? '#22C55E' : ud >= 50 ? '#F59E0B' : '#EF4444'
                 return (
-                  <motion.div
-                    key={s.id}
-                    className="parent-student-card"
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                  >
-                    {/* Header */}
-                    <div className="parent-student-top">
-                      <div className="parent-student-info">
-                        <div className="parent-student-avatar">🦊</div>
-                        <div>
-                          <div className="parent-student-name">{s.name}</div>
-                          <div className="parent-student-id">ID: {s.id?.slice(0, 8) || '—'}</div>
-                        </div>
+                  <motion.div key={s.id} className="student-card" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="student-card-header">
+                      <div className="student-avatar">🦊</div>
+                      <div className="student-info">
+                        <h3>{s.name}</h3>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{stats ? `${stats.completedNodes} de ${stats.totalNodes} nodos` : 'Cargando...'}</span>
                       </div>
-                      <button
-                        className="btn-unlink"
-                        onClick={() => handleUnlink(s.linkId || s.id)}
-                      >
+                      <button className="btn btn-ghost btn-sm icon-btn" onClick={() => handleUnlink(s.linkId)} title="Desvincular">
                         <Unlink size={14} />
-                        Desvincular
                       </button>
                     </div>
-
-                    {/* Content: stats + chart side by side */}
-                    <div className="parent-student-content">
-                      {/* Stats column */}
-                      <div className="parent-student-stats-col">
-                        <div className="parent-stat">
-                          <span className="parent-stat-value">{stats.understanding}%</span>
-                          <span className="parent-stat-label">Entendimiento</span>
-                        </div>
-                        <div className="parent-stat">
-                          <span className="parent-stat-value">{stats.lessons}</span>
-                          <span className="parent-stat-label">Lecciones</span>
-                        </div>
-                        <div className="parent-stat">
-                          <span className="parent-stat-value" style={{ color: stats.activeColor }}>
-                            {stats.lastActive}
-                          </span>
-                          <span className="parent-stat-label">Última vez</span>
-                        </div>
+                    <div className="student-stats">
+                      <div className="stat-pill">
+                        <span>Entendimiento</span>
+                        <strong style={{ color: udColor }}>{ud}%</strong>
                       </div>
-
-                      {/* Chart column */}
-                      <div className="parent-student-chart-col">
-                        <div className="parent-chart-header">
-                          <Clock size={12} />
-                          <span>Semanal: {avgMins} min/día</span>
-                        </div>
-                        <div className="parent-student-chart">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                              <XAxis dataKey="name" stroke="#6B6D8A" fontSize={9} tickLine={false} axisLine={false} interval={0} />
-                              <Tooltip content={<ChartTooltip />} />
-                              <Line type="monotone" dataKey="mins" stroke="#6C63FF" strokeWidth={2} dot={false} activeDot={{ r: 3, fill: '#6C63FF' }} />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
+                      <div className="stat-pill">
+                        <span>Estudio</span>
+                        <strong>{stats?.studyTimeMin || 0} min</strong>
                       </div>
                     </div>
-
-                    {/* Progress bar */}
-                    <div className="parent-student-progress">
-                      <div className="parent-progress-header">
-                        <span>Progreso general</span>
-                        <span>{stats.progress}%</span>
-                      </div>
-                      <div className="progress-bar" style={{ height: 5 }}>
-                        <div className="progress-fill" style={{
-                          width: `${stats.progress}%`,
-                          background: `linear-gradient(90deg, #6C63FF, #A78BFA)`,
-                        }} />
-                      </div>
+                    <div style={{ height: 100, marginTop: 12 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={stats?.chartData || []}>
+                          <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Line type="monotone" dataKey="value" stroke="#6C63FF" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </motion.div>
                 )
               })}
             </div>
-          ) : (
-            <motion.div
-              className="parent-empty-state"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="parent-empty-icon">
-                <Users size={40} />
-              </div>
-              <h3>Aún no hay estudiantes vinculados</h3>
-              <p>Vincula a tu hijo ingresando su DNI de estudiante para seguir su progreso.</p>
-              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                <Link2 size={16} />
-                Vincular ahora
-              </button>
-            </motion.div>
           )}
-
-          {/* Link student modal */}
-          <AnimatePresence>
-            {showModal && (
-              <motion.div
-                className="modal-overlay"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => { if (e.target === e.currentTarget) handleCloseModal() }}
-              >
-                <motion.div
-                  className="modal-container"
-                  style={{ maxWidth: 460 }}
-                  initial={{ opacity: 0, scale: 0.92, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.92, y: 20 }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="modal-header">
-                    <h2>Vincular estudiante</h2>
-                    <button className="modal-close-btn" onClick={handleCloseModal} aria-label="Cerrar">
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <div className="modal-body" style={{ padding: '24px 28px' }}>
-                    {!result ? (
-                      <form onSubmit={handleLink}>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
-                          Ingresa el correo del estudiante. Él recibirá una solicitud de vínculo que deberá aceptar.
-                        </p>
-                        <div className="input-group">
-                          <label htmlFor="student-email">Correo del estudiante</label>
-                          <div className="input-icon-wrap">
-                            <Mail size={16} className="input-icon" />
-                            <input
-                              id="student-email"
-                              type="email"
-                              className="input-field with-icon"
-                              placeholder="estudiante@email.com"
-                              value={studentEmail}
-                              onChange={e => setStudentEmail(e.target.value)}
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="submit"
-                          className="btn btn-primary full-w"
-                          disabled={!studentEmail.trim() || loading}
-                          style={{ marginTop: 8 }}
-                        >
-                          {loading ? <span className="spinner" /> : <><Link2 size={16} /> Enviar solicitud</>}
-                        </button>
-                      </form>
-                    ) : result.success ? (
-                      <div className="parent-link-result success">
-                        <div className="parent-link-icon">
-                          <CheckCircle size={40} />
-                        </div>
-                        <h3>¡Solicitud enviada!</h3>
-                        <p>
-                          Se envió la solicitud a <strong>{result.student?.name || studentEmail}</strong>. Cuando la acepte, aparecerá en tu panel.
-                        </p>
-                        <button className="btn btn-primary" onClick={handleCloseModal}>
-                          Entendido
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="parent-link-result error">
-                        <div className="parent-link-icon error">
-                          <AlertCircle size={40} />
-                        </div>
-                        <h3>No se pudo vincular</h3>
-                        <p>{result.error}</p>
-                        <button className="btn btn-ghost" onClick={() => { setResult(null); setStudentEmail('') }}>
-                          Intentar de nuevo
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
+
+      {/* Vincular modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleCloseModal}>
+            <motion.div className="modal-container" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Vincular estudiante</h2>
+                <button className="icon-btn" onClick={handleCloseModal}><X size={18} /></button>
+              </div>
+              <form onSubmit={handleLink} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  Ingresa el correo electrónico del estudiante para enviar una solicitud de vinculación.
+                </p>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+                  <input className="input-field" style={{ paddingLeft: 40 }} placeholder="estudiante@correo.com" value={studentEmail} onChange={e => setStudentEmail(e.target.value)} autoFocus />
+                </div>
+                {result && !result.success && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#FCA5A5', fontSize: '0.85rem', background: 'rgba(239,68,68,0.1)', padding: '8px 12px', borderRadius: 8 }}>
+                    <AlertCircle size={14} /> {result.error}
+                  </div>
+                )}
+                {result && result.success && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#86EFAC', fontSize: '0.85rem', background: 'rgba(34,197,94,0.1)', padding: '8px 12px', borderRadius: 8 }}>
+                    <CheckCircle size={14} /> Solicitud enviada a {studentEmail}
+                  </div>
+                )}
+                <button type="submit" className="btn btn-primary" disabled={loading || !studentEmail.trim()}>
+                  {loading ? <LoaderCircle size={16} className="animate-spin" /> : <><Search size={16} /> Enviar solicitud</>}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PageWrapper>
   )
 }

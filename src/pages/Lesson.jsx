@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Send, Bot, X, Sparkles, LoaderCircle, RefreshCw, ChevronDown } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
-import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, isSupabaseConfigured } from '../lib/api'
+import { getCourseWithNodes, getCourseNodes, getCourseNodesAllStatus, getStudentEnrollments, markNodeProgress, updateProfileXP, getProgressForEnrollment, isSupabaseConfigured } from '../lib/api'
+import { checkAchievements } from '../lib/achievements'
 import { sanitizeHtml } from '../lib/sanitize'
 import { renderMarkdown, renderLessonContent } from '../lib/markdown'
 import { getAccessToken } from '../lib/supabase'
@@ -406,6 +407,23 @@ export default function Lesson() {
             completed: true,
           })
           if (error) console.warn('[lesson] markNodeProgress error:', error.message)
+          // Award XP for completing a node
+          try {
+            const currentXp = user?.fullProfile?.pet_xp || 0
+            await updateProfileXP(studentId, currentXp + 15) // 15 XP per theory node
+          } catch {}
+          // Check achievements
+          try {
+            const { data: progress } = await getProgressForEnrollment(enrollment.id)
+            const theoryCompleted = (progress || []).filter(p => p.state === 'completed').length
+            checkAchievements(studentId, {
+              theory_completed: theoryCompleted,
+              courses_enrolled: (enrollments || []).length,
+              night_study: new Date().getHours() >= 22 || new Date().getHours() < 5,
+            }).then(unlocked => {
+              if (unlocked.length) console.log('[achievements] lesson:', unlocked.map(a => a.name).join(', '))
+            }).catch(() => {})
+          } catch {}
         } else {
           console.warn('[lesson] no enrollment found for student', studentId, 'course', courseId)
         }

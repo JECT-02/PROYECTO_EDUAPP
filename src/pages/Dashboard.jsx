@@ -282,7 +282,11 @@ export default function Dashboard() {
 
           {/* Continue card */}
           {(() => {
-            const continueEnrollment = enrollments[0]
+            // Pick last viewed course from localStorage, fallback to most recent enrollment
+            let lastViewedId = null
+            try { lastViewedId = JSON.parse(localStorage.getItem('eduapp_last_course') || 'null') } catch {}
+            const lastViewed = enrollments.find(e => e.courseId === lastViewedId)
+            const continueEnrollment = lastViewed || enrollments[0]
             const continueCourse = continueEnrollment?.course
             if (!continueCourse) {
               return (

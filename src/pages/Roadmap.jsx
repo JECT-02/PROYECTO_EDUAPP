@@ -88,6 +88,8 @@ export default function Roadmap() {
         if (!cancelled) {
           setNodes(mapped)
           setLoading(false)
+          // Track last viewed course
+          try { localStorage.setItem('eduapp_last_course', JSON.stringify(courseId)) } catch {}
         }
         if (!cancelled) setPageContext({ page: 'roadmap', courseTitle: data?.[0]?.courses?.title || courseTitle, nodePosition: 0, totalNodes: mapped.length })
         if (!isTeacher && studentId && !cancelled) {
