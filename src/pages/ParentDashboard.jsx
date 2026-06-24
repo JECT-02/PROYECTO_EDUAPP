@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, LoaderCircle, Mail, IdCard, ChevronDown, ChevronUp, BookOpen, TrendingUp } from 'lucide-react'
+import { Users, Clock, Link2, Unlink, X, CheckCircle, AlertCircle, LoaderCircle, IdCard, ChevronDown, ChevronUp, BookOpen, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import Header from '../components/Header'
@@ -27,8 +27,6 @@ function ChartTooltip({ active, payload }) {
 export default function ParentDashboard() {
   const { user, linkStudent, unlinkStudent, linkedStudents: contextLinked } = useAuth()
   const [showModal, setShowModal] = useState(false)
-  const [linkMode, setLinkMode] = useState('email')
-  const [studentEmail, setStudentEmail] = useState('')
   const [studentDNI, setStudentDNI] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
@@ -81,10 +79,7 @@ export default function ParentDashboard() {
 
             const { data: ud } = await getUnderstandingData(s.id, e.course_id)
             const courseUnderstanding = ud ? calculateUnderstanding(ud) : null
-
-            if (!globalUnderstanding && courseUnderstanding) {
-              globalUnderstanding = courseUnderstanding
-            }
+            if (!globalUnderstanding && courseUnderstanding) globalUnderstanding = courseUnderstanding
 
             courses.push({
               courseId: e.course_id,
@@ -122,12 +117,9 @@ export default function ParentDashboard() {
   function generatePlaceholderChart(studentId) {
     const num = parseInt(String(studentId).slice(-4), 10) || 500
     return [
-      { name: 'Lun', mins: 20 + (num % 60) },
-      { name: 'Mar', mins: 15 + (num * 2 % 70) },
-      { name: 'Mié', mins: 10 + (num * 3 % 50) },
-      { name: 'Jue', mins: 25 + (num * 4 % 80) },
-      { name: 'Vie', mins: 30 + (num * 5 % 45) },
-      { name: 'Sáb', mins: 40 + (num * 6 % 100) },
+      { name: 'Lun', mins: 20 + (num % 60) }, { name: 'Mar', mins: 15 + (num * 2 % 70) },
+      { name: 'Mié', mins: 10 + (num * 3 % 50) }, { name: 'Jue', mins: 25 + (num * 4 % 80) },
+      { name: 'Vie', mins: 30 + (num * 5 % 45) }, { name: 'Sáb', mins: 40 + (num * 6 % 100) },
       { name: 'Dom', mins: 5 + (num * 7 % 30) },
     ]
   }
@@ -143,24 +135,18 @@ export default function ParentDashboard() {
 
   async function handleLink(e) {
     e.preventDefault()
+    if (!studentDNI.trim()) return
     setLoading(true)
     setResult(null)
     try {
-      if (linkMode === 'dni') {
-        if (!studentDNI.trim()) return
-        const { data: students } = await searchStudents(studentDNI.trim())
-        if (!students || students.length === 0) {
-          setResult({ success: false, error: 'No se encontró un estudiante con ese DNI.' })
-          return
-        }
-        const found = students[0]
-        const res = await linkStudent(found.email)
-        setResult(res)
-      } else {
-        if (!studentEmail.trim()) return
-        const res = await linkStudent(studentEmail.trim().toLowerCase())
-        setResult(res)
+      const { data: students } = await searchStudents(studentDNI.trim())
+      if (!students || students.length === 0) {
+        setResult({ success: false, error: 'No se encontró un estudiante con ese DNI.' })
+        return
       }
+      const found = students[0]
+      const res = await linkStudent(null, found.id)
+      setResult(res)
     } catch (err) {
       setResult({ success: false, error: err.message || 'Error inesperado' })
     } finally {
@@ -174,10 +160,8 @@ export default function ParentDashboard() {
 
   function handleCloseModal() {
     setShowModal(false)
-    setStudentEmail('')
     setStudentDNI('')
     setResult(null)
-    setLinkMode('email')
   }
 
   return (
@@ -230,7 +214,6 @@ export default function ParentDashboard() {
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => setExpandedStudent(isExpanded ? null : s.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
                         >
                           {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           {isExpanded ? 'Ocultar' : 'Cursos'}
@@ -293,7 +276,6 @@ export default function ParentDashboard() {
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
-                          className="parent-courses-detail"
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
@@ -346,14 +328,11 @@ export default function ParentDashboard() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="parent-empty-icon">
-                <Users size={40} />
-              </div>
+              <div className="parent-empty-icon"><Users size={40} /></div>
               <h3>Aún no hay estudiantes vinculados</h3>
-              <p>Vincula a tu hijo ingresando su correo electrónico o DNI de estudiante para seguir su progreso.</p>
+              <p>Vincula a tu hijo ingresando su DNI para seguir su progreso.</p>
               <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                <Link2 size={16} />
-                Vincular ahora
+                <Link2 size={16} /> Vincular ahora
               </button>
             </motion.div>
           )}
@@ -384,56 +363,22 @@ export default function ParentDashboard() {
                   <div className="parent-modal-body">
                     {!result ? (
                       <form onSubmit={handleLink}>
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                          <button
-                            type="button"
-                            className={`btn ${linkMode === 'email' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
-                            onClick={() => { setLinkMode('email'); setStudentDNI('') }}
-                          >
-                            <Mail size={14} /> Correo
-                          </button>
-                          <button
-                            type="button"
-                            className={`btn ${linkMode === 'dni' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
-                            onClick={() => { setLinkMode('dni'); setStudentEmail('') }}
-                          >
-                            <IdCard size={14} /> DNI
-                          </button>
+                        <div style={{ position: 'relative', marginBottom: 16 }}>
+                          <IdCard size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
+                          <input
+                            className="input-field"
+                            style={{ paddingLeft: 40 }}
+                            placeholder="DNI del estudiante"
+                            value={studentDNI}
+                            onChange={e => setStudentDNI(e.target.value)}
+                            autoFocus
+                            required
+                          />
                         </div>
-
-                        {linkMode === 'email' ? (
-                          <div style={{ position: 'relative', marginBottom: 16 }}>
-                            <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
-                            <input
-                              className="input-field"
-                              style={{ paddingLeft: 40 }}
-                              type="email"
-                              placeholder="Correo del estudiante"
-                              value={studentEmail}
-                              onChange={e => setStudentEmail(e.target.value)}
-                              autoFocus
-                              required
-                            />
-                          </div>
-                        ) : (
-                          <div style={{ position: 'relative', marginBottom: 16 }}>
-                            <IdCard size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
-                            <input
-                              className="input-field"
-                              style={{ paddingLeft: 40 }}
-                              placeholder="DNI del estudiante"
-                              value={studentDNI}
-                              onChange={e => setStudentDNI(e.target.value)}
-                              autoFocus
-                              required
-                            />
-                          </div>
-                        )}
-
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 16 }}>
-                          El estudiante recibirá una notificación para aceptar la vinculación.
+                          El estudiante recibirá una notificación para aceptar la vinculación. Solo un padre por estudiante.
                         </p>
-                        <button className="btn btn-primary full-w" type="submit" disabled={loading || (!studentEmail.trim() && !studentDNI.trim())}>
+                        <button className="btn btn-primary full-w" type="submit" disabled={loading || !studentDNI.trim()}>
                           {loading ? <LoaderCircle size={16} className="animate-spin" /> : <><Link2 size={16} /> Vincular</>}
                         </button>
                       </form>

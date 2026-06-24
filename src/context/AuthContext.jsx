@@ -174,14 +174,18 @@ export function AuthProvider({ children }) {
   }
 
   const linkStudentByEmail = useCallback(
-    async (studentEmail) => {
+    async (studentEmail, directStudentId) => {
       if (!user || user.role !== 'parent') {
         return { success: false, error: 'Solo los padres pueden vincular estudiantes.' }
       }
-      const { data, error } = await requestParentLink({ parentId: user.id, studentEmail })
+      const { data, error } = await requestParentLink({
+        parentId: user.id,
+        studentEmail: directStudentId ? undefined : studentEmail,
+        studentId: directStudentId || undefined,
+      })
       if (error) return { success: false, error: error.message }
       await refreshLinked(user.id)
-      return { success: true, student: { id: data.student_id, name: studentEmail } }
+      return { success: true, student: { id: data.student_id, name: studentEmail || 'Estudiante' } }
     },
     [user, refreshLinked]
   )

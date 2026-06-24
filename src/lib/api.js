@@ -345,16 +345,43 @@ export async function listLinkedStudentsForParent(parentId) {
   return { data: data || [], error }
 }
 
-export async function requestParentLink({ parentId, studentEmail }) {
+export async function requestParentLink({ parentId, studentEmail, studentId: directStudentId }) {
   if (!isSupabaseConfigured) return FALLBACK(null)
-  const { data: student, error: sErr } = await supabase
-    .from('profiles')
-    .select('id, full_name, role')
-    .eq('email', studentEmail)
-    .eq('role', 'student')
-    .single()
-  if (sErr || !student) return { data: null, error: new Error('No se encontró un estudiante con ese correo. Verifica e intenta de nuevo.') }
-  // Check if already linked
+  let student = null
+  if (directStudentId) {
+    const { data: s, error: sErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, email')
+      .eq('id', directStudentId)
+      .eq('role', 'student')
+      .single()
+    if (sErr || !s) return { data: null, error: new Error('No se encontró un estudiante con ese DNI.') }
+    student = s
+  } else if (studentEmail) {
+    const { data: s, error: sErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, role')
+      .eq('email', studentEmail)
+      .eq('role', 'student')
+      .single()
+    if (sErr || !s) return { data: null, error: new Error('No se encontró un estudiante con ese correo. Verifica e intenta de nuevo.') }
+    student = s
+  } else {
+    return { data: null, error: new Error('Debe proporcionar email o DNI del estudiante.') }
+  }
+
+  // Check if student already has an accepted parent (one parent per student rule)
+  const { data: existingAccepted } = await supabase
+    .from('parent_links')
+    .select('id')
+    .eq('student_id', student.id)
+    .eq('status', 'accepted')
+    .maybeSingle()
+  if (existingAccepted) {
+    return { data: null, error: new Error('Este estudiante ya está vinculado a otro padre. Solo un padre por estudiante.') }
+  }
+
+  // Check if THIS parent already linked to this student
   const { data: existingLink } = await supabase
     .from('parent_links')
     .select('id, status')
@@ -372,11 +399,13 @@ export async function requestParentLink({ parentId, studentEmail }) {
     .insert({ parent_id: parentId, student_id: student.id, status: 'pending' })
     .select()
     .single()
-  await supabase.from('notifications').insert({
-    user_id: student.id,
-    type: 'parent_request',
-    payload: { parent_id: parentId },
-  })
+  if (!error) {
+    await supabase.from('notifications').insert({
+      user_id: student.id,
+      type: 'parent_request',
+      payload: { parent_id: parentId, title: 'Solicitud de vinculación', desc: 'Un padre quiere ver tu progreso.' },
+    })
+  }
   return { data, error }
 }
 
