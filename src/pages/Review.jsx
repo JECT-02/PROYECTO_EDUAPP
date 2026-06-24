@@ -5,18 +5,23 @@ import Mascot from '../components/Mascot'
 import PageWrapper from '../components/PageWrapper'
 import { analyzeError } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes } from '../lib/api'
+import { useVoice } from '../context/VoiceContext'
 import './Review.css'
 
 export default function Review() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
   const { state } = useLocation()
+  const { setPageContext, registerHandler } = useVoice()
   const [hubOpen, setHubOpen] = useState(false)
   const [analogyType, setAnalogyType] = useState('Como si tuviera 5 años')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [aiExplanations, setAiExplanations] = useState({})
   const [loadingExplanations, setLoadingExplanations] = useState(true)
   const [nextNodePath, setNextNodePath] = useState(null)
+
+  useEffect(() => { setPageContext({ page: 'review' }) }, [setPageContext])
+  useEffect(() => { return registerHandler('understood', () => handleEntendido()) }, [registerHandler])
 
   const answers = state?.answers || []
   const incorrectAnswers = answers.filter(a => !a.isCorrect)

@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-d
 import { AnimatePresence, MotionConfig } from 'framer-motion'
 import { useAuth } from './context/AuthContext'
 import StarsBackground from './components/StarsBackground'
+import VoiceIndicator from './components/VoiceIndicator'
+import { VoiceProvider } from './context/VoiceContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -114,7 +116,6 @@ export default function App() {
     () => document.body.classList.contains('reduce-motion')
   )
 
-  // Watch body class changes for reduce-motion toggle
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setReducedMotion(document.body.classList.contains('reduce-motion'))
@@ -125,8 +126,16 @@ export default function App() {
 
   return (
     <HashRouter>
-      {/* Skip link: first focusable element on every page */}
-      {/* Using onClick + preventDefault to avoid HashRouter intercepting the hash */}
+      <VoiceProvider>
+        <AppContent reducedMotion={reducedMotion} />
+      </VoiceProvider>
+    </HashRouter>
+  )
+}
+
+function AppContent({ reducedMotion }) {
+  return (
+    <>
       <a
         href="#main-content"
         className="skip-link"
@@ -183,6 +192,7 @@ export default function App() {
         </Routes>
       </AnimatePresence>
       </MotionConfig>
-    </HashRouter>
+      <VoiceIndicator />
+    </>
   )
 }

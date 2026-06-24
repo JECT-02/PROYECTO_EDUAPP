@@ -8,12 +8,14 @@ import Mascot from '../components/Mascot'
 import { analyzeError, generateQuiz } from '../lib/llm'
 import { recordWeakness, isSupabaseConfigured, getCourseNodes } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useVoice } from '../context/VoiceContext'
 import './Quiz.css'
 
 export default function Quiz() {
   const navigate = useNavigate()
   const { courseId, nodeId } = useParams()
   const { studentId } = useAuth()
+  const { registerHandler, setPageContext } = useVoice()
   const [questions, setQuestions] = useState(null)
   const [qIndex, setQIndex] = useState(0)
   const [timeLeft, setTimeLeft] = useState(30)
@@ -68,6 +70,13 @@ export default function Quiz() {
   }, [courseId, nodeId])
 
   const q = questions?.[qIndex]
+
+  // Voice: register option selector + page context
+  useEffect(() => {
+    setPageContext({ page: 'quiz', options: q?.options || [], nodeTitle: q?.text?.slice(0, 50) || 'Quiz', totalNodes: questions?.length })
+    const unreg = registerHandler('selectOption', ({ index }) => { handleSelect(index) })
+    return unreg
+  }, [q, registerHandler, setPageContext])
 
   useEffect(() => {
     if (!q) return
