@@ -1,396 +1,348 @@
-# EduApp — Documentación del Proyecto (Cliente)
+# EduApp — Documentacion del Proyecto
 
-> Plataforma educativa web con inteligencia artificial, gamificación y accesibilidad WCAG 2.1 AA.
-> Público objetivo: Estudiantes y docentes de Latinoamérica.
+> Documento de especificacion para cliente. Version 2.0 — 24/06/2026.
+> Plataforma educativa web con inteligencia artificial, gamificacion y accesibilidad WCAG 2.1 AA.
 
 ---
 
 ## 1. Resumen Ejecutivo
 
-EduApp es una plataforma educativa web que utiliza inteligencia artificial para crear experiencias de aprendizaje personalizadas. Los docentes crean cursos subiendo material (PDF, DOCX, TXT, URLs de YouTube) y la IA genera automáticamente roadmaps de aprendizaje con lecciones, quizzes y exámenes. Los estudiantes aprenden con un tutor IA integrado, ganan XP, desbloquean medallas y compiten en el Coliseo de Retos. Los padres pueden monitorear el progreso de sus hijos en tiempo real.
+EduApp es una plataforma web SPA (Single Page Application) que integra inteligencia artificial generativa, un sistema de gamificacion completo y accesibilidad multimodal para crear experiencias de aprendizaje personalizadas.
+
+El sistema permite a docentes crear cursos subiendo material fuente (PDF, DOCX, TXT, URLs de YouTube) y genera automaticamente roadmaps de aprendizaje con lecciones, quizzes y examenes mediante IA. Los estudiantes interactuan con un tutor IA que adapta su lenguaje segun el nivel de comprension del alumno, ganan puntos de experiencia, desbloquean 18 medallas con rarezas progresivas y compiten en el Coliseo de Retos. Los padres monitorean el progreso en tiempo real mediante un panel de solo lectura.
+
+El stack tecnologico se compone de React 19 + Vite 8 en el frontend, Supabase (Postgres, Auth, Storage, Edge Functions) como backend, y tres proveedores de IA: NVIDIA (Kimi K2.6 para generacion de texto), Groq (Whisper Large v3 para transcripcion de voz, LLaMA 3.3 70B para clasificacion) y Google (Gemini Embedding 001 para vectores de busqueda semantica RAG).
 
 ---
 
-## 2. Roles de Usuario
+## 2. Stack Tecnologico
 
-| Rol | Descripción | Acceso |
-|-----|-------------|--------|
-| **Estudiante** | Consume contenido, realiza evaluaciones, interactúa con IA | Dashboard, Roadmap, Lecciones, Quizzes, Coliseo, Logros |
-| **Docente** | Crea cursos, sube material, supervisa progreso, valida contenido IA | Panel Docente, Diseñador de Roadmap, Revisión de Contenido |
-| **Padre** | Monitorea progreso de estudiantes vinculados (solo lectura) | Panel Familiar, Reportes |
-| **Admin** | Gestiona plataforma y usuarios globales | Panel de Administración |
-
----
-
-## 3. Stack Tecnológico
-
-| Capa | Tecnología | Versión | Propósito |
+| Capa | Tecnologia | Version | Proposito |
 |------|-----------|---------|-----------|
-| Frontend | React + Vite | React 19, Vite 8 | SPA con enrutamiento cliente |
-| Routing | react-router-dom | 7.15 | Navegación por hash |
-| Animaciones | framer-motion | 12.38 | Transiciones de página, micro-interacciones |
-| Iconos | lucide-react | 1.14 | Iconografía vectorial |
-| Gráficos | recharts | 3.8 | Gráficos de analytics (panel padre/docente) |
-| Sanitización | DOMPurify | 3.4 | Seguridad de contenido IA |
-| Markdown | marked | 18.0 | Renderizado de lecciones |
-| Backend (BaaS) | **Supabase** | — | Auth, Postgres, Storage, Edge Functions, pgvector, Realtime |
-| LLM (texto) | **NVIDIA AI** | `moonshotai/kimi-k2.6` | Chat, lecciones, quizzes, roadmaps, análisis de errores |
-| Embeddings | **Google Gemini** | `gemini-embedding-001` (768 dims) | Búsqueda semántica vectorial (RAG) |
-| Backend auxiliar | Express.js | 4.21 | Servidor proxy para streaming y voz |
-
-### Modelos de IA utilizados
-
-| Proveedor | Modelo | Uso específico | Endpoint |
-|-----------|--------|---------------|----------|
-| NVIDIA AI | `moonshotai/kimi-k2.6` | Tutor IA (chat), generación de lecciones, quizzes, roadmaps, análisis de errores, refuerzo, medallas SVG | `integrate.api.nvidia.com/v1/chat/completions` |
-| Google AI | `gemini-embedding-001` | Embeddings vectoriales para búsqueda semántica (RAG) — solo vectores, nunca chat | `generativelanguage.googleapis.com` |
+| Frontend | React + Vite | 19.2.5 / 8.0.10 | SPA con enrutamiento cliente |
+| Routing | react-router-dom | 7.15.0 | HashRouter para S3/GitHub Pages |
+| Animaciones | framer-motion | 12.38.0 | Transiciones de pagina, micro-interacciones |
+| Iconos | lucide-react | 1.14.0 | Iconografia vectorial tree-shakeable |
+| Graficos | recharts | 3.8.1 | Analytics de panel padre/docente |
+| Sanitizacion | DOMPurify | 3.4.7 | Prevencion XSS en contenido generado por IA |
+| Markdown | marked | 18.0.5 | Renderizado de lecciones con GFM |
+| Backend (BaaS) | Supabase | - | Auth, Postgres 17, Storage, Edge Functions, pgvector, Realtime |
+| LLM texto | NVIDIA Kimi K2.6 | - | Generacion de contenido, chat, analisis |
+| LLM clasificacion | Groq LLaMA 3.3 70B | - | Clasificacion de comandos de voz |
+| STT | Groq Whisper Large v3 | - | Transcripcion de audio a texto |
+| Embeddings | Google Gemini Embedding 001 | 768 dims | Busqueda semantica vectorial (RAG) |
+| Backend auxiliar | Express.js | 4.21.2 | Proxy IA + endpoints de voz |
 
 ---
 
-## 4. Arquitectura del Sistema
+## 3. Arquitectura del Sistema
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (Vite + React 19)             │
-│  src/lib/llm.js ──────────────► Edge Functions (fetch)   │
-│  src/lib/gemini.js ───────────► NVIDIA API (directo)     │
-│  src/lib/supabase.js ─────────► Supabase BaaS            │
-└────────┬────────────────────────────┬────────────────────┘
-         │                            │
-         ▼                            ▼
-┌─────────────────────┐    ┌──────────────────────────┐
-│  SUPABASE (BaaS)    │    │  EDGE FUNCTIONS (Deno)    │
-│  • Auth + OTP       │    │  15 funciones serverless   │
-│  • Postgres         │    │  • chat (IA streaming)     │
-│  • pgvector (RAG)   │    │  • generate-* (contenido)  │
-│  • Storage          │    │  • embed-source (RAG)      │
-│  • Realtime         │    │  • analyze-error           │
-│  • RLS (Row Level   │    │  • reinforce               │
-│    Security)        │    │                            │
-└──────────────────────┘    └──────────┬─────────────────┘
-                                       │
-                  ┌────────────────────┤
-                  ▼                    ▼
-     ┌──────────────────┐   ┌──────────────────┐
-     │  NVIDIA AI        │   │  Google AI        │
-     │  kimi-k2.6        │   │  gemini-embedding │
-     │  (chat + texto)   │   │  (vectores RAG)   │
-     └──────────────────┘   └──────────────────┘
+CLIENTE (Browser)
+  React 19 SPA
+    AuthContext (login/logout/register)
+    VoiceContext (escucha continua, STT, TTS)
+    HashRouter (20 rutas protegidas por rol)
+      Servicios:
+        supabase.js + api.js (CRUD directo a Supabase)
+        llm.js + streaming.js (wrappers de Edge Functions + SSE)
+        ai-client.js (proxy al AI Backend Express)
+        voice.js (AudioContext + MediaRecorder + Groq STT)
+        achievements.js (motor de 18 logros con reglas)
+        understanding.js (formula de nivel de entendimiento)
+        notifications.js (RPC cross-user)
+
+SUPABASE BaaS
+  Auth (JWT, OTP, magic links, RLS)
+  Postgres 17 + pgvector (11 tablas, match_documents())
+  Storage (archivos PDF, DOCX, TXT)
+  Realtime (notificaciones via WebSocket)
+  Edge Functions (15 funciones serverless Deno/TS)
+
+AI BACKEND (Express.js :3001)
+  /api/roadmap        -> NVIDIA Kimi K2.6 (fallback Groq)
+  /api/ask            -> NVIDIA Kimi K2.6
+  /api/ask-stream     -> NVIDIA Kimi K2.6 (SSE)
+  /api/quiz           -> NVIDIA Kimi K2.6
+  /api/analyze-error  -> NVIDIA Kimi K2.6 (SSE)
+  /api/analyze-errors-batch -> NVIDIA Kimi K2.6 (cache)
+  /api/voice/transcribe -> Groq Whisper Large v3
+  /api/voice/categorize  -> Groq LLaMA 3.3 70B
+  /api/voice/ask      -> NVIDIA Kimi K2.6
+
+PROVEEDORES EXTERNOS
+  NVIDIA: moonshotai/kimi-k2.6 (texto)
+  Groq: llama-3.3-70b-versatile + whisper-large-v3 (voz + fallback)
+  Google: gemini-embedding-001 (vectores RAG, 768 dims)
 ```
 
-### Flujo de datos
-1. **CRUD / Auth / Búsqueda vectorial** → Frontend ↔ Supabase directamente
-2. **Generación de texto (LLM)** → Frontend → Edge Function → NVIDIA API
-3. **Embeddings (RAG)** → Edge Function → Google Gemini API
-4. **Archivos** → Frontend → Edge Function (upload-source) → Supabase Storage
+### 3.1 Flujo de Datos
+
+| Operacion | Ruta | Protocolo |
+|-----------|------|-----------|
+| Login / Registro | Frontend -> Supabase Auth | REST + JWT |
+| CRUD cursos/nodos | Frontend -> Supabase Postgres | REST (supabase-js) |
+| Busqueda semantica | Frontend -> Supabase pgvector | SQL match_documents() |
+| Chat tutor IA | Frontend -> Edge Function chat -> NVIDIA | SSE streaming |
+| Generar leccion | Frontend -> Edge Function generate-lesson -> NVIDIA | SSE streaming |
+| Generar quiz | Frontend -> Edge Function generate-quiz -> NVIDIA | REST |
+| Generar roadmap | Frontend -> AI Backend /api/roadmap -> NVIDIA | REST |
+| Analisis errores | Frontend -> AI Backend /api/analyze-error -> NVIDIA | SSE streaming |
+| Transcripcion voz | Frontend -> AI Backend /api/voice/transcribe -> Groq | REST + multipart |
+| Clasificar comando | Frontend -> AI Backend /api/voice/categorize -> Groq | REST |
+| Embeddings RAG | Edge Function embed-source -> Google Gemini | REST |
+| Notificaciones | Frontend -> Supabase Realtime | WebSocket |
 
 ---
 
-## 5. Base de Datos (11 tablas)
+## 4. Modelos de IA
 
-| Tabla | Propósito |
-|-------|-----------|
-| `profiles` | Perfiles de usuario (extiende `auth.users`). Roles: `student`, `teacher`, `parent`, `admin` |
-| `courses` | Cursos creados por docentes (título, categoría, nivel, rigor, estado, código de invitación) |
-| `nodes` | Nodos del roadmap (theory, quiz, practice, boss, reward). Posición, contenido, estado |
-| `enrollments` | Inscripciones estudiante ↔ curso (UNIQUE student_id + course_id) |
-| `progress` | Progreso por nodo: estados `locked`, `available`, `in_progress`, `completed`. Score, intentos |
-| `source_files` | Archivos fuente subidos por docentes (PDF, DOCX, TXT, YouTube URLs) |
-| `documents` | Chunks de texto con embeddings vectoriales (pgvector) para búsqueda semántica RAG |
-| `weaknesses` | Matriz de debilidades del estudiante por concepto y curso |
-| `medals` | Medallas obtenidas (tipo, rareza, SVG, fecha) |
-| `notifications` | Notificaciones in-app (tipos: `parent_request`, `medal`, `progress`, `quiz_result`, `enrollment`, `new_student`, etc.) |
-| `parent_links` | Vinculación padre-estudiante (pending/accepted) |
+### 4.1 Estrategia Multimodelo (3 proveedores, 4 modelos)
 
----
+| Proveedor | Modelo | Dimension | Uso | Prioridad |
+|-----------|--------|-----------|-----|-----------|
+| Groq | llama-3.3-70b-versatile | - | Clasificacion de comandos de voz, fallback de texto | Primaria |
+| NVIDIA | moonshotai/kimi-k2.6 | 8192 context | Chat, lecciones, quizzes, roadmaps, analisis | Secundaria (fallback) |
+| Groq | whisper-large-v3 | - | Speech-to-Text (espanol) | Unica |
+| Google | gemini-embedding-001 | 768 | Embeddings vectoriales para RAG | Unica |
 
-## 6. Edge Functions (15 funciones serverless)
+Estrategia de failover en AI Backend: (1) intentar Groq, (2) si falla, NVIDIA con hasta 3 retries (backoff 1s, 2s, 4s), (3) si NVIDIA da 429, reintentar con backoff exponencial.
 
-| Función | Propósito | Streaming | RAG |
-|---------|-----------|-----------|-----|
-| `chat` | Tutor IA del estudiante con contexto del curso | **Sí** | **Sí** |
-| `generate-lesson` | Generar contenido teórico de un nodo | **Sí** | **Sí** |
-| `generate-quiz` | Generar preguntas de quiz para un nodo | No | **Sí** |
-| `generate-test` | Generar examen de unidad (10 preguntas) | No | No |
-| `generate-coliseo` | Generar desafío del Coliseo (20 preguntas) | No | No |
-| `generate-roadmap` | Generar roadmap completo del curso desde material fuente | No | No |
-| `generate-course-content` | Generar contenido en lote para todos los nodos | No | No |
-| `generate-medal-svg` | Generar SVG dinámico de medalla | No | No |
-| `chat-roadmap` | Asistente IA para docente (editar roadmap) | No | No |
-| `analyze-error` | Análisis de respuesta incorrecta del estudiante | No | No |
-| `reinforce` | Refuerzo con explicación alternativa | **Sí** | **Sí** |
-| `register-user` | Crear cuenta de usuario (simula verificación email) | No | No |
-| `upload-source` | Subir archivo fuente a Supabase Storage | No | No |
-| `embed-source` | Pipeline ETL: archivo → texto → chunks → embeddings | No | **Sí** |
-| `youtube-transcript` | Extraer transcripción de video de YouTube | No | No |
+### 4.2 Ajuste de Temperatura por Nivel del Estudiante
+
+| Nivel | Rango (%) | Temperatura | Comportamiento del LLM |
+|-------|-----------|-------------|----------------------|
+| Inicial | 0-30 | 0.7 | Lenguaje simple, analogias cotidianas |
+| En progreso | 31-70 | 0.5 | Lenguaje estandar, ejemplos practicos |
+| Avanzado | >70 | 0.3 | Lenguaje tecnico, terminologia especializada |
 
 ---
 
-## 7. Sistema de Gamificación
+## 5. Roles de Usuario
+
+### 5.1 Estudiante
+
+Pantallas: /dashboard, /explore, /roadmap/:courseId, /lesson/:courseId/:nodeId, /quiz/:courseId/:nodeId, /quiz/result, /review/:courseId/:nodeId, /coliseo/:courseId, /achievements, /profile, /settings.
+
+Interacciones: con sistema IA (tutor via chat en lecciones), con docente (via reportes automaticos y alertas de dificultad), con padres (via vinculacion de cuentas).
+
+### 5.2 Docente
+
+Pantallas: /teacher, /teacher/design/:courseId, /teacher/courses/:courseId/review, /roadmap/:courseId, /profile, /settings.
+
+Permisos: crear/editar/eliminar cursos propios, subir material fuente, generar roadmaps via IA, editar/rechazar/regenerar nodos, ver dashboard analitico de estudiantes inscritos, recibir alertas. No puede ver datos de estudiantes no inscritos en sus cursos.
+
+### 5.3 Padre
+
+Pantallas: /parent, /profile, /settings.
+
+Permisos: vincularse a cuenta de estudiante mediante DNI, ver dashboard read-only (tiempo de estudio, sincronia, medallas, alertas). No puede responder evaluaciones ni modificar progreso.
+
+---
+
+## 6. Catalogo de Funcionalidades
+
+### 6.1 Autenticacion
+
+- Login email+password con validacion visual y errores clasificados por tipo (creds, unconfirmed, network, rate limit)
+- Login modo magic link (envio de enlace al email)
+- Registro wizard 3 pasos con seleccion de rol (estudiante, docente, padre)
+- Recuperacion de contrasena via Supabase Auth
+- Onboarding con 5 toggles de accesibilidad + seleccion de avatar (8 opciones) y mascota (3 tipos: dragon, robot, buho)
+
+### 6.2 Estudiante
+
+- Dashboard con saludo dinamico (horario), card "Continuar" con progreso, retos del dia (2), grid de cursos
+- Roadmap SVG interactivo con camino serpiente, 5 tipos de nodo (theory, practice, quiz, boss, reward), 4 estados (locked, available, in_progress, completed), mascota guia
+- Leccion con contenido renderizado en bloques, chat tutor IA lateral (streaming SSE), versiones alternativas generadas por IA
+- Quiz con timer de 30s por pregunta, feedback instantaneo con mascota, score ring al finalizar
+- Review Hub con analisis de errores por IA, pregunta al tutor, busqueda de video relacionado
+- Coliseo de Retos con 3 vidas, timer global de 30 min, preguntas generadas por IA con fallback a nodos completados
+- 18 logros con rarezas (common, rare, epic, legendary) y motor de reglas evaluado en backend
+- Navegacion por voz con 30+ comandos, transcripcion Groq Whisper, clasificacion Groq LLaMA
+
+### 6.3 Docente
+
+- Panel con estadisticas (total cursos, estudiantes activos, progreso promedio)
+- Creacion de curso en modal con 3 pasos (informacion, material fuente, codigo de invitacion)
+- Roadmap Designer: editor visual SVG con chat IA para modificar nodos (agregar, eliminar, mover, cambiar tipo)
+- Content Review: cola de nodos pendientes de aprobacion, acciones por nodo (aprobar, rechazar, regenerar)
+- CourseDetailModal: participantes reales con progreso individual, busqueda de estudiantes por DNI/email
+
+### 6.4 Padre
+
+- Vinculacion de estudiantes mediante busqueda por DNI con confirmacion inmediata
+- Dashboard con cards de estudiantes vinculados (progreso, entendimiento, ultima actividad)
+- Grafico semanal de tiempo de estudio (recharts LineChart)
+- Cursos expandibles por estudiante con progreso y nivel de entendimiento
+
+### 6.5 Voz
+
+- Escucha continua via Web Speech API + AudioContext AnalyserNode (threshold RMS 0.015)
+- Deteccion de silencio (2s) para procesar audio
+- Transcripcion Groq Whisper Large v3 (espanol)
+- Clasificacion Groq LLaMA 3.3 70B (temperatura 0.1) en 9 categorias
+- 30+ comandos: navegacion (12), quiz (7), leccion (3), resultado (3), coliseo (2), sistema (8)
+- TTS via Web Speech API con configuración de idioma, velocidad y tono
+- VoiceIndicator FAB con estados idle/active/processing
+
+### 6.6 Notificaciones
+
+- 12 tipos: medal, progress, quiz_result, enrollment, new_student, student_progress, inactivity_alert, child_progress, child_medal, parent_request, parent_linked, coliseo_result
+- RPC insert_notification con SECURITY DEFINER para bypass RLS (notificaciones cross-user)
+- Supabase Realtime con suscripcion a cambios en tabla notifications
+- Polling fallback cada 30s si Realtime falla
+- Badge de no leidas en Header, "Marcar todas leidas", marcado individual al click
+
+---
+
+## 7. Gamificacion
 
 ### 7.1 Experiencia (XP)
 
-| Acción | XP otorgado |
-|--------|-------------|
-| Completar lección teórica | +20 XP |
-| Quiz normal aprobado (≥60%) | +30 XP |
-| Quiz perfecto (100%) | +50 XP |
-| Examen final (boss) aprobado | +80 XP |
-| Coliseo — victoria normal | +100 XP + 20 por acierto |
-| Coliseo — reto del día | +200 XP + 40 por acierto |
+| Accion | XP |
+|--------|-----|
+| Completar leccion teorica | +20 |
+| Quiz aprobado (>=60%) | +30 |
+| Quiz perfecto (100%) | +50 |
+| Examen final (boss) | +80 |
+| Coliseo (victoria) | 150 + 30 por acierto |
 
 ### 7.2 Niveles de Mascota
 
-| Nivel | XP requerido | Descripción |
-|-------|-------------|-------------|
-| Nivel 1 | 0 – 500 XP | Bebé |
-| Nivel 2 | 501 – 1500 XP | Juvenil |
-| Nivel 3 | 1501+ XP | Adulto (máximo) |
+| Nivel | XP | Apariencia |
+|-------|-----|------------|
+| 1 (Bebe) | 0-499 | Tamano pequeno |
+| 2 (Juvenil) | 500-1499 | Tamano medio |
+| 3 (Adulto) | 1500+ | Tamano completo |
 
-### 7.3 Medallas y Logros (18 logros)
+Tipos: dragon (rojo #EF4444), robot (azul #3B82F6), buho (purpura #8B5CF6). Calculo: `Math.floor((pet_xp || 0) / 500) + 1`.
 
-#### Maestría (10 logros)
-| Logro | Condición | Rareza |
-|-------|-----------|--------|
-| Primer Paso | Completar primer quiz | Común |
-| Mente Brillante | 100% en un quiz | Rara |
-| Estudiante Dedicado | 5 quizzes completados | Rara |
-| Evaluador Experto | 10 quizzes completados | Épica |
-| Guerrero del Conocimiento | Aprobar examen final | Épica |
-| Perfeccionista | 100% en todos los quizzes de un curso | Legendaria |
-| Mente Curiosa | Inscrito en 3 cursos | Rara |
-| Explorador | 10 nodos de teoría completados | Común |
-| Campeón del Coliseo | Ganar Coliseo de Retos | Épica |
-| Leyenda del Coliseo | Ganar Coliseo sin perder vidas | Legendaria |
-| Primer Curso | Completar primer curso | Rara |
+### 7.3 Medallas (18 logros)
 
-#### Comportamiento (7 logros)
-| Logro | Condición | Rareza |
-|-------|-----------|--------|
-| Buen Hábito | 3 días seguidos de estudio | Común |
-| Racha Imparable | 7 días seguidos de estudio | Épica |
-| Velocista | Quiz en < 2 min con > 80% | Rara |
-| Noctámbulo | Estudiar después de las 10 PM | Común |
-| Aprendiz Reflexivo | Revisar errores por primera vez | Común |
-| Compañero de Estudio | Usar el tutor IA por primera vez | Común |
-| Dependiente de IA | 10 interacciones con el tutor | Rara |
+| ID | Nombre | Condicion | Rareza |
+|----|--------|-----------|--------|
+| first_quiz | Primer Paso | Primer quiz completado | Common |
+| perfect_quiz | Mente Brillante | 100% en un quiz | Rare |
+| five_quizzes | Estudiante Dedicado | 5 quizzes | Rare |
+| ten_quizzes | Evaluador Experto | 10 quizzes | Epic |
+| boss_slayer | Guerrero del Conocimiento | Examen final aprobado | Epic |
+| all_perfect | Perfeccionista | 100% en todos los quizzes de un curso | Legendary |
+| three_courses | Mente Curiosa | 3 cursos inscritos | Rare |
+| ten_nodes | Explorador | 10 nodos de teoria | Common |
+| coliseo_win | Campeon del Coliseo | Victoria en Coliseo | Epic |
+| coliseo_perfect | Leyenda del Coliseo | Victoria sin perder vidas | Legendary |
+| first_course | Primer Curso | Primer curso completado | Rare |
+| streak_3 | Buen Habito | 3 dias seguidos | Common |
+| streak_7 | Racha Imparable | 7 dias seguidos | Epic |
+| speedster | Velocista | Quiz < 2 min con >80% | Rare |
+| night_owl | Noctambulo | Estudiar despues de las 10 PM | Common |
+| first_review | Aprendiz Reflexivo | Primera revision de errores | Common |
+| ai_chat | Compannero de Estudio | Primer uso del tutor IA | Common |
+| ai_intensive | Dependiente de IA | 10 interacciones con tutor | Rare |
 
-### 7.4 Rarezas
-
-| Rareza | Color | Descripción |
-|--------|-------|-------------|
-| Común | `#A6A6BC` (gris) | Logros básicos |
-| Rara | `#3B82F6` (azul) | Logros intermedios |
-| Épica | `#8B5CF6` (púrpura) | Logros avanzados |
-| Legendaria | `#F59E0B` (ámbar) | Logros máximos |
+Rarezas: Common (#A6A6BC), Rare (#3B82F6), Epic (#8B5CF6), Legendary (#F59E0B).
 
 ---
 
-## 8. Fórmula de Nivel de Entendimiento (Sincronía)
+## 8. Nivel de Entendimiento (Sincronia)
 
-```
-S = (P × 0.50) + (Nc × 0.25) + (Er × 0.15) + (Te × 0.10)
-```
+Formula: `S = (P x 0.50) + (Nc x 0.25) + (Er x 0.15) + (Te x 0.10)`
 
-| Variable | Significado | Cálculo | Peso |
+| Variable | Significado | Calculo | Peso |
 |----------|-------------|---------|------|
-| **P** | Desempeño en quizzes | `min(avgScore / 100, 1)`. Si no hay quizzes, usa Nc | **50%** |
-| **Nc** | Nodos completados | `nodos_completados / total_nodos` | **25%** |
-| **Er** | Ratio de aciertos | `aciertos / (aciertos + errores)`. Sin datos = 1 | **15%** |
-| **Te** | Esfuerzo de estudio | `min(horas_estudio / 2, 1)` | **10%** |
+| P | Desempeno en quizzes | min(avgScore / 100, 1) | 50% |
+| Nc | Nodos completados | completados / total | 25% |
+| Er | Ratio de aciertos | aciertos / (aciertos + errores) | 15% |
+| Te | Esfuerzo de estudio | min(horas_estudio / 2, 1) | 10% |
 
-### Rangos de Entendimiento
-
-| Rango | Color | Etiqueta | Significado |
-|-------|-------|----------|-------------|
-| 0 – 30% | Rojo `#EF4444` | **Inicial** | Requiere refuerzo intensivo |
-| 31 – 60% | Naranja `#F97316` | **En progreso** | Avanzando, necesita práctica |
-| 61 – 85% | Azul `#3B82F6` | **Competente** | Buen dominio de los temas |
-| 86 – 100% | Púrpura `#8B5CF6` | **Avanzado** | Maestría del contenido |
-
-### Comportamiento del modelo IA según nivel
-
-| Nivel | Temperatura LLM | Formalidad |
-|-------|-----------------|------------|
-| **Inicial** (≤30%) | 0.7 (más creativo) | Lenguaje muy simple, como explicar a un niño |
-| **En progreso** (31-70%) | 0.5 (balanceado) | Lenguaje estándar, ejemplos prácticos |
-| **Avanzado** (>70%) | 0.3 (más preciso) | Lenguaje técnico, formal y preciso |
+Rangos: 0-30% (rojo #EF4444, Inicial), 31-60% (naranja #F97316, En progreso), 61-85% (azul #3B82F6, Competente), 86-100% (purpura #8B5CF6, Avanzado).
 
 ---
 
-## 9. Flujos Principales
+## 9. Base de Datos (11 tablas)
 
-### 9.1 Flujo del Estudiante
-
-```
-Login → Dashboard → Roadmap del curso → Lección teórica → Quiz
-                                                    ↓
-                                              ¿Aprobó (≥60%)?
-                                              ↙            ↘
-                                           Siguiente     Review Hub
-                                            nodo         (análisis IA
-                                                         + refuerzo)
-```
-
-1. **Dashboard**: Saludo dinámico, card "Continuar" (último curso activo), retos del día, cursos inscritos
-2. **Roadmap**: Camino serpiente SVG con nodos de teoría/quiz/boss. Estados visuales: bloqueado, disponible, en progreso, completado
-3. **Lección**: Contenido generado por IA con efecto typewriter, palabras clave resaltadas, chat con tutor IA
-4. **Quiz**: 3-5 preguntas generadas por IA, timer 30s por pregunta, tipos: opción múltiple y verdadero/falso
-5. **Resultado**: Score ring, XP ganado, navegación al siguiente nodo o revisión de errores
-6. **Review Hub**: Análisis de error por IA, input de pregunta libre al tutor, video recomendado
-7. **Coliseo**: Examen integrador con sistema de vidas (❤️❤️❤️), preguntas de todos los nodos completados
-
-### 9.2 Flujo del Docente
-
-```
-Panel Docente → Crear curso → Subir material → Generar Roadmap (IA)
-                                              ↓
-                              Revisar/Editar nodos → Publicar
-                                              ↓
-                              Dashboard de estudiantes → Ver progreso individual
-```
-
-1. **Panel Docente**: Cards de cursos, estadísticas, alertas de estudiantes
-2. **Crear curso**: Formulario (título, categoría, nivel, rigor 1-5), upload de archivos (PDF, DOCX, TXT, YouTube)
-3. **Generar Roadmap**: La IA analiza el material fuente y crea automáticamente nodos de teoría y quizzes
-4. **RoadmapDesigner**: Editor visual con chat IA para modificar nodos ("Agrega un quiz después del nodo 3")
-5. **ContentReview**: Revisar, aprobar, regenerar o rechazar contenido generado por IA antes de publicar
-6. **Gestión de estudiantes**: Ver progreso individual, dificultades detectadas, actividad reciente
-
-### 9.3 Flujo del Padre
-
-```
-Panel Familiar → Vincular estudiante (email) → Ver progreso en tiempo real
-                                              ↓
-                              Estadísticas: entendimiento, lecciones, actividad
-```
+| Tabla | Propósito | Campos clave |
+|-------|-----------|--------------|
+| profiles | Perfiles de usuario | id, role, full_name, dni, avatar_id, pet_type, pet_xp, accessibility_settings, onboarding_completed |
+| courses | Cursos | id, teacher_id, title, category, status (draft/published/archived), rigor (1-5), invite_code, invite_token |
+| nodes | Nodos del roadmap | id, course_id, position, type (theory/quiz/boss/practice/reward), title, content, status (pending_review/published) |
+| enrollments | Inscripciones | id, student_id, course_id, ai_interactions, study_time_sec (UNIQUE student_id + course_id) |
+| progress | Progreso por nodo | id, enrollment_id, node_id, state (locked/available/in_progress/completed), score, attempts |
+| source_files | Archivos subidos | id, course_id, filename, file_type, status, chunks_count |
+| documents | Chunks RAG con embeddings | id, course_id, content, embedding vector(768), chunk_index |
+| weaknesses | Debilidades del estudiante | id, student_id, course_id, concept, confusion_level, total_errors |
+| medals | Medallas obtenidas | id, student_id, medal_type, name, achievement, rarity |
+| notifications | Notificaciones in-app | id, user_id, type (12 tipos), payload jsonb, read |
+| parent_links | Vinculacion padre-estudiante | id, parent_id, student_id, status (pending/accepted/rejected) |
 
 ---
 
-## 10. Navegación y Pantallas
+## 10. Edge Functions (15)
 
-| # | Pantalla | URL | Rol | Descripción |
-|---|----------|-----|-----|-------------|
-| 1 | Login | `/login` | Todos | Email + contraseña, magic link |
-| 2 | Registro | `/register` | Todos | Wizard 3 pasos con selección de rol |
-| 3 | Recuperar contraseña | `/forgot-password` | Todos | Envío de enlace mágico |
-| 4 | Onboarding Accesibilidad | `/onboarding/accessibility` | Estudiante | Toggles de accesibilidad |
-| 5 | Onboarding Avatar | `/onboarding/avatar` | Estudiante | Selección de mascota y avatar |
-| 6 | Dashboard | `/dashboard` | Estudiante | Panel principal con retos y cursos |
-| 7 | Explorar Cursos | `/explore` | Estudiante | Catálogo público, inscripción por código |
-| 8 | Roadmap | `/roadmap/:courseId` | Estudiante, Docente | Camino serpiente SVG interactivo |
-| 9 | Lección | `/lesson/:courseId/:nodeId` | Estudiante, Docente | Contenido teórico con tutor IA |
-| 10 | Quiz | `/quiz/:courseId/:nodeId` | Estudiante, Docente | Evaluación adaptativa con timer |
-| 11 | Resultado Quiz | `/quiz/result` | Estudiante, Docente | Score, revisión de errores |
-| 12 | Corrección | `/review/:courseId/:nodeId` | Estudiante, Docente | Análisis de errores + hub de refuerzo |
-| 13 | Coliseo | `/coliseo/:courseId` | Estudiante, Docente | Examen final con vidas y XP |
-| 14 | Logros | `/achievements` | Estudiante | Grid de medallas (18 logros) |
-| 15 | Perfil | `/profile` | Todos | Datos personales, avatar, mascota |
-| 16 | Configuración | `/settings` | Todos | Preferencias y accesibilidad |
-| 17 | Panel Docente | `/teacher` | Docente | Cursos, estadísticas, alertas |
-| 18 | Diseñar Roadmap | `/teacher/design/:courseId` | Docente | Editor visual con chat IA |
-| 19 | Revisar Contenido | `/teacher/courses/:courseId/review` | Docente | Aprobar/rechazar contenido IA |
-| 20 | Panel Familiar | `/parent` | Padre | Progreso de estudiantes vinculados |
+| Funcion | Streaming | RAG | DB | Proposito |
+|---------|-----------|-----|-----|-----------|
+| chat | SI | SI | NO | Tutor IA del estudiante |
+| chat-roadmap | NO | NO | NO | Asistente IA para docente |
+| analyze-error | NO | NO | NO | Analisis de error |
+| generate-roadmap | NO | NO | SI | Roadmap completo del curso |
+| generate-lesson | SI | SI | SI | Contenido teorico de un nodo |
+| generate-quiz | NO | SI | SI | Preguntas de quiz para un nodo |
+| generate-test | NO | NO | NO | Examen de unidad (10 preguntas) |
+| generate-coliseo | NO | NO | NO | Desafio del Coliseo |
+| generate-course-content | NO | NO | SI | Contenido en lote para todos los nodos |
+| generate-medal-svg | NO | NO | SI | SVG dinamico de medalla |
+| reinforce | SI | SI | NO | Refuerzo con explicacion alternativa |
+| register-user | NO | NO | SI | Creacion de cuenta |
+| upload-source | NO | NO | SI | Subida de archivo a Storage |
+| embed-source | NO | SI | SI | ETL: archivo a chunks a embeddings |
+| youtube-transcript | NO | NO | NO | Transcripcion de YouTube |
 
 ---
 
-## 11. Accesibilidad (WCAG 2.1 AA)
+## 11. Cuentas de Prueba
 
-| Característica | Descripción |
-|----------------|-------------|
-| Alto contraste | Modo de contraste máximo, toggle en onboarding/settings |
-| Reducir animaciones | Respeto de `prefers-reduced-motion` |
-| Navegación por voz | Web Speech API, comandos globales ("Ir al dashboard", "Leer pantalla", etc.) |
-| Texto grande | Aumento de font-size base a 18px |
-| Modo daltónico | Paletas de color seguras (viridis/cividis) |
-| Skip link | "Saltar al contenido principal" en cada página |
-| Navegación por teclado | Tab order lógico, foco visible, atajos |
-| Screen readers | NVDA, JAWS, VoiceOver — lista semántica del roadmap |
-| ARIA labels | Labels explícitos en todos los elementos interactivos |
-| Anuncios en vivo | `aria-live` para feedback de quiz, timer, notificaciones |
-| No color como único indicador | Errores: X + texto + color; aciertos: check + texto + color |
+| Rol | Email | Contrasena | DNI |
+|-----|-------|-----------|-----|
+| Estudiante | default_student@eduapp.test | student123 | 11111111 |
+| Docente | default_teacher@eduapp.test | teacher123 | 22222222 |
+| Padre | default_parent@eduapp.test | parent123 | 33333333 |
 
-### Comandos de voz disponibles
-- "Ir al dashboard" / "Ir a logros" / "Ir a perfil"
-- "Ir al curso [nombre]" — fuzzy matching
-- "Siguiente nodo" / "Nodo anterior"
-- "Leer pantalla" / "Leer contenido"
-- "Leer notificaciones"
-- "Ayuda" — lista comandos disponibles
-- "¿Dónde estoy?" — ubicación actual en la app
-- "Opción A/B/C/D" — responder quiz por voz
+Usuarios adicionales (11): maria.lopez@eduapp.test (docente), carlos.ruiz@eduapp.test (docente), ana.garcia@eduapp.test (estudiante), luis.martinez@eduapp.test (estudiante), sofia.torres@eduapp.test (estudiante), diego.vargas@eduapp.test (estudiante), valeria.rios@eduapp.test (estudiante), 4 padres vinculables.
 
 ---
 
 ## 12. Seguridad
 
-| Medida | Descripción |
-|--------|-------------|
-| Row Level Security (RLS) | Cada usuario solo ve sus propios datos en Supabase |
-| Autenticación JWT | Tokens de acceso con expiración, refresh automático |
-| Sanitización DOMPurify | Todo contenido IA es sanitizado antes de renderizar |
-| CORS | Headers configurados en todas las Edge Functions |
-| API Keys | NVIDIA API key y Gemini API key solo en backend (Edge Functions) |
-| Contraseñas | Encriptadas con `pgcrypto` en la base de datos |
+| Medida | Implementacion |
+|--------|----------------|
+| Row Level Security (RLS) | Todas las tablas. SELECT/UPDATE solo propios datos |
+| Autenticacion JWT | Tokens de acceso con expiracion (1h), refresh automatico |
+| Sanitizacion DOMPurify | Todo contenido IA sanitizado antes de renderizar |
+| CORS | Configurado en todas las Edge Functions (_shared/cors.ts) |
+| API Keys en backend | NVIDIA, Gemini, Groq keys nunca llegan al browser |
+| Bearer token validation | Edge Functions validan JWT del usuario |
+| API Key auth (AI Backend) | X-API-Key header requerido en produccion |
+| Contrasenas cifradas | pgcrypto en auth.users |
+
+Riesgos identificados: contrasena en texto plano en profiles.password (demo only), VITE_NVIDIA_API_KEY en frontend (key con permisos limitados), sin rate limiting en Edge Functions.
 
 ---
 
-## 13. Cuentas de Prueba (Demo)
+## 13. Metricas del Proyecto
 
-| Rol | Email | Contraseña |
-|-----|-------|-----------|
-| Estudiante | `default_student@eduapp.test` | `student123` |
-| Docente | `default_teacher@eduapp.test` | `teacher123` |
-| Padre | `default_parent@eduapp.test` | `parent123` |
-
----
-
-## 14. Mapa de Módulos y Funcionalidades
-
-```
-EduApp
-├── Auth
-│   ├── Login (email/password + magic link)
-│   ├── Registro (wizard 3 pasos)
-│   ├── Recuperación de contraseña
-│   └── Onboarding (accesibilidad + avatar/mascota)
-│
-├── Estudiante
-│   ├── Dashboard (retos del día, continuar, cursos)
-│   ├── Explorar (catálogo público, código de invitación)
-│   ├── Roadmap (SVG interactivo, estados de nodos)
-│   ├── Lección (typewriter, tutor IA integrado)
-│   ├── Quiz (timer, opción múltiple, feedback IA)
-│   ├── Review Hub (análisis de errores, pregunta IA, video)
-│   ├── Coliseo (vidas, preguntas dinámicas, XP)
-│   ├── Logros (18 medallas, rarezas)
-│   ├── Perfil (avatar, mascota, XP)
-│   └── Configuración (accesibilidad, notificaciones)
-│
-├── Docente
-│   ├── Panel Docente (cursos, estadísticas, alertas)
-│   ├── Crear curso (material, IA, roadmap)
-│   ├── RoadmapDesigner (editor visual + chat IA)
-│   ├── ContentReview (aprobar/rechazar/regenerar)
-│   └── Gestión de estudiantes (progreso, dificultades)
-│
-├── Padre
-│   ├── Panel Familiar (progreso en tiempo real)
-│   ├── Vinculación de estudiantes (email, notificaciones)
-│   └── Gráficos de actividad semanal
-│
-├── IA
-│   ├── Tutor (chat con RAG, streaming)
-│   ├── Generación de contenido (lecciones, quizzes, roadmaps)
-│   ├── Análisis de errores (explicación personalizada)
-│   ├── Refuerzo (pregunta libre al tutor)
-│   ├── Embeddings RAG (búsqueda semántica vectorial)
-│   └── Ajuste de formalidad (según nivel de entendimiento)
-│
-└── Gamificación
-    ├── XP (experiencia por actividad)
-    ├── Niveles de mascota (1-3)
-    ├── Medallas (18 logros, 4 rarezas)
-    ├── Retos del día (2 diarios dinámicos)
-    └── Coliseo de Retos (examen integrador)
-```
+| Metrica | Valor |
+|---------|-------|
+| Paginas frontend | 20 |
+| Componentes compartidos | 8 |
+| Librerias/utilidades | 13 |
+| Edge Functions | 15 |
+| Migraciones SQL | 13 |
+| Tablas en BD | 11 |
+| Scripts de testing | 24 |
+| Lineas de codigo frontend | ~10,000 |
+| Lineas de codigo backend | ~2,500 |
+| Logros | 18 |
+| Tipos de notificacion | 12 |
+| Comandos de voz | 30+ |
+| Modelos de IA | 4 (3 proveedores) |
