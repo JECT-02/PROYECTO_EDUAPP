@@ -22,7 +22,7 @@ const ACCESSIBILITY_OPTIONS = [
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { user, updateProfileData } = useAuth()
+  const { user, updateProfile } = useAuth()
   const { voiceEnabled, toggleVoice } = useVoice()
 
   const [prefs, setPrefs] = useState(() => {
@@ -41,6 +41,18 @@ export default function Settings() {
       localStorage.setItem('eduapp_prefs', JSON.stringify(next))
       return next
     })
+    // Apply body classes first (local effects always work)
+    if (key === 'contrast') document.body.classList.toggle('high-contrast', nextVal)
+    if (key === 'reduced') document.body.classList.toggle('reduce-motion', nextVal)
+    if (key === 'colorblind') document.body.classList.toggle('colorblind', nextVal)
+    if (key === 'largeText') {
+      document.body.classList.toggle('large-text', nextVal)
+      document.documentElement.style.fontSize = nextVal ? '18px' : ''
+    }
+    // Notify Header to refresh notifications
+    if (key === 'notifications') {
+      window.dispatchEvent(new CustomEvent('eduapp-prefs-changed', { detail: { key, value: nextVal } }))
+    }
     // Persist accessibility settings to Supabase
     if (user?.id) {
       const acc = prefs
@@ -52,19 +64,7 @@ export default function Settings() {
         large_text: key === 'largeText' ? nextVal : !!acc.largeText,
         colorblind: key === 'colorblind' ? nextVal : !!acc.colorblind,
       }
-      updateProfileData({ accessibility_settings: merged }).catch(() => {})
-    }
-    // Notify Header to refresh notifications
-    if (key === 'notifications') {
-      window.dispatchEvent(new CustomEvent('eduapp-prefs-changed', { detail: { key, value: nextVal } }))
-    }
-    // Apply body classes
-    if (key === 'contrast') document.body.classList.toggle('high-contrast', nextVal)
-    if (key === 'reduced') document.body.classList.toggle('reduce-motion', nextVal)
-    if (key === 'colorblind') document.body.classList.toggle('colorblind', nextVal)
-    if (key === 'largeText') {
-      document.body.classList.toggle('large-text', nextVal)
-      document.documentElement.style.fontSize = nextVal ? '18px' : ''
+      updateProfile({ accessibility_settings: merged }).catch(() => {})
     }
   }
 
@@ -115,7 +115,7 @@ export default function Settings() {
                       large_text: !!prefs.largeText,
                       colorblind: !!prefs.colorblind,
                     }
-                    updateProfileData({ accessibility_settings: merged }).catch(() => {})
+                    updateProfile({ accessibility_settings: merged }).catch(() => {})
                   }
                 } else {
                   toggle(opt.key)

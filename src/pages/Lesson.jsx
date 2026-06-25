@@ -645,12 +645,24 @@ export default function Lesson() {
   )
 }
 
+function isMarkdown(text) {
+  if (!text) return false
+  const t = String(text)
+  if (/<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote)\b/i.test(t)) return false
+  if (/^#{1,3}\s+/m.test(t)) return true
+  if (/\*\*[^*]+\*\*/.test(t)) return true
+  if (/`[^`]+`/.test(t)) return true
+  if (/^- \w/m.test(t)) return true
+  if (/^\d+\.\s\w/m.test(t)) return true
+  return false
+}
+
 function splitContent(rawContent) {
   if (!rawContent) return []
   if (Array.isArray(rawContent)) return rawContent
-  const html = String(rawContent)
+  const source = isMarkdown(rawContent) ? renderLessonContent(String(rawContent)) : String(rawContent)
   const containers = []
-  const protectedHtml = html.replace(
+  const protectedHtml = source.replace(
     /<div\s+class="(?:example-box|key-concept)"[\s\S]*?<\/div>/gi,
     (match) => {
       containers.push(match)
@@ -658,9 +670,9 @@ function splitContent(rawContent) {
     }
   )
   const blocks = protectedHtml
-    .split(/(?=<(?:h[23]|p|div|pre|ul|ol|blockquote)\b)/i)
+    .split(/(?=<(?:h[1-6]|p|div|pre|ul|ol|table|blockquote)\b)/i)
     .map(b => b.trim())
     .filter(Boolean)
     .map(b => b.replace(/<!--CONTAINER_(\d+)-->/g, (_, i) => containers[parseInt(i)]))
-  return blocks.length > 0 ? blocks : [`<p>${html}</p>`]
+  return blocks.length > 0 ? blocks : [`<p>${source}</p>`]
 }
