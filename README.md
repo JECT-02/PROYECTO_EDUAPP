@@ -109,3 +109,5 @@ docs/                   # Documentación
 ## Licencia
 
 Proyecto universitario — ver repositorio para detalles.
+![Visitas](https://komarev.com)
+
