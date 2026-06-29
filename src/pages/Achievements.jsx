@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Sparkles, Lock } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
@@ -42,51 +42,72 @@ export default function Achievements() {
   const catalog = getAllAchievements()
   const earnedCount = catalog.filter(a => earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())).length
 
+  const earnedList = useMemo(() => catalog.filter(a => earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())), [catalog, earnedIds])
+  const pendingList = useMemo(() => catalog.filter(a => !earnedIds.has(a.id?.toLowerCase()) && !earnedIds.has(a.name?.toLowerCase())), [catalog, earnedIds])
+
   return (
     <PageWrapper className="achievements-page">
-      <header className="achievements-header" role="banner" aria-label="Encabezado de logros">
+      <header className="achievements-header">
         <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Volver"><ArrowLeft size={18} aria-hidden="true"/></button>
-        <h1 className="achievements-title">Logros y Medallas</h1>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{earnedCount}/{catalog.length}</span>
+        <h1 className="achievements-title" tabIndex={-1}>Logros y Medallas</h1>
+        <span
+          aria-hidden="true"
+          style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}
+        >
+          {earnedCount}/{catalog.length}
+        </span>
       </header>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-          <Sparkles size={20} className="animate-spin" /> Cargando...
+        <div role="status" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+          <Sparkles size={20} aria-hidden="true" className="animate-spin" /> Cargando logros...
         </div>
       ) : (
-        <div className="achievements-grid" role="list" aria-label="Lista de medallas">
-          {catalog.map(a => {
-            const unlocked = earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())
-            return (
-              <div key={a.id} className={`achievement-card ${unlocked ? '' : 'locked'}`} role="listitem" style={{
-                borderColor: unlocked ? `${RARITY_COLOR[a.rarity]}55` : 'var(--border-light)'
-              }}>
-                <div className="achievement-icon-wrap" style={{
-                  background: unlocked ? `${RARITY_COLOR[a.rarity]}22` : 'var(--surface-3)',
-                  boxShadow: unlocked ? `0 0 15px ${RARITY_COLOR[a.rarity]}44` : 'none'
-                }}>
-                  {unlocked ? (TYPE_ICON[a.type] || '🏅') : <Lock size={24} color="var(--text-dim)" />}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 className="achievement-card-title" style={{ color: unlocked ? 'var(--text)' : 'var(--text-dim)' }}>
-                    {a.name}
-                  </h3>
-                  <p className="achievement-card-desc">{a.description}</p>
-                  <span style={{
-                    fontSize: '0.7rem',
-                    color: RARITY_COLOR[a.rarity],
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+        <>
+          <div className="achievements-grid">
+            {[...earnedList, ...pendingList].map(a => {
+              const unlocked = earnedIds.has(a.id?.toLowerCase()) || earnedIds.has(a.name?.toLowerCase())
+              const rarityLabel = a.rarity === 'common' ? 'Común' : a.rarity === 'rare' ? 'Rara' : a.rarity === 'epic' ? 'Épica' : 'Legendaria'
+              const statusLabel = unlocked ? 'Completado' : 'No completado'
+              return (
+                <div
+                  key={a.id}
+                  className={`achievement-card ${unlocked ? '' : 'locked'}`}
+                  tabIndex={0}
+                  style={{
+                    borderColor: unlocked ? `${RARITY_COLOR[a.rarity]}55` : 'var(--border-light)'
+                  }}
+                >
+                  <div className="achievement-icon-wrap" style={{
+                    background: unlocked ? `${RARITY_COLOR[a.rarity]}22` : 'var(--surface-3)',
+                    boxShadow: unlocked ? `0 0 15px ${RARITY_COLOR[a.rarity]}44` : 'none'
                   }}>
-                    {a.rarity}
-                  </span>
+                    {unlocked
+                    ? <span aria-hidden="true">{TYPE_ICON[a.type] || '🏅'}</span>
+                    : <Lock size={24} aria-hidden="true" color="var(--text-dim)" />
+                  }
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 className="achievement-card-title" style={{ color: unlocked ? 'var(--text)' : 'var(--text-dim)' }}>
+                      {a.name}
+                    </h3>
+                    <p className="achievement-card-desc">{a.description}</p>
+                    <span className="visually-hidden">Rareza {rarityLabel}, {statusLabel}</span>
+                    <span aria-hidden="true" style={{
+                      fontSize: '0.7rem',
+                      color: RARITY_COLOR[a.rarity],
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}>
+                      {a.rarity}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </>
       )}
     </PageWrapper>
   )
