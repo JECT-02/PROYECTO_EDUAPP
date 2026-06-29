@@ -28,6 +28,7 @@ export default function Roadmap() {
   const [errorMsg, setErrorMsg] = useState('')
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [understanding, setUnderstanding] = useState(null)
+  const [announcement, setAnnouncement] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -99,9 +100,23 @@ export default function Roadmap() {
           try { localStorage.setItem('eduapp_last_course', JSON.stringify(courseId)) } catch {}
         }
         if (!cancelled) setPageContext({ page: 'roadmap', courseTitle: courseData?.title || courseTitle, nodePosition: 0, totalNodes: mapped.length })
+        let udVal = null
         if (effectiveStudent && !isTeacher && !cancelled) {
           const { data: ud } = await getUnderstandingData(effectiveStudent, courseId)
-          if (!cancelled && ud) setUnderstanding(calculateUnderstanding(ud))
+          if (!cancelled && ud) {
+            const calculated = calculateUnderstanding(ud)
+            setUnderstanding(calculated)
+            udVal = calculated?.value ?? null
+          }
+        }
+        if (!cancelled) {
+          const title = courseData?.title || 'Curso'
+          const completedCount = mapped.filter(n => n.status === 'completed').length
+          const currentNode = mapped.find(n => n.status === 'in_progress' || n.status === 'available')
+          let msg = `Mapa del curso ${title}. ${completedCount} de ${mapped.length} nodos completados.`
+          if (currentNode) msg += ` Nodo actual: ${currentNode.title}.`
+          if (udVal != null) msg += ` Nivel de entendimiento: ${udVal}%.`
+          setAnnouncement(msg)
         }
       } catch (e) {
         console.error('[roadmap] error:', e)
@@ -157,7 +172,7 @@ export default function Roadmap() {
 
   return (
     <PageWrapper className="roadmap-page-wrap">
-      <div className="rm-header">
+      <div className="rm-header" aria-hidden={loading}>
         <div className="rm-h-left">
           <button className="icon-btn" onClick={() => navigate(isTeacher ? '/teacher' : '/dashboard')} aria-label="Volver al inicio"><ArrowLeft size={18} aria-hidden="true"/></button>
           <div>
@@ -207,9 +222,9 @@ export default function Roadmap() {
 
       <div className="rm-main-container">
         <div className="rm-scroll-area">
-          <nav aria-label="Mapa de aprendizaje">
+          <nav aria-label="Mapa de aprendizaje" aria-busy={loading}>
           {/* Lista semántica para lectores de pantalla */}
-          <ol className="visually-hidden" aria-label="Lista de nodos del curso">
+          <ol className="visually-hidden" aria-label="Lista de nodos del curso" aria-hidden={loading}>
             {nodes.map((n, i) => {
               const statusMap = { completed: 'completado', in_progress: 'en progreso', available: 'disponible', locked: 'bloqueado' }
               const typesMap = { theory: 'teoría', quiz: 'cuestionario', boss: 'examen final', practice: 'práctica' }
@@ -229,7 +244,7 @@ export default function Roadmap() {
             )}
 
             {loading && (
-              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }} role="status" aria-live="polite">
+              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
                 <LoaderCircle size={20} className="animate-spin" aria-hidden="true" /> Cargando roadmap...
               </div>
             )}
@@ -284,7 +299,7 @@ export default function Roadmap() {
                         className={`rm-node-v2 ${node.type} ${node.status} ${isMobile ? 'mobile' : ''}`}
                         style={{ width: nodeSize, height: nodeSize }}
                         role="button"
-                        tabIndex={node.status === 'locked' ? -1 : 0}
+                        tabIndex={0}
                         aria-label={nodeLabel}
                         aria-disabled={node.status === 'locked'}
                         onKeyDown={(e) => {
@@ -294,6 +309,8 @@ export default function Roadmap() {
                             if (node.status !== 'locked') {
                               const path = (node.type === 'quiz' || node.type === 'boss') ? '/quiz' : '/lesson'
                               navigate(`${path}/${courseId}/${node.position || node.id}`)
+                            } else {
+                              vibrateLocked()
                             }
                           }
                         }}
@@ -346,6 +363,8 @@ export default function Roadmap() {
           </div>
         </div>
       )}
+
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{announcement}</div>
     </PageWrapper>
   )
 }
