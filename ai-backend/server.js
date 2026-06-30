@@ -146,6 +146,14 @@ const ROADMAP_PROMPT = `Eres un diseñador instruccional experto. Tu unica funci
   {"position":8,"type":"boss","title":"Examen Final Integrador","description":"Evaluacion integral del curso","content":"{\\"questions\\":[{\\"id\\":1,\\"text\\":\\"Pregunta integradora basada en el material?\\",\\"options\\":[\\"...\\",\\"...\\",\\"...\\",\\"...\\"],\\"correct\\":0,\\"explanation\\":\\"...\\"},...5 preguntas en total],\\"congratulations\\":\\"Felicitaciones! Has completado exitosamente el curso [nombre].\\"}"}
 ]}
 
+## REGLA CRITICA — CONTENT DE QUIZ Y BOSS:
+- El campo "content" de los nodos quiz y boss DEBE ser un STRING JSON codificado, NUNCA un objeto JSON anidado.
+- Las comillas internas DEBEN estar escapadas con \\" (barra invertida + comilla doble).
+- Ejemplo CORRECTO: "content":"{\\"questions\\":[...]}"
+- Ejemplo INCORRECTO: "content":{"questions":[...]}
+- Si escribes content como objeto en vez de string, el sistema lo rechazara y perdera TODO el contenido.
+- GRABA ESTO: el valor de "content" empieza y termina con comillas dobles, y dentro lleva JSON escapado.
+
 ## ESTRUCTURA:
 1. SECUENCIA: theory, theory, quiz, theory, theory, quiz, theory, boss (8 nodos). 10 nodos si hay >15000 chars de material.
 2. theory: 150-250 palabras HTML. Contenido parafraseado del material. NO inventes.
@@ -184,7 +192,11 @@ Responde SOLO con el markdown del contenido, sin explicaciones adicionales ni te
 // ─── Validate quiz/boss content is parseable JSON ──────
 function validateNodeContent(node) {
   if (node.type === 'quiz' || node.type === 'boss') {
-    if (!node.content || typeof node.content !== 'string') return false
+    if (!node.content) return false
+    // Accept both string (prompt-compliant) and object (AI sometimes deviates)
+    if (typeof node.content !== 'string') {
+      node.content = JSON.stringify(node.content)
+    }
     try {
       const parsed = JSON.parse(node.content)
       if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) return false
