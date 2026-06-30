@@ -164,6 +164,7 @@ export default function Review() {
     setHubOpen(false)
     if (currentIndex < totalIncorrect - 1) {
       setCurrentIndex(currentIndex + 1)
+      requestAnimationFrame(() => document.querySelector('.review-q-card')?.focus())
     } else {
       goNext()
     }
@@ -172,6 +173,7 @@ export default function Review() {
   function handleEntendido() {
     if (currentIndex < totalIncorrect - 1) {
       setCurrentIndex(currentIndex + 1)
+      requestAnimationFrame(() => document.querySelector('.review-q-card')?.focus())
     } else {
       goNext()
     }
