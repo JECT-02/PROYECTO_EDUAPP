@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { X, Mic, Volume2, LoaderCircle } from 'lucide-react'
+import { X, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
@@ -301,15 +301,6 @@ export default function Quiz() {
         </div>
       )}
 
-      <button
-        className="fab-mic"
-        aria-label="Responder por voz (próximamente disponible)"
-        title="Mantener para responder por voz"
-        disabled
-        aria-disabled="true"
-      >
-        <Mic size={24} aria-hidden="true" />
-      </button>
     </PageWrapper>
   )
 }

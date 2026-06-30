@@ -155,42 +155,6 @@
   cursor: not-allowed;
 }
 
-/* FAB mic */
-.fab-mic {
-  position: absolute;
-  bottom: 32px;
-  right: 32px;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--purple));
-  color: white;
-  border: none;
-  box-shadow: var(--shadow-lg);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-  z-index: 50;
-}
-.fab-mic:active {
-  transform: scale(0.9);
-}
-.fab-mic::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 2px solid var(--primary-light);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.fab-mic:active::before {
-  opacity: 1;
-  animation: pulse-glow 1s infinite;
-}
-
 /* Feedback toast — editorial */
 .quiz-feedback-toast {
   position: absolute;
@@ -223,17 +187,11 @@
 }
 
 /* Responsive */
-@media (max-width: 767px) {
-  .quiz-options.grid-2 {
-    grid-template-columns: 1fr;
+  @media (max-width: 767px) {
+    .quiz-options.grid-2 {
+      grid-template-columns: 1fr;
+    }
+    .quiz-feedback-toast {
+      bottom: 100px;
+    }
   }
-  .fab-mic {
-    bottom: 20px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
-  }
-  .quiz-feedback-toast {
-    bottom: 100px;
-  }
-}
