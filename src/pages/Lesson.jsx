@@ -538,7 +538,7 @@ export default function Lesson() {
 
     const nextNode = findNextNode()
     if (nextNode) {
-      const path = nextNode.type === 'quiz' ? '/quiz' : nextNode.type === 'boss' ? '/coliseo' : '/lesson'
+      const path = (nextNode.type === 'quiz' || nextNode.type === 'boss') ? '/quiz' : '/lesson'
       navigate(`${path}/${courseId}/${nextNode.position || nextNode.id}`)
     } else {
       navigate(`/roadmap/${courseId}`)

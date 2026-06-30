@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -27,6 +28,8 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
   const [copied, setCopied] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const searchRef = useRef(null)
+  const addInputRef = useRef(null)
+  const [dropdownPos, setDropdownPos] = useState(null)
 
   // Reset state when switching to a different course
   useEffect(() => {
@@ -90,6 +93,16 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
     }, 300)
     return () => clearTimeout(t)
   }, [addQuery, addOpen, participants])
+
+  // Track dropdown position for portal rendering
+  useEffect(() => {
+    if (addResults.length > 0 && addInputRef.current) {
+      const rect = addInputRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    } else {
+      setDropdownPos(null)
+    }
+  }, [addResults])
 
   if (!course) return null
 
@@ -301,7 +314,7 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                             Buscar estudiante por email, DNI o nombre y agrégalo al curso.
                           </div>
-                          <div style={{ position: 'relative' }}>
+                          <div style={{ position: 'relative' }} ref={addInputRef}>
                             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
                             <input
                               autoFocus
@@ -325,60 +338,79 @@ export default function CourseDetailModal({ isOpen, onClose, course, onDelete })
                               No se encontraron estudiantes con ese criterio.
                             </div>
                           )}
-                          {addResults.length > 0 && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              {addResults.map((s) => (
-                                <div
-                                  key={s.id}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 12,
-                                    padding: 10,
-                                    background: s.alreadyEnrolled ? 'rgba(34,197,94,0.06)' : 'var(--surface)',
-                                    border: s.alreadyEnrolled ? '1px solid rgba(34,197,94,0.25)' : '1px solid var(--border-light)',
-                                    borderRadius: 'var(--radius)',
-                                  }}
-                                >
-                                  <div style={{ fontSize: '1.5rem' }}>{s.avatar_id || '🦊'}</div>
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.full_name || 'Sin nombre'}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                                      <span><Mail size={10} style={{ display: 'inline', verticalAlign: 'middle' }} /> {s.email}</span>
-                                      {s.dni && <span><IdCard size={10} style={{ display: 'inline', verticalAlign: 'middle' }} /> {s.dni}</span>}
-                                    </div>
-                                  </div>
-                                  {s.alreadyEnrolled ? (
-                                    <span style={{
-                                      fontSize: '0.75rem',
-                                      color: 'var(--success)',
-                                      fontWeight: 700,
-                                      padding: '4px 10px',
-                                      borderRadius: 999,
-                                      background: 'rgba(34,197,94,0.12)',
-                                      whiteSpace: 'nowrap',
-                                    }}>
-                                      <Check size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                                      Ya inscrito
-                                    </span>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      className="btn btn-primary btn-sm"
-                                      disabled={adding === s.id}
-                                      onClick={() => handleAddStudent(s)}
-                                    >
-                                      {adding === s.id ? <LoaderCircle size={14} className="animate-spin" /> : <><Plus size={14} /> Agregar</>}
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* Search results portal — renders at body level to avoid overflow clipping */}
+                  {dropdownPos && addResults.length > 0 && createPortal(
+                    <div style={{
+                      position: 'fixed',
+                      top: dropdownPos.top,
+                      left: dropdownPos.left,
+                      width: dropdownPos.width,
+                      zIndex: 9999,
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border-light)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                    }}>
+                      {addResults.map((s) => (
+                        <div
+                          key={s.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12,
+                            padding: 10,
+                            background: s.alreadyEnrolled ? 'rgba(34,197,94,0.06)' : 'var(--surface)',
+                            border: s.alreadyEnrolled ? '1px solid rgba(34,197,94,0.25)' : '1px solid var(--border-light)',
+                            borderRadius: 'var(--radius)',
+                          }}
+                        >
+                          <div style={{ fontSize: '1.5rem' }}>{s.avatar_id || '🦊'}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.full_name || 'Sin nombre'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                              <span><Mail size={10} style={{ display: 'inline', verticalAlign: 'middle' }} /> {s.email}</span>
+                              {s.dni && <span><IdCard size={10} style={{ display: 'inline', verticalAlign: 'middle' }} /> {s.dni}</span>}
+                            </div>
+                          </div>
+                          {s.alreadyEnrolled ? (
+                            <span style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--success)',
+                              fontWeight: 700,
+                              padding: '4px 10px',
+                              borderRadius: 999,
+                              background: 'rgba(34,197,94,0.12)',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              <Check size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                              Ya inscrito
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              disabled={adding === s.id}
+                              onClick={() => handleAddStudent(s)}
+                            >
+                              {adding === s.id ? <LoaderCircle size={14} className="animate-spin" /> : <><Plus size={14} /> Agregar</>}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>,
+                    document.body
+                  )}
 
                   {/* Summary stats */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>

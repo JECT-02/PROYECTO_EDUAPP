@@ -97,6 +97,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
   const [createdCourse, setCreatedCourse] = useState(null)
   const [copiedCode, setCopiedCode] = useState(false)
   const [generatedCount, setGeneratedCount] = useState(0)
+  const [roadmapError, setRoadmapError] = useState('')
   const fileInputRef = useRef(null)
 
   // Reset on open
@@ -114,6 +115,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
       setProgressMsg('')
       setCreatedCourse(null)
       setGeneratedCount(0)
+      setRoadmapError('')
     }
   }, [isOpen])
 
@@ -227,6 +229,7 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
           roadmapSuccess = true
         } catch (roadmapErr) {
           console.error('[roadmap] generation failed:', roadmapErr)
+          setRoadmapError(roadmapErr.message)
           setProgressMsg(`Error al generar roadmap: ${roadmapErr.message}`)
         }
 
@@ -553,11 +556,30 @@ export default function CourseCreateModal({ isOpen, onClose, onCreated }) {
                     <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 4 }}>
                       {generatedCount > 0 ? 'Curso creado exitosamente' : 'Curso creado'}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                      {generatedCount > 0
-                        ? `Se generaron ${generatedCount} nodos con contenido completo para "${courseName}".`
-                        : `El curso "${courseName}" fue creado pero sin roadmap. Puedes generarlo desde el diseñador.`}
-                    </div>
+                    {generatedCount > 0 ? (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                        Se generaron <strong style={{ color: '#4ADE80' }}>{generatedCount} nodos</strong> con contenido completo para "{courseName}".
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                          El curso "{courseName}" fue creado pero <strong style={{ color: '#FBBF24' }}>sin roadmap</strong>.
+                        </div>
+                        {roadmapError && (
+                          <div style={{
+                            marginTop: 8, fontSize: '0.78rem', color: '#FCA5A5',
+                            padding: '8px 12px', background: 'rgba(239,68,68,0.08)',
+                            borderRadius: 'var(--radius)', border: '1px solid rgba(239,68,68,0.15)',
+                            maxWidth: 380,
+                          }}>
+                            Motivo: {roadmapError}
+                          </div>
+                        )}
+                        <div style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--text-dim)' }}>
+                          Puedes generarlo desde el diseñador de roadmaps.
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Invite code */}
