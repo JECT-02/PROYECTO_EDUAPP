@@ -141,6 +141,8 @@ export default function Lesson() {
   const blockRefs = useRef([])
   const chatInputRef = useRef(null)
   const chatMessagesRef = useRef(null)
+  const msgRefs = useRef([])
+  const [focusedMsgIndex, setFocusedMsgIndex] = useState(-1)
   const backBtnRef = useRef(null)
   const [activeBlock, setActiveBlock] = useState(null)
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
@@ -183,6 +185,7 @@ export default function Lesson() {
     setGeneratedVersions([])
     setActiveVersion(null)
     setActiveBlock(null)
+    setFocusedMsgIndex(-1)
     setMessages([
       { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
     ])
@@ -232,6 +235,36 @@ export default function Lesson() {
       const prev = activeBlock === null || activeBlock === 0 ? content.length - 1 : activeBlock - 1
       setActiveBlock(prev)
       blockRefs.current[prev]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }
+
+  function handleChatMessagesKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      let nextIdx = focusedMsgIndex === -1 ? -1 : focusedMsgIndex
+      const maxIter = messages.length
+      for (let i = 0; i < maxIter; i++) {
+        nextIdx = (nextIdx + 1) % messages.length
+        const m = messages[nextIdx]
+        if (m && (m.role === 'user' || m.text)) break
+      }
+      if (nextIdx !== focusedMsgIndex) {
+        setFocusedMsgIndex(nextIdx)
+        msgRefs.current[nextIdx]?.focus()
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      let prevIdx = focusedMsgIndex === -1 ? 0 : focusedMsgIndex
+      const maxIter = messages.length
+      for (let i = 0; i < maxIter; i++) {
+        prevIdx = (prevIdx - 1 + messages.length) % messages.length
+        const m = messages[prevIdx]
+        if (m && (m.role === 'user' || m.text)) break
+      }
+      if (prevIdx !== focusedMsgIndex) {
+        setFocusedMsgIndex(prevIdx)
+        msgRefs.current[prevIdx]?.focus()
+      }
     }
   }
 
@@ -633,7 +666,9 @@ export default function Lesson() {
               ref={chatMessagesRef}
               className="chat-messages"
               tabIndex={0}
+              role="listbox"
               aria-label="Mensajes del asistente"
+              onKeyDown={handleChatMessagesKeyDown}
               onClick={(e) => {
                 const link = e.target.closest('.version-link')
                 if (link) {
@@ -651,9 +686,16 @@ export default function Lesson() {
                 (m.role === 'user' || m.text) && (
                   <div
                     key={i}
+                    ref={el => msgRefs.current[i] = el}
                     className={`chat-msg ${m.role}`}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text || '') }}
-                  />
+                    role="option"
+                    tabIndex={focusedMsgIndex === i ? 0 : -1}
+                    aria-selected={focusedMsgIndex === i}
+                    aria-label={`${m.role === 'user' ? 'Tú' : 'Tutor'}: ${(m.text || '').replace(/<[^>]+>/g, '').trim().slice(0, 200)}`}
+                  >
+                    <span className="chat-msg-label" aria-hidden="true">{m.role === 'user' ? 'Tú' : 'Tutor'}</span>
+                    <div className="chat-msg-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(m.text || '') }} />
+                  </div>
                 )
               ))}
               {chatStreaming && (
