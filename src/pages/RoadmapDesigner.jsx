@@ -10,7 +10,7 @@ import { getAccessToken } from '../lib/supabase'
 import '../pages/Roadmap.css'
 
 const NODE_TYPES = ['theory', 'practice', 'quiz', 'boss', 'reward']
-const TYPE_ICON = { theory: <Book size={18} />, practice: <Puzzle size={18} />, quiz: <Zap size={18} />, boss: <Trophy size={18} />, reward: <Sparkles size={18} /> }
+const TYPE_ICON = { theory: <Book size={18} />, practice: <Puzzle size={18} />, quiz: <Zap size={18} />, boss: <Trophy size={28} />, reward: <Sparkles size={18} /> }
 const TYPE_COLORS = { theory: '#6C63FF', practice: '#22C55E', quiz: '#F59E0B', boss: '#EF4444', reward: '#EC4899' }
 
 export default function RoadmapDesigner() {
