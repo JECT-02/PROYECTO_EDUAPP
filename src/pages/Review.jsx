@@ -7,6 +7,7 @@ import { getStudentLevel } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { getAccessToken } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
+import { speak, stopSpeaking } from '../lib/voice'
 import { useVoice } from '../context/VoiceContext'
 import { useAuth } from '../context/AuthContext'
 import './Review.css'
@@ -28,6 +29,15 @@ export default function Review() {
 
   useEffect(() => { setPageContext({ page: 'review' }) }, [setPageContext])
   useEffect(() => { return registerHandler('understood', () => handleEntendido()) }, [registerHandler])
+
+  useEffect(() => {
+    if (!hubOpen) return
+    stopSpeaking()
+    speak('Panel de refuerzo. Puedes preguntar a la IA o buscar un video.')
+    requestAnimationFrame(() => {
+      document.querySelector('.hub-card .input-field')?.focus()
+    })
+  }, [hubOpen])
 
   useEffect(() => {
     if (!isSupabaseConfigured || !studentId || !courseId) return
@@ -112,9 +122,15 @@ export default function Review() {
       const data = await res.json()
       const raw = data?.answer || ''
       const clean = raw.length > 300 ? raw.slice(0, 300) : raw
-      setAiAnswer(clean || 'No pude generar una respuesta. Intenta con otra pregunta.')
+      const answer = clean || 'No pude generar una respuesta. Intenta con otra pregunta.'
+      setAiAnswer(answer)
+      stopSpeaking()
+      speak(answer)
     } catch {
-      setAiAnswer('Error al consultar. Intenta de nuevo.')
+      const errMsg = 'Error al consultar. Intenta de nuevo.'
+      setAiAnswer(errMsg)
+      stopSpeaking()
+      speak(errMsg)
     } finally {
       setLoadingAiAnswer(false)
     }
@@ -241,37 +257,39 @@ export default function Review() {
               </button>
             </div>
           ) : (
-            <div className="hub-card animate-fadeInUp">
+            <div className="hub-card animate-fadeInUp" role="region" aria-label="Panel de refuerzo" tabIndex={0}>
               <h2 className="hub-title">Refuerzo</h2>
 
-              <div className="hub-section">
+              <div className="hub-section" tabIndex={0}>
                 <h4 className="hub-sub"><MessageSquare size={16}/> 1. Pregunta a la IA</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 10 }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginBottom: 10 }} id="ai-question-desc">
                   Escribe una pregunta sobre este tema y la IA te explicará.
                 </p>
-                <form onSubmit={handleAskAI} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <form onSubmit={handleAskAI} style={{ display: 'flex', gap: 8, marginBottom: 12 }} aria-describedby="ai-question-desc">
                   <input
                     className="input-field"
                     placeholder={`Ej: ¿Por qué "${currentAnswer.options[currentAnswer.correct]}" es la respuesta correcta?`}
                     value={userQuestion}
                     onChange={e => setUserQuestion(e.target.value)}
                     style={{ flex: 1 }}
+                    aria-label="Escribe tu pregunta sobre este tema"
                   />
                   <button
                     type="submit"
                     className="btn btn-primary btn-sm"
                     disabled={loadingAiAnswer || !userQuestion.trim()}
                     style={{ flexShrink: 0 }}
+                    aria-label="Enviar pregunta"
                   >
                     {loadingAiAnswer ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </form>
                 {aiAnswer && (
-                  <div className="analogy-box" aria-live="polite" aria-atomic="true" dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAnswer) }} />
+                  <div className="analogy-box" aria-atomic="true" dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAnswer) }} />
                 )}
               </div>
 
-              <div className="hub-section">
+              <div className="hub-section" tabIndex={0}>
                 <h4 className="hub-sub"><Play size={16}/> 2. Video Recomendado</h4>
                 {videoUrl ? (
                   <div
@@ -296,7 +314,7 @@ export default function Review() {
                 )}
               </div>
 
-              <button className="btn btn-primary full-w" onClick={handleNext}>
+              <button className="btn btn-primary full-w" onClick={handleNext} aria-label={currentIndex < totalIncorrect - 1 ? 'Siguiente error' : 'Ahora sí entendí, continuar'}>
                 {currentIndex < totalIncorrect - 1 ? 'Siguiente error →' : 'Ahora sí entendí'}
               </button>
             </div>
