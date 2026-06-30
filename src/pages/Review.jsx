@@ -120,9 +120,7 @@ export default function Review() {
       })
       if (!res.ok) throw new Error(`Error ${res.status}`)
       const data = await res.json()
-      const raw = data?.answer || ''
-      const clean = raw.length > 300 ? raw.slice(0, 300) : raw
-      const answer = clean || 'No pude generar una respuesta. Intenta con otra pregunta.'
+      const answer = data?.answer || 'No pude generar una respuesta. Intenta con otra pregunta.'
       setAiAnswer(answer)
       stopSpeaking()
       speak(answer)
