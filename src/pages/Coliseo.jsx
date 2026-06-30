@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
+import { speak, stopSpeaking } from '../lib/voice'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
@@ -142,9 +143,24 @@ export default function Coliseo() {
     })
     return unreg
   }, [currentQ, registerHandler, setPageContext])
+  const speakThen = (text, cb) => {
+    if (!window.speechSynthesis) { cb?.(); return }
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'es-ES'
+    u.onend = () => cb?.()
+    window.speechSynthesis.speak(u)
+  }
+
   useEffect(() => {
     if (started && currentQ) {
-      setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}. ${currentQ.q}`)
+      setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}`)
+      const roundInfo = `Ronda ${qIndex + 1} de ${questions.length}. ${lives} ${lives === 1 ? 'vida' : 'vidas'}. ${Math.floor(timeLeft / 60)} minutos.`
+      speakThen(roundInfo, () => {
+        speakThen(currentQ.q, () => {
+          document.querySelector('.quiz-opt-btn:not(:disabled)')?.focus()
+        })
+      })
     }
   }, [started, currentQ, qIndex, questions.length])
   useEffect(() => {
@@ -165,13 +181,30 @@ export default function Coliseo() {
 
   useEffect(() => {
     if (!started || victory || defeat) return
-    if (timeLeft === 300) setTimeAnnouncement('Quedan 5 minutos')
-    else if (timeLeft === 60) setTimeAnnouncement('Queda 1 minuto')
-    else if (timeLeft === 30) setTimeAnnouncement('Quedan 30 segundos')
-    else if (timeLeft <= 10 && timeLeft > 0) setTimeAnnouncement(`${timeLeft} segundos`)
+    if (timeLeft === 300) { speak('5 minutos') }
+    else if (timeLeft === 60) { speak('1 minuto') }
+    else if (timeLeft === 30) { speak('30 segundos') }
   }, [timeLeft, started, victory, defeat])
 
   useEffect(() => { if (started) setTimeLeft(1800) }, [started])
+
+  useEffect(() => {
+    if (victory) {
+      stopSpeaking()
+      speakThen(`¡Maestría lograda! Has superado el Coliseo de Retos${courseTitle ? ` de ${courseTitle}` : ''}. +${xpEarned} XP. ${score}/${questions.length} correctas, ${lives} ${lives === 1 ? 'vida' : 'vidas'} restantes.`, () => {
+        document.querySelector('.coliseo-intro .btn')?.focus()
+      })
+    }
+  }, [victory])
+
+  useEffect(() => {
+    if (defeat) {
+      stopSpeaking()
+      speakThen(`Derrota. Has perdido todas tus vidas. ${score}/${questions.length} correctas.`, () => {
+        document.querySelector('.coliseo-intro .btn')?.focus()
+      })
+    }
+  }, [defeat])
 
   function handleSelect(index) {
     if (status !== 'idle' || !currentQ) return
@@ -181,7 +214,7 @@ export default function Coliseo() {
       playCorrect(); vibrateCorrect()
       setStatus('correct')
       setScore(s => s + 1)
-      setFeedbackAnnouncement('¡Correcto!')
+      stopSpeaking(); speak('Correcto')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
           setQIndex(qIndex + 1); setSelected(null); setStatus('idle')
@@ -194,7 +227,8 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
-      setFeedbackAnnouncement(`Incorrecto. La respuesta era ${currentQ.a}`)
+      const feedback = `Incorrecta. Correcta: ${String.fromCharCode(65 + currentQ.options.indexOf(currentQ.a))}. Quedan ${newLives} ${newLives === 1 ? 'vida' : 'vidas'}`
+      stopSpeaking(); speak(feedback)
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()
@@ -243,8 +277,8 @@ export default function Coliseo() {
 
   return (
     <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
-      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{quizAnnouncement}</div>
-      <div className="visually-hidden" aria-live="assertive" aria-atomic="true">{feedbackAnnouncement}</div>
+      <div className="visually-hidden">{quizAnnouncement}</div>
+      <div className="visually-hidden">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {victory && (
@@ -311,7 +345,7 @@ export default function Coliseo() {
         <>
           <header className="coliseo-q-header">
             <span style={{ fontWeight: 700 }}>Ronda {qIndex + 1}/{questions.length}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} role="timer" aria-label={`Tiempo restante: ${Math.floor(timeLeft / 60)} minutos y ${timeLeft % 60} segundos`} aria-live="polite">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} role="timer" aria-label={`${Math.floor(timeLeft / 60)} minutos y ${timeLeft % 60} segundos`}>
               <Clock size={14} color={timeColor} aria-hidden="true" />
               <span style={{ color: timeColor, fontWeight: 700 }} aria-hidden="true">
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
@@ -327,10 +361,10 @@ export default function Coliseo() {
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <Mascot type="dragon" size="lg" mood={status === 'correct' ? 'happy' : status === 'incorrect' ? 'sad' : 'normal'} />
             <div className="coliseo-q-card" style={{ width: '100%', maxWidth: 500, marginTop: 16 }}>
-              <h2 style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: 20 }} id="coliseo-question-heading">
+              <h2 style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: 20 }} id="coliseo-question-heading" tabIndex={-1}>
                 <span className="visually-hidden">Pregunta {qIndex + 1} de {questions.length}:</span> {currentQ.q}
               </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} role="radiogroup" aria-labelledby="coliseo-question-heading">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {currentQ.options.map((opt, i) => {
                   let cls = 'quiz-opt-btn card '
                   if (status !== 'idle') {
@@ -339,9 +373,9 @@ export default function Coliseo() {
                     else cls += 'disabled '
                   }
                   return (
-                    <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={status !== 'idle'} role="radio" aria-checked={i === selected} aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}>
+                    <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={status !== 'idle'} aria-label={`opción ${String.fromCharCode(65 + i)} ${opt}`}>
                       <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
-                      <span className="opt-text">{opt}</span>
+                      <span className="opt-text" aria-hidden="true">{opt}</span>
                       {status !== 'idle' && opt === currentQ.a && <span className="opt-icon" aria-hidden="true">✓</span>}
                       {status !== 'idle' && i === selected && opt !== currentQ.a && <span className="opt-icon" aria-hidden="true">✗</span>}
                     </button>
