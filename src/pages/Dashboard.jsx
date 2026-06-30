@@ -240,7 +240,7 @@ export default function Dashboard() {
   const sidebarContent = (
     <>
       {/* Mascot panel */}
-      <div className="sidebar-card" tabIndex={0} role="region" aria-label={`Tu compañero: ${user?.fullProfile?.pet_name || 'Ember'}, nivel ${Math.floor((user?.fullProfile?.pet_xp || 0) / 500) + 1}`}>
+      <div className="sidebar-card" tabIndex={0} role="region" aria-label={`Tu compañero: ${user?.fullProfile?.pet_name || 'Ember'}, nivel ${Math.floor((user?.fullProfile?.pet_xp || 0) / 500) + 1}. Actual ${(user?.fullProfile?.pet_xp || 0)} XP. Necesitas ${Math.ceil((user?.fullProfile?.pet_xp || 0) / 500) * 500} XP para el siguiente nivel.`}>
         <div aria-hidden="true">
           <h3 className="sidebar-title">Tu compañero</h3>
           <div className="mascot-panel">
