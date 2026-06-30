@@ -18,10 +18,20 @@ async function callBackend(endpoint, body) {
 }
 
 export async function generateRoadmapAI({ title, description, category, level, rigor, fileTexts = [] }) {
+  let material = joinTexts(fileTexts)
+  if (!material || material.trim().length < 50) {
+    material = [
+      `Curso: ${title || 'Sin titulo'}`,
+      category ? `Materia: ${category}` : '',
+      level ? `Nivel: ${level}` : '',
+      `Rigor academico: ${rigor || 3}`,
+      description ? `Descripcion: ${description}` : '',
+    ].filter(Boolean).join('\n')
+  }
   return callBackend('/api/roadmap', {
     title,
     description: description || `${category ? category + ' — ' : ''}Nivel: ${level || 'general'}, Rigor: ${rigor || 3}`,
-    material: joinTexts(fileTexts),
+    material,
   })
 }
 
