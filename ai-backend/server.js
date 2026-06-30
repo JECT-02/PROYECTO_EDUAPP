@@ -22,7 +22,7 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const PORT = process.env.AI_BACKEND_PORT || 3001
+const PORT = process.env.PORT || process.env.AI_BACKEND_PORT || 3001
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY
 if (!NVIDIA_API_KEY) { warn('INIT', 'Falta NVIDIA_API_KEY en .env'); process.exit(1) }
 const GROQ_API_KEY = process.env.GROQ_API_KEY
