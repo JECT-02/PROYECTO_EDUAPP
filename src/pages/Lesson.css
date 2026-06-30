@@ -73,6 +73,7 @@
   max-width: 720px;
   margin: 0 auto;
   position: relative;
+  outline: none;
 }
 
 /* ===== Content blocks ===== */
@@ -88,6 +89,11 @@
   transition: background 0.2s, box-shadow 0.2s;
 }
 .lesson-block:focus-visible {
+  background: rgba(108,99,255,0.06);
+  box-shadow: 0 0 0 2px rgba(108,99,255,0.25);
+  opacity: 1;
+}
+.lesson-block-active {
   background: rgba(108,99,255,0.06);
   box-shadow: 0 0 0 2px rgba(108,99,255,0.25);
   opacity: 1;

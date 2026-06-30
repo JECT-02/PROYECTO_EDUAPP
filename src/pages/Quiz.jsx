@@ -223,7 +223,14 @@ export default function Quiz() {
       <header className="quiz-header" role="banner" aria-label="Encabezado del cuestionario">
         <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Cerrar cuestionario"><X size={18} aria-hidden="true"/></button>
         <div className="quiz-progress-wrap">
-          <div className="progress-bar">
+          <div
+            className="progress-bar"
+            role="progressbar"
+            aria-valuenow={qIndex}
+            aria-valuemin={0}
+            aria-valuemax={questions.length}
+            aria-label={`Pregunta ${qIndex + 1} de ${questions.length}`}
+          >
             <div className="progress-fill" style={{width: `${(qIndex / questions.length) * 100}%`}} />
           </div>
         </div>
@@ -234,9 +241,11 @@ export default function Quiz() {
 
       <div className="quiz-main">
         <div className="quiz-content">
-          <h2 className="quiz-question">{q.text}</h2>
+          <h2 className="quiz-question" id="quiz-question-heading">
+            <span className="visually-hidden">Pregunta {qIndex + 1} de {questions.length}:</span> {q.text}
+          </h2>
 
-          <div ref={optionsRef} className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`} role="radiogroup" aria-label="Opciones de respuesta">
+          <div ref={optionsRef} className={`quiz-options ${q.options.length === 2 ? 'grid-2' : ''}`} role="radiogroup" aria-labelledby="quiz-question-heading">
             {q.options.map((opt, i) => {
               const cleanOpt = typeof opt === 'string' ? opt.replace(/^[A-Da-d][).\]]\s*/, '') : opt
               let btnClass = 'quiz-opt-btn card '
@@ -294,8 +303,10 @@ export default function Quiz() {
 
       <button
         className="fab-mic"
-        aria-label="Responder por voz. Mantén presionado para dictar tu respuesta."
+        aria-label="Responder por voz (próximamente disponible)"
         title="Mantener para responder por voz"
+        disabled
+        aria-disabled="true"
       >
         <Mic size={24} aria-hidden="true" />
       </button>

@@ -143,6 +143,11 @@ export default function Coliseo() {
     return unreg
   }, [currentQ, registerHandler, setPageContext])
   useEffect(() => {
+    if (started && currentQ) {
+      setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}. ${currentQ.q}`)
+    }
+  }, [started, currentQ, qIndex, questions.length])
+  useEffect(() => {
     const unreg = registerHandler('enterArena', () => { if (!started && !victory && !defeat) setStarted(true) })
     return unreg
   }, [started, victory, defeat, registerHandler])
@@ -157,6 +162,14 @@ export default function Coliseo() {
     }, 1000)
     return () => clearInterval(timerRef.current)
   }, [started, victory, defeat])
+
+  useEffect(() => {
+    if (!started || victory || defeat) return
+    if (timeLeft === 300) setTimeAnnouncement('Quedan 5 minutos')
+    else if (timeLeft === 60) setTimeAnnouncement('Queda 1 minuto')
+    else if (timeLeft === 30) setTimeAnnouncement('Quedan 30 segundos')
+    else if (timeLeft <= 10 && timeLeft > 0) setTimeAnnouncement(`${timeLeft} segundos`)
+  }, [timeLeft, started, victory, defeat])
 
   useEffect(() => { if (started) setTimeLeft(1800) }, [started])
 
@@ -218,8 +231,8 @@ export default function Coliseo() {
   if (loadingQuestions) {
     return (
       <PageWrapper className="coliseo-page center-all">
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} />
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }} role="status" aria-live="polite">
+          <LoaderCircle size={32} className="animate-spin" style={{ marginBottom: 12 }} aria-hidden="true" />
           <p>Generando desafío con IA...</p>
         </div>
       </PageWrapper>
@@ -236,7 +249,7 @@ export default function Coliseo() {
 
       {victory && (
         <div className="coliseo-intro animate-scaleIn">
-          <Trophy size={80} color="#FACC15" style={{ margin: '0 auto 24px', display: 'block' }} />
+          <Trophy size={80} color="#FACC15" style={{ margin: '0 auto 24px', display: 'block' }} aria-hidden="true" />
           <h1 className="gradient-text" style={{ fontSize: '2.5rem', textAlign: 'center' }}>¡MAESTRÍA LOGRADA!</h1>
           <p style={{ fontSize: '1.2rem', marginBottom: 8, textAlign: 'center' }}>
             Has superado el Coliseo de Retos
@@ -261,8 +274,8 @@ export default function Coliseo() {
 
       {defeat && (
         <div className="coliseo-intro animate-scaleIn">
-          <span style={{ fontSize: '4rem', display: 'block', textAlign: 'center', marginBottom: 16 }}>💔</span>
-          <h1 style={{ textAlign: 'center', marginBottom: 12 }}>Derrota</h1>
+          <span style={{ fontSize: '4rem', display: 'block', textAlign: 'center', marginBottom: 16 }} aria-hidden="true">💔</span>
+          <h1 style={{ textAlign: 'center', marginBottom: 12 }} aria-label="Derrota en el coliseo">Derrota</h1>
           <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 24 }}>
             Has perdido todas tus vidas. {score}/{questions.length} correctas.
           </p>
@@ -279,14 +292,14 @@ export default function Coliseo() {
 
       {!started && !victory && !defeat && (
         <div className="coliseo-intro animate-fadeInUp">
-          <Swords size={56} color="#FACC15" style={{ margin: '0 auto 16px', display: 'block' }} />
+          <Swords size={56} color="#FACC15" style={{ margin: '0 auto 16px', display: 'block' }} aria-hidden="true" />
           <h1 className="gradient-text" style={{ textAlign: 'center', marginBottom: 12 }}>Coliseo de Retos</h1>
           {courseTitle && <p style={{ textAlign: 'center', color: 'var(--primary-light)', fontWeight: 700, marginBottom: 8 }}>{courseTitle}</p>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-            <span>⚔️ {questions.length} preguntas generadas por IA</span>
-            <span>⏱️ 30 minutos</span>
-            <span>❤️ 3 vidas</span>
-            <span>⭐ XP por victoria</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }} role="list" aria-label="Reglas del coliseo">
+            <span role="listitem">⚔️ {questions.length} preguntas generadas por IA</span>
+            <span role="listitem">⏱️ 30 minutos</span>
+            <span role="listitem">❤️ 3 vidas</span>
+            <span role="listitem">⭐ XP por victoria</span>
           </div>
           <button className="btn btn-primary btn-lg full-w" onClick={() => setStarted(true)}>
             ¡Entrar a la Arena!
@@ -298,15 +311,15 @@ export default function Coliseo() {
         <>
           <header className="coliseo-q-header">
             <span style={{ fontWeight: 700 }}>Ronda {qIndex + 1}/{questions.length}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Clock size={14} color={timeColor} />
-              <span style={{ color: timeColor, fontWeight: 700 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} role="timer" aria-label={`Tiempo restante: ${Math.floor(timeLeft / 60)} minutos y ${timeLeft % 60} segundos`} aria-live="polite">
+              <Clock size={14} color={timeColor} aria-hidden="true" />
+              <span style={{ color: timeColor, fontWeight: 700 }} aria-hidden="true">
                 {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 2 }}>
+            <div style={{ display: 'flex', gap: 2 }} role="img" aria-label={`Vidas restantes: ${lives} de 3`}>
               {[1, 2, 3].map(i => (
-                <Heart key={i} size={18} fill={i <= lives ? 'var(--error)' : 'none'} color={i <= lives ? 'var(--error)' : 'var(--text-dim)'} />
+                <Heart key={i} size={18} fill={i <= lives ? 'var(--error)' : 'none'} color={i <= lives ? 'var(--error)' : 'var(--text-dim)'} aria-hidden="true" />
               ))}
             </div>
             <button className="icon-btn" onClick={() => navigate(-1)} aria-label="Salir del coliseo"><X size={18} /></button>
@@ -314,8 +327,10 @@ export default function Coliseo() {
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <Mascot type="dragon" size="lg" mood={status === 'correct' ? 'happy' : status === 'incorrect' ? 'sad' : 'normal'} />
             <div className="coliseo-q-card" style={{ width: '100%', maxWidth: 500, marginTop: 16 }}>
-              <h2 style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: 20 }}>{currentQ.q}</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h2 style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: 20 }} id="coliseo-question-heading">
+                <span className="visually-hidden">Pregunta {qIndex + 1} de {questions.length}:</span> {currentQ.q}
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} role="radiogroup" aria-labelledby="coliseo-question-heading">
                 {currentQ.options.map((opt, i) => {
                   let cls = 'quiz-opt-btn card '
                   if (status !== 'idle') {
@@ -324,11 +339,11 @@ export default function Coliseo() {
                     else cls += 'disabled '
                   }
                   return (
-                    <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={status !== 'idle'}>
+                    <button key={i} className={cls} onClick={() => handleSelect(i)} disabled={status !== 'idle'} role="radio" aria-checked={i === selected} aria-label={`Opción ${String.fromCharCode(65 + i)}: ${opt}`}>
                       <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
                       <span className="opt-text">{opt}</span>
-                      {status !== 'idle' && opt === currentQ.a && <span className="opt-icon">✓</span>}
-                      {status !== 'idle' && i === selected && opt !== currentQ.a && <span className="opt-icon">✗</span>}
+                      {status !== 'idle' && opt === currentQ.a && <span className="opt-icon" aria-hidden="true">✓</span>}
+                      {status !== 'idle' && i === selected && opt !== currentQ.a && <span className="opt-icon" aria-hidden="true">✗</span>}
                     </button>
                   )
                 })}

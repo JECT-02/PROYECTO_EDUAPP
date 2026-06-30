@@ -124,6 +124,7 @@ export default function Lesson() {
   const [showVersionMenu, setShowVersionMenu] = useState(false)
   const [menuPos, setMenuPos] = useState(null)
   const versionTriggerRef = useRef(null)
+  const versionMenuRef = useRef(null)
 
   const [showChat, setShowChat] = useState(false)
   const [messages, setMessages] = useState([
@@ -140,8 +141,31 @@ export default function Lesson() {
   const blockRefs = useRef([])
   const chatInputRef = useRef(null)
   const chatMessagesRef = useRef(null)
-  const [activeBlock, setActiveBlock] = useState(0)
+  const backBtnRef = useRef(null)
+  const [activeBlock, setActiveBlock] = useState(null)
   const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches)
+  const [contentLoadedAnnouncement, setContentLoadedAnnouncement] = useState('')
+  const [chatAnnouncement, setChatAnnouncement] = useState('')
+  const [blockAnnouncement, setBlockAnnouncement] = useState('')
+
+  useEffect(() => {
+    if (!dbLoading && lessonData?.title) {
+      setContentLoadedAnnouncement(`Contenido cargado: ${lessonData.title}`)
+    }
+  }, [dbLoading, lessonData?.title])
+
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg && lastMsg.role === 'ai' && lastMsg.text && !lastMsg.text.includes('data-version-id')) {
+      setChatAnnouncement(lastMsg.text.replace(/<[^>]+>/g, '').slice(0, 150))
+    }
+  }, [messages])
+
+  useEffect(() => {
+    if (activeBlock === null || !content[activeBlock]) return
+    const text = content[activeBlock].replace(/<[^>]+>/g, '').trim().slice(0, 200)
+    if (text) setBlockAnnouncement(`Bloque ${activeBlock + 1} de ${content.length}: ${text}`)
+  }, [activeBlock, content])
 
   // Lock body/html scroll — only lesson-content and chat scroll
   useEffect(() => {
@@ -158,7 +182,7 @@ export default function Lesson() {
     setIsAiEnhanced(false)
     setGeneratedVersions([])
     setActiveVersion(null)
-    setActiveBlock(0)
+    setActiveBlock(null)
     setMessages([
       { role: 'ai', text: '¡Hola! Soy tu asistente de aprendizaje. ¿Hay algo de esta lección que te gustaría que te explique mejor?' }
     ])
@@ -185,24 +209,57 @@ export default function Lesson() {
   }, [showVersionMenu])
 
   useEffect(() => {
-    if (showChat || isDesktop) {
+    if (showVersionMenu) {
+      const firstItem = versionMenuRef.current?.querySelector('[role="option"]')
+      firstItem?.focus()
+    }
+  }, [showVersionMenu])
+
+  useEffect(() => {
+    if (showChat && !isDesktop) {
       chatMessagesRef.current?.focus()
-      // Course sources now loaded client-side via Supabase when available
-      // The chat uses current lesson content as fallback context
     }
   }, [showChat, isDesktop])
 
   function handleContentKeyDown(e) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const next = activeBlock === content.length - 1 ? 0 : activeBlock + 1
+      const next = activeBlock === null || activeBlock === content.length - 1 ? 0 : activeBlock + 1
       setActiveBlock(next)
-      blockRefs.current[next]?.focus()
+      blockRefs.current[next]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const prev = activeBlock === 0 ? content.length - 1 : activeBlock - 1
+      const prev = activeBlock === null || activeBlock === 0 ? content.length - 1 : activeBlock - 1
       setActiveBlock(prev)
-      blockRefs.current[prev]?.focus()
+      blockRefs.current[prev]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }
+
+  function handleVersionMenuKeyDown(e) {
+    const items = versionMenuRef.current?.querySelectorAll('[role="option"]')
+    if (!items || items.length === 0) return
+    const currentIndex = Array.from(items).indexOf(document.activeElement)
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = (currentIndex + 1) % items.length
+      items[next].focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prev = (currentIndex - 1 + items.length) % items.length
+      items[prev].focus()
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      if (e.shiftKey) {
+        const prev = (currentIndex - 1 + items.length) % items.length
+        items[prev].focus()
+      } else {
+        const next = (currentIndex + 1) % items.length
+        items[next].focus()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setShowVersionMenu(false)
+      versionTriggerRef.current?.focus()
     }
   }
 
@@ -458,7 +515,7 @@ export default function Lesson() {
   return (
     <PageWrapper className="lesson-page" style={{ minHeight: '100vh', height: '100vh', overflow: 'hidden' }}>
       <header className="lesson-header" role="banner" aria-label="Encabezado de lección">
-        <button className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true" /></button>
+        <button ref={backBtnRef} className="icon-btn" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Volver al mapa"><ArrowLeft size={18} aria-hidden="true" /></button>
         <div className="lesson-title-wrap" tabIndex={0} role="region" aria-label={`Curso ${courseName || courseId}, Lección: ${lessonData.title}`}>
           <span className="lesson-subtitle" aria-hidden="true">{courseName || 'Curso'} • Lección</span>
           <h1 className="lesson-title" aria-hidden="true">{lessonData.title}</h1>
@@ -472,21 +529,15 @@ export default function Lesson() {
               <LoaderCircle size={32} className="animate-spin" aria-hidden="true" />
             </div>
           ) : (
-            <div
-              className="lesson-text-container"
-              role="application"
-              aria-label="Contenido de la lección"
-              tabIndex={0}
-              onKeyDown={handleContentKeyDown}
-              onFocus={(e) => { if (e.target === e.currentTarget) { setActiveBlock(0); blockRefs.current[0]?.focus() } }}
-            >
+            <div>
               {isAiEnhanced && (
                 <div className="ai-feedback-badge animate-fadeInUp">
-                  <span className="ai-feedback-badge-label"><Sparkles size={14} /> Contenido mejorado por el Tutor IA</span>
+                  <span className="ai-feedback-badge-label" aria-hidden="true"><Sparkles size={14} /> Contenido mejorado por el Tutor IA</span>
                   <div className="ai-feedback-badge-dropdown" onClick={(e) => e.stopPropagation()}>
                     <button
                       ref={versionTriggerRef}
                       className="ai-feedback-dropdown-trigger"
+                      aria-label={activeVersion !== null ? `Versión ${generatedVersions.findIndex(v => v.id === activeVersion) + 1}` : 'Original'}
                       onClick={() => {
                         if (!showVersionMenu) {
                           const rect = versionTriggerRef.current?.getBoundingClientRect()
@@ -504,7 +555,14 @@ export default function Lesson() {
                 </div>
               )}
               {showVersionMenu && menuPos && createPortal(
-                <div className="ai-feedback-dropdown-menu" role="listbox" style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}>
+                <div
+                  ref={versionMenuRef}
+                  className="ai-feedback-dropdown-menu"
+                  role="listbox"
+                  aria-label="Seleccionar versión del contenido"
+                  onKeyDown={handleVersionMenuKeyDown}
+                  style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+                >
                   <button
                     className={`ai-feedback-dropdown-item ${activeVersion === null ? 'active' : ''}`}
                     role="option"
@@ -513,6 +571,7 @@ export default function Lesson() {
                       setActiveVersion(null)
                       setContent(lessonData.content)
                       setShowVersionMenu(false)
+                      versionTriggerRef.current?.focus()
                     }}
                   >
                     <RefreshCw size={12} /> Original
@@ -527,6 +586,7 @@ export default function Lesson() {
                         setActiveVersion(v.id)
                         setContent(v.content)
                         setShowVersionMenu(false)
+                        versionTriggerRef.current?.focus()
                       }}
                     >
                       Versión {i + 1}
@@ -535,18 +595,31 @@ export default function Lesson() {
                 </div>,
                 document.body
               )}
-              {content.map((html, i) => (
-                <div
-                  key={i}
-                  ref={el => blockRefs.current[i] = el}
-                  tabIndex={-1}
-                  className="lesson-block"
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-              ))}
+              <div
+                className="lesson-text-container"
+                role="application"
+                aria-label={`Contenido de la lección: ${lessonData.title}`}
+                tabIndex={0}
+                onKeyDown={handleContentKeyDown}
+                aria-activedescendant={content.length > 0 ? `lesson-block-${activeBlock}` : undefined}
+              >
+                {content.map((html, i) => (
+                  <div
+                    key={i}
+                    id={`lesson-block-${i}`}
+                    ref={el => blockRefs.current[i] = el}
+                    className={`lesson-block ${i === activeBlock ? 'lesson-block-active' : ''}`}
+                    dangerouslySetInnerHTML={{ __html: html }}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
+
+        <div className="visually-hidden" aria-live="polite" aria-atomic="true">{contentLoadedAnnouncement}</div>
+        <div className="visually-hidden" aria-live="polite" aria-atomic="true">{blockAnnouncement}</div>
+        <div className="visually-hidden" aria-live="polite" aria-atomic="true">{chatAnnouncement}</div>
 
         {(isDesktop || showChat) && (
           <div className="ai-chat-window" role="dialog" aria-label="Chat con asistente">
@@ -560,7 +633,6 @@ export default function Lesson() {
               ref={chatMessagesRef}
               className="chat-messages"
               tabIndex={0}
-              aria-live="polite"
               aria-label="Mensajes del asistente"
               onClick={(e) => {
                 const link = e.target.closest('.version-link')
@@ -658,7 +730,7 @@ function isMarkdown(text) {
 }
 
 function splitContent(rawContent) {
-  if (!rawContent) return []
+  if (!rawContent) return ['']
   if (Array.isArray(rawContent)) return rawContent
   const source = isMarkdown(rawContent) ? renderLessonContent(String(rawContent)) : String(rawContent)
   const containers = []

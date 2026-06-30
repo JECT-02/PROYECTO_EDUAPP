@@ -178,20 +178,27 @@ export default function Roadmap() {
           <div>
             <h2 className="rm-course-title">{courseTitle}</h2>
             <div className="rm-progress-row">
-              <div className="rm-progress-bar">
+              <div
+                className="rm-progress-bar"
+                role="progressbar"
+                aria-valuenow={progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Progreso del curso: ${progressPercent}% completado`}
+              >
                 <div className="rm-progress-fill" style={{width: `${progressPercent}%`}} />
               </div>
-              <span className="rm-progress-pct">{progressPercent}%</span>
+              <span className="rm-progress-pct" aria-hidden="true">{progressPercent}%</span>
             </div>
           </div>
         </div>
         {isTeacher && (
           <div className="rm-h-right" style={{display:'flex', gap:8}}>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/teacher/design/${courseId}`)}>
-              <Edit3 size={14}/> Editar Roadmap
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/teacher/design/${courseId}`)} aria-label="Editar estructura del roadmap">
+              <Edit3 size={14} aria-hidden="true"/> Editar Roadmap
             </button>
-            <button className="btn btn-primary btn-sm" onClick={() => navigate(`/teacher/courses/${courseId}/review`)}>
-              <Eye size={14}/> Revisar Contenido
+            <button className="btn btn-primary btn-sm" onClick={() => navigate(`/teacher/courses/${courseId}/review`)} aria-label="Revisar contenido generado de los nodos">
+              <Eye size={14} aria-hidden="true"/> Revisar Contenido
             </button>
           </div>
         )}
@@ -214,8 +221,8 @@ export default function Roadmap() {
             <User size={16} style={{ color: 'var(--primary-light)' }} />
             <span>Viendo progreso de <strong>{previewStudentName || 'Estudiante'}</strong></span>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/roadmap/${courseId}`)}>
-            <X size={14} /> Quitar vista previa
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/roadmap/${courseId}`)} aria-label="Quitar vista previa del progreso del estudiante">
+            <X size={14} aria-hidden="true" /> Quitar vista previa
           </button>
         </div>
       )}
@@ -244,7 +251,7 @@ export default function Roadmap() {
             )}
 
             {loading && (
-              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }}>
+              <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)' }} role="status" aria-live="polite">
                 <LoaderCircle size={20} className="animate-spin" aria-hidden="true" /> Cargando roadmap...
               </div>
             )}
@@ -302,6 +309,7 @@ export default function Roadmap() {
                         tabIndex={0}
                         aria-label={nodeLabel}
                         aria-disabled={node.status === 'locked'}
+                        aria-current={node.status === 'in_progress' ? 'step' : undefined}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.stopPropagation()
@@ -329,11 +337,11 @@ export default function Roadmap() {
                            node.type === 'practice' ? <Puzzle size={iconSize} /> :
                            node.type === 'quiz' ? <Zap size={iconSize} /> : <Trophy size={bossIconSize} />}
                         </div>
-                        <div className="node-info-bubble">
+                        <div className="node-info-bubble" aria-hidden="true">
                           <div className="node-type-tag">{node.type.toUpperCase()}</div>
                           <div className="node-title-text">{node.title}</div>
                           {node.status === 'in_progress' && (
-                            <div className="node-status-tag"><Sparkles size={10}/> ACTUAL</div>
+                            <div className="node-status-tag"><Sparkles size={10} aria-hidden="true"/> ACTUAL</div>
                           )}
                         </div>
                       </div>
@@ -353,13 +361,20 @@ export default function Roadmap() {
       </div>
 
       {understanding && (
-        <div className="sync-float">
+        <div className="sync-float" role="region" aria-label="Nivel de entendimiento del curso">
           <div className="sync-float-inner">
-            <span className="sync-float-label">Nivel de entendimiento</span>
-            <div className="sync-float-bar">
+            <span className="sync-float-label" id="understanding-label">Nivel de entendimiento</span>
+            <div
+              className="sync-float-bar"
+              role="progressbar"
+              aria-valuenow={understanding.value}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-labelledby="understanding-label"
+            >
               <div className="sync-float-fill" style={{width:`${understanding.value}%`, background: understandingColor(understanding.value)}} />
             </div>
-            <span className="sync-float-pct" style={{color: understandingColor(understanding.value)}}>{understanding.value}%</span>
+            <span className="sync-float-pct" style={{color: understandingColor(understanding.value)}} aria-hidden="true">{understanding.value}%</span>
           </div>
         </div>
       )}
