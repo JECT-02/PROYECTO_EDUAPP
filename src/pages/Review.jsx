@@ -277,8 +277,9 @@ export default function Review() {
                     {loadingAiAnswer ? <LoaderCircle size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </form>
+                <div className="visually-hidden" aria-live="polite" aria-atomic="true">{aiAnswer}</div>
                 {aiAnswer && (
-                  <div className="analogy-box" aria-atomic="true" dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAnswer) }} />
+                  <div className="analogy-box" dangerouslySetInnerHTML={{ __html: renderMarkdown(aiAnswer) }} />
                 )}
               </div>
 
