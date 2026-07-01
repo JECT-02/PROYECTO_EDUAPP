@@ -36,6 +36,7 @@ export default function Coliseo() {
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
+  const [pageAnnouncement, setPageAnnouncement] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -136,6 +137,14 @@ export default function Coliseo() {
   const currentQ = questions[qIndex]
 
   useEffect(() => {
+    if (!loadingQuestions && !started) {
+      setPageAnnouncement(
+        `Bienvenido al Coliseo de Retos. ${questions.length} preguntas. 30 minutos. 3 vidas.`
+      )
+    }
+  }, [loadingQuestions, started, questions.length])
+
+  useEffect(() => {
     setPageContext({ page: 'coliseo', options: currentQ?.options || [] })
     const unreg = registerHandler('selectOption', ({ index }) => {
       if (currentQ?.options?.[index]) handleSelect(index)
@@ -146,8 +155,12 @@ export default function Coliseo() {
 
   useEffect(() => {
     if (started && currentQ) {
-      setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}`)
-      document.querySelector('.quiz-opt-btn:not(:disabled)')?.focus()
+      const mins = Math.floor(timeLeft / 60)
+      const vidas = lives === 1 ? 'vida' : 'vidas'
+      setQuizAnnouncement(
+        `${mins} minutos. ${lives} ${vidas}.`
+      )
+      document.getElementById('coliseo-question-heading')?.focus()
     }
   }, [started, currentQ, qIndex, questions.length])
   useEffect(() => {
@@ -172,14 +185,22 @@ export default function Coliseo() {
 
   useEffect(() => {
     if (victory) {
+      setPageAnnouncement(
+        `¡Maestría lograda! Has superado el Coliseo de Retos${courseTitle ? ` de ${courseTitle}` : ''}. +${xpEarned} XP. ${score}/${questions.length} correctas, ${lives} ${lives === 1 ? 'vida' : 'vidas'} restantes.`
+      )
       document.querySelector('.coliseo-intro .btn')?.focus()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [victory])
 
   useEffect(() => {
     if (defeat) {
+      setPageAnnouncement(
+        `Derrota. Has perdido todas tus vidas. ${score}/${questions.length} correctas.`
+      )
       document.querySelector('.coliseo-intro .btn')?.focus()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defeat])
 
   function handleSelect(index) {
@@ -190,6 +211,7 @@ export default function Coliseo() {
       playCorrect(); vibrateCorrect()
       setStatus('correct')
       setScore(s => s + 1)
+      setFeedbackAnnouncement('Correcto')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
           setQIndex(qIndex + 1); setSelected(null); setStatus('idle')
@@ -202,6 +224,9 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
+      setFeedbackAnnouncement(
+        `Incorrecto. ${String.fromCharCode(65 + currentQ.options.indexOf(currentQ.a))} es la opción correcta.`
+      )
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()
@@ -250,8 +275,9 @@ export default function Coliseo() {
 
   return (
     <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
+      <div className="visually-hidden" role="status" aria-live="assertive">{pageAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{quizAnnouncement}</div>
-      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" role="status" aria-live="assertive">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {victory && (
