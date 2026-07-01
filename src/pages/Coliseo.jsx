@@ -250,8 +250,8 @@ export default function Coliseo() {
 
   return (
     <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
-      <div className="visually-hidden">{quizAnnouncement}</div>
-      <div className="visually-hidden">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{quizAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {victory && (

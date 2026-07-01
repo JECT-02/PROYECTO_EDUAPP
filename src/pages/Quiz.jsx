@@ -278,8 +278,8 @@ export default function Quiz() {
       </div>
 
       {/* Screen reader announcements */}
-      <div className="visually-hidden">{quizAnnouncement}</div>
-      <div className="visually-hidden">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{quizAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {status === 'incorrect' && q && (
