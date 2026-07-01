@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
-import { speak, stopSpeaking } from '../lib/voice'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
@@ -143,24 +142,12 @@ export default function Coliseo() {
     })
     return unreg
   }, [currentQ, registerHandler, setPageContext])
-  const speakThen = (text, cb) => {
-    if (!window.speechSynthesis) { cb?.(); return }
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    u.lang = 'es-ES'
-    u.onend = () => cb?.()
-    window.speechSynthesis.speak(u)
-  }
+
 
   useEffect(() => {
     if (started && currentQ) {
       setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}`)
-      const roundInfo = `Ronda ${qIndex + 1} de ${questions.length}. ${lives} ${lives === 1 ? 'vida' : 'vidas'}. ${Math.floor(timeLeft / 60)} minutos.`
-      speakThen(roundInfo, () => {
-        speakThen(currentQ.q, () => {
-          document.querySelector('.quiz-opt-btn:not(:disabled)')?.focus()
-        })
-      })
+      document.querySelector('.quiz-opt-btn:not(:disabled)')?.focus()
     }
   }, [started, currentQ, qIndex, questions.length])
   useEffect(() => {
@@ -179,30 +166,19 @@ export default function Coliseo() {
     return () => clearInterval(timerRef.current)
   }, [started, victory, defeat])
 
-  useEffect(() => {
-    if (!started || victory || defeat) return
-    if (timeLeft === 300) { speak('5 minutos') }
-    else if (timeLeft === 60) { speak('1 minuto') }
-    else if (timeLeft === 30) { speak('30 segundos') }
-  }, [timeLeft, started, victory, defeat])
+
 
   useEffect(() => { if (started) setTimeLeft(1800) }, [started])
 
   useEffect(() => {
     if (victory) {
-      stopSpeaking()
-      speakThen(`¡Maestría lograda! Has superado el Coliseo de Retos${courseTitle ? ` de ${courseTitle}` : ''}. +${xpEarned} XP. ${score}/${questions.length} correctas, ${lives} ${lives === 1 ? 'vida' : 'vidas'} restantes.`, () => {
-        document.querySelector('.coliseo-intro .btn')?.focus()
-      })
+      document.querySelector('.coliseo-intro .btn')?.focus()
     }
   }, [victory])
 
   useEffect(() => {
     if (defeat) {
-      stopSpeaking()
-      speakThen(`Derrota. Has perdido todas tus vidas. ${score}/${questions.length} correctas.`, () => {
-        document.querySelector('.coliseo-intro .btn')?.focus()
-      })
+      document.querySelector('.coliseo-intro .btn')?.focus()
     }
   }, [defeat])
 
@@ -214,7 +190,6 @@ export default function Coliseo() {
       playCorrect(); vibrateCorrect()
       setStatus('correct')
       setScore(s => s + 1)
-      stopSpeaking(); speak('Correcto')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
           setQIndex(qIndex + 1); setSelected(null); setStatus('idle')
@@ -227,8 +202,6 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
-      const feedback = `Incorrecta. Correcta: ${String.fromCharCode(65 + currentQ.options.indexOf(currentQ.a))}. Quedan ${newLives} ${newLives === 1 ? 'vida' : 'vidas'}`
-      stopSpeaking(); speak(feedback)
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()

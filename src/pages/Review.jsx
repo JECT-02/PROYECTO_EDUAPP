@@ -7,7 +7,6 @@ import { getStudentLevel } from '../lib/llm'
 import { isSupabaseConfigured, getCourseNodes, getUnderstandingData } from '../lib/api'
 import { getAccessToken } from '../lib/supabase'
 import { renderMarkdown } from '../lib/markdown'
-import { speak, stopSpeaking } from '../lib/voice'
 import { useVoice } from '../context/VoiceContext'
 import { useAuth } from '../context/AuthContext'
 import './Review.css'
@@ -32,8 +31,6 @@ export default function Review() {
 
   useEffect(() => {
     if (!hubOpen) return
-    stopSpeaking()
-    speak('Panel de refuerzo. Puedes preguntar a la IA o buscar un video.')
     requestAnimationFrame(() => {
       document.querySelector('.hub-card .input-field')?.focus()
     })
@@ -122,13 +119,9 @@ export default function Review() {
       const data = await res.json()
       const answer = data?.answer || 'No pude generar una respuesta. Intenta con otra pregunta.'
       setAiAnswer(answer)
-      stopSpeaking()
-      speak(answer)
     } catch {
       const errMsg = 'Error al consultar. Intenta de nuevo.'
       setAiAnswer(errMsg)
-      stopSpeaking()
-      speak(errMsg)
     } finally {
       setLoadingAiAnswer(false)
     }

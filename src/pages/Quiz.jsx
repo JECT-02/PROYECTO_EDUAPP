@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { X, LoaderCircle } from 'lucide-react'
 import PageWrapper from '../components/PageWrapper'
 import { playCorrect, playIncorrect, playTimeout } from '../utils/sounds'
-import { speak, stopSpeaking } from '../lib/voice'
 import { vibrateCorrect, vibrateIncorrect, vibrateTimeout } from '../utils/vibration'
 import Mascot from '../components/Mascot'
 import { generateQuiz, getStudentLevel } from '../lib/llm'
@@ -90,7 +89,6 @@ export default function Quiz() {
 
   useEffect(() => {
     if (!q) return
-    stopSpeaking()
     setQuizAnnouncement(`Pregunta ${qIndex + 1}`)
     setFeedbackAnnouncement('')
     setTimeAnnouncement('')
@@ -147,8 +145,6 @@ export default function Quiz() {
     if (q) {
       const msg = `Tiempo. ${String.fromCharCode(65 + q.correct)} - es la opción correcta`
       setFeedbackAnnouncement(msg)
-      stopSpeaking()
-      speak(msg)
     }
     setTimeout(nextQuestion, 3000)
   }
@@ -161,8 +157,6 @@ export default function Quiz() {
       playCorrect()
       vibrateCorrect()
       setFeedbackAnnouncement('Correcto')
-      stopSpeaking()
-      speak('Correcto')
       setStatus('correct')
       setTimeout(nextQuestion, 1500)
     } else {
@@ -170,8 +164,6 @@ export default function Quiz() {
       vibrateIncorrect()
       const msg = `Incorrecta. ${String.fromCharCode(65 + q.correct)} - es la opción correcta`
       setFeedbackAnnouncement(msg)
-      stopSpeaking()
-      speak(msg)
       setStatus('incorrect')
       setTimeout(nextQuestion, 3000)
     }
