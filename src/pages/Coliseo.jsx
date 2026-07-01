@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Heart, Swords, X, Trophy, ArrowRight, Clock, RotateCcw, Home, LoaderCircle } from 'lucide-react'
 import Mascot from '../components/Mascot'
 import { playCorrect, playIncorrect, playVictory } from '../utils/sounds'
-import { speak, stopSpeaking } from '../lib/voice'
 import { vibrateCorrect, vibrateIncorrect, vibrateVictory } from '../utils/vibration'
 import PageWrapper from '../components/PageWrapper'
 import { useAuth } from '../context/AuthContext'
@@ -37,6 +36,7 @@ export default function Coliseo() {
   const [quizAnnouncement, setQuizAnnouncement] = useState('')
   const [feedbackAnnouncement, setFeedbackAnnouncement] = useState('')
   const [timeAnnouncement, setTimeAnnouncement] = useState('')
+  const [pageAnnouncement, setPageAnnouncement] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -137,30 +137,30 @@ export default function Coliseo() {
   const currentQ = questions[qIndex]
 
   useEffect(() => {
+    if (!loadingQuestions && !started) {
+      setPageAnnouncement(
+        `Bienvenido al Coliseo de Retos. ${questions.length} preguntas. 30 minutos. 3 vidas.`
+      )
+    }
+  }, [loadingQuestions, started, questions.length])
+
+  useEffect(() => {
     setPageContext({ page: 'coliseo', options: currentQ?.options || [] })
     const unreg = registerHandler('selectOption', ({ index }) => {
       if (currentQ?.options?.[index]) handleSelect(index)
     })
     return unreg
   }, [currentQ, registerHandler, setPageContext])
-  const speakThen = (text, cb) => {
-    if (!window.speechSynthesis) { cb?.(); return }
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    u.lang = 'es-ES'
-    u.onend = () => cb?.()
-    window.speechSynthesis.speak(u)
-  }
+
 
   useEffect(() => {
     if (started && currentQ) {
-      setQuizAnnouncement(`Pregunta ${qIndex + 1} de ${questions.length}`)
-      const roundInfo = `Ronda ${qIndex + 1} de ${questions.length}. ${lives} ${lives === 1 ? 'vida' : 'vidas'}. ${Math.floor(timeLeft / 60)} minutos.`
-      speakThen(roundInfo, () => {
-        speakThen(currentQ.q, () => {
-          document.querySelector('.quiz-opt-btn:not(:disabled)')?.focus()
-        })
-      })
+      const mins = Math.floor(timeLeft / 60)
+      const vidas = lives === 1 ? 'vida' : 'vidas'
+      setQuizAnnouncement(
+        `${mins} minutos. ${lives} ${vidas}.`
+      )
+      document.getElementById('coliseo-question-heading')?.focus()
     }
   }, [started, currentQ, qIndex, questions.length])
   useEffect(() => {
@@ -179,31 +179,28 @@ export default function Coliseo() {
     return () => clearInterval(timerRef.current)
   }, [started, victory, defeat])
 
-  useEffect(() => {
-    if (!started || victory || defeat) return
-    if (timeLeft === 300) { speak('5 minutos') }
-    else if (timeLeft === 60) { speak('1 minuto') }
-    else if (timeLeft === 30) { speak('30 segundos') }
-  }, [timeLeft, started, victory, defeat])
+
 
   useEffect(() => { if (started) setTimeLeft(1800) }, [started])
 
   useEffect(() => {
     if (victory) {
-      stopSpeaking()
-      speakThen(`¡Maestría lograda! Has superado el Coliseo de Retos${courseTitle ? ` de ${courseTitle}` : ''}. +${xpEarned} XP. ${score}/${questions.length} correctas, ${lives} ${lives === 1 ? 'vida' : 'vidas'} restantes.`, () => {
-        document.querySelector('.coliseo-intro .btn')?.focus()
-      })
+      setPageAnnouncement(
+        `¡Maestría lograda! Has superado el Coliseo de Retos${courseTitle ? ` de ${courseTitle}` : ''}. +${xpEarned} XP. ${score}/${questions.length} correctas, ${lives} ${lives === 1 ? 'vida' : 'vidas'} restantes.`
+      )
+      document.querySelector('.coliseo-intro .btn')?.focus()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [victory])
 
   useEffect(() => {
     if (defeat) {
-      stopSpeaking()
-      speakThen(`Derrota. Has perdido todas tus vidas. ${score}/${questions.length} correctas.`, () => {
-        document.querySelector('.coliseo-intro .btn')?.focus()
-      })
+      setPageAnnouncement(
+        `Derrota. Has perdido todas tus vidas. ${score}/${questions.length} correctas.`
+      )
+      document.querySelector('.coliseo-intro .btn')?.focus()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defeat])
 
   function handleSelect(index) {
@@ -214,7 +211,7 @@ export default function Coliseo() {
       playCorrect(); vibrateCorrect()
       setStatus('correct')
       setScore(s => s + 1)
-      stopSpeaking(); speak('Correcto')
+      setFeedbackAnnouncement('Correcto')
       setTimeout(() => {
         if (qIndex + 1 < questions.length) {
           setQIndex(qIndex + 1); setSelected(null); setStatus('idle')
@@ -227,8 +224,9 @@ export default function Coliseo() {
       setStatus('incorrect')
       const newLives = lives - 1
       setLives(newLives)
-      const feedback = `Incorrecta. Correcta: ${String.fromCharCode(65 + currentQ.options.indexOf(currentQ.a))}. Quedan ${newLives} ${newLives === 1 ? 'vida' : 'vidas'}`
-      stopSpeaking(); speak(feedback)
+      setFeedbackAnnouncement(
+        `Incorrecto. ${String.fromCharCode(65 + currentQ.options.indexOf(currentQ.a))} es la opción correcta.`
+      )
       setTimeout(() => {
         if (newLives <= 0) { setDefeat(true) }
         else if (qIndex + 1 >= questions.length) handleVictory()
@@ -277,8 +275,9 @@ export default function Coliseo() {
 
   return (
     <PageWrapper className={`coliseo-page${started && !victory && !defeat ? ' in-game' : ' center-all'}`}>
-      <div className="visually-hidden">{quizAnnouncement}</div>
-      <div className="visually-hidden">{feedbackAnnouncement}</div>
+      <div className="visually-hidden" role="status" aria-live="assertive">{pageAnnouncement}</div>
+      <div className="visually-hidden" aria-live="polite" aria-atomic="true">{quizAnnouncement}</div>
+      <div className="visually-hidden" role="status" aria-live="assertive">{feedbackAnnouncement}</div>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">{timeAnnouncement}</div>
 
       {victory && (
